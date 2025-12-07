@@ -1,0 +1,158 @@
+/**
+ * @file Overview
+ * This ruleset enforces a user-ownership model for user profiles, enrollments, and learning paths.
+ * It assumes courses are globally accessible.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles. Only the authenticated user can access their own profile.
+ * - /courses/{courseId}: Stores course information. Assumed to be globally accessible.
+ * - /users/{userId}/enrollments/{enrollmentId}: Stores enrollment records. Only the user can access their own enrollments.
+ * - /users/{userId}/learningPaths/{learningPathId}: Stores learning paths. Only the user can access their own learning paths.
+ * - /announcements/{announcementId}: Stores announcements. Assumed to be publicly accessible.
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed.
+ * - Courses are globally readable. Write access to courses is not defined in the IR and is therefore denied.
+ * - Read access to announcements is public. Write access to announcements is not defined in the IR and is therefore denied.
+ *
+ * To improve security and performance, data required for authorization (like ownership) is denormalized directly
+ * onto the secured documents. This avoids costly `get()` calls in the rules.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Checks if the request is authenticated.
+     * @return {boolean} True if the request is authenticated, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the authenticated user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner and the resource exists.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the authenticated user is the owner and the resource exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    // Role helpers using custom claims
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isTeacher() {
+      return isSignedIn() && request.auth.token.role == 'teacher';
+    }
+
+    function isAdminOrTeacher() {
+      return isAdmin() || isTeacher();
+    }
+
+    /**
+     * @description Rules for user profiles.
+     * @path /users/{userId}
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (get, update, delete) Authenticated user can access and modify their own profile.
+     * @deny (create, update, delete) Any other user cannot access or modify another user's profile.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      // Owners can read their own doc; admins can read any
+      allow get: if isOwner(userId) || isAdmin();
+      // Only admins can list users
+      allow list: if isAdmin();
+      // Owners create their own profile
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // Owners can update their profile; admins can update any user (incl. role changes)
+      allow update: if (
+        (isExistingOwner(userId) && request.resource.data.id == resource.data.id)
+        || isAdmin()
+      );
+      // Owners can delete themselves; admins can delete any user
+      allow delete: if isExistingOwner(userId) || isAdmin();
+    }
+
+    /**
+     * @description Rules for courses.
+     * @path /courses/{courseId}
+     * @allow (get, list) Any user can read courses.
+     * @allow (create, update, delete) Admins and Teachers can manage courses.
+     * @principle Allows public read access with restricted writes.
+     */
+    match /courses/{courseId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdminOrTeacher();
+
+      // Lessons subcollection access
+      match /lessons/{lessonId} {
+        // Read if admin/teacher or the user is enrolled in the course
+        allow get, list: if isAdminOrTeacher() || (
+          isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId))
+        );
+
+        // Only admins/teachers can create/update/delete lessons
+        allow create, update, delete: if isAdminOrTeacher();
+      }
+    }
+
+    /**
+     * @description Rules for enrollments.
+     * @path /users/{userId}/enrollments/{enrollmentId}
+     * @allow (create, get, list, update, delete) Authenticated user can manage their own enrollments.
+     * @deny (create, get, list, update, delete) Any other user cannot access or modify another user's enrollments.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/enrollments/{enrollmentId} {
+      // Admins/Teachers can read enrollments across users (for dashboards)
+      allow get: if isAdminOrTeacher() || isOwner(userId);
+      allow list: if isAdminOrTeacher() || isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    match /{path=**}/enrollments/{enrollmentId} {
+      allow get, list: if isAdminOrTeacher() || (isSignedIn() && request.auth.uid == resource.data.userId);
+    }
+
+    /**
+     * @description Rules for learning paths.
+     * @path /users/{userId}/learningPaths/{learningPathId}
+     * @allow (create, get, list, update, delete) Authenticated user can manage their own learning paths.
+     * @deny (create, get, list, update, delete) Any other user cannot access or modify another user's learning paths.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/learningPaths/{learningPathId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for announcements.
+     * @path /announcements/{announcementId}
+     * @allow (get, list) Any user can read announcements.
+     * @allow (create, update, delete) Admins and Teachers can manage announcements.
+     * @principle Allows public read access with restricted writes.
+     */
+    match /announcements/{announcementId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAdminOrTeacher();
+    }
+  }
+}

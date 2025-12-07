@@ -1,0 +1,357 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the CloudAI Academy platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "dateJoined": {
+          "type": "string",
+          "description": "Date and time the user joined the platform.",
+          "format": "date-time"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user.",
+          "enum": ["student", "teacher", "admin"]
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "dateJoined",
+        "role"
+      ]
+    },
+    "Course": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Course",
+      "type": "object",
+      "description": "Represents a course offered on the CloudAI Academy platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the course."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the course."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the course."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the course (e.g., Cloud Computing, AI)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the course."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "category",
+        "price"
+      ]
+    },
+    "Enrollment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Enrollment",
+      "type": "object",
+      "description": "Represents a user's enrollment in a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the enrollment."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Enrollment)"
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Enrollment)"
+        },
+        "enrollmentDate": {
+          "type": "string",
+          "description": "Date and time of enrollment.",
+          "format": "date-time"
+        },
+        "progress": {
+          "type": "number",
+          "description": "Current progress of the user in the course (e.g., percentage completed)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "courseId",
+        "enrollmentDate",
+        "progress"
+      ]
+    },
+    "LearningPath": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LearningPath",
+      "type": "object",
+      "description": "Represents a personalized learning path for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the learning path."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N LearningPath)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the learning path."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the learning path."
+        },
+        "courseIds": {
+          "type": "array",
+          "description": "References to Courses. (Relationship: LearningPath 1:N Course)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "description"
+      ]
+    },
+    "Quiz": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quiz",
+      "type": "object",
+      "description": "A quiz associated with a lesson.",
+      "properties": {
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/entities/Question"
+          },
+          "description": "A list of questions for the quiz."
+        }
+      },
+      "required": ["questions"]
+    },
+    "Question": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Question",
+      "type": "object",
+      "description": "A single question in a quiz.",
+      "properties": {
+        "questionText": {
+          "type": "string",
+          "description": "The text of the quiz question."
+        },
+        "options": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of possible answers for the question."
+        },
+        "correctOption": {
+          "type": "number",
+          "description": "The index of the correct option in the 'options' array."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "A brief explanation for why the correct answer is correct."
+        }
+      },
+      "required": ["questionText", "options", "correctOption", "explanation"]
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents an announcement for users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the announcement."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the announcement."
+        },
+        "body": {
+          "type": "string",
+          "description": "The content of the announcement."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time the announcement was created.",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The ID of the user who created the announcement."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "body",
+        "createdAt",
+        "createdBy"
+      ]
+    },
+    "Lesson": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Lesson",
+        "type": "object",
+        "description": "A lesson within a course.",
+        "properties": {
+            "id": { "type": "string", "description": "Unique identifier for the lesson." },
+            "title": { "type": "string", "description": "The title of the lesson." },
+            "content": { "type": "string", "description": "The main content of the lesson." },
+            "embedUrl": { "type": "string", "description": "An optional URL for an interactive code embed." }
+        },
+        "required": ["id", "title", "content"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Path-based ownership ensures only the authenticated user can access their own data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}",
+        "definition": {
+          "entityName": "Course",
+          "schema": {
+            "$ref": "#/backend/entities/Course"
+          },
+          "description": "Stores course information. Assumes courses are globally accessible. If access control is needed, consider adding a 'status' field or segregating into 'courses_draft' and 'courses_published'.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier of the course."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/lessons/{lessonId}",
+        "definition": {
+            "entityName": "Lesson",
+            "schema": { "$ref": "#/entities/Lesson" },
+            "description": "Stores lessons for a specific course. Openly readable by authenticated users enrolled in the course.",
+            "params": [
+                { "name": "courseId", "description": "The unique identifier of the course." },
+                { "name": "lessonId", "description": "The unique identifier of the lesson." }
+            ]
+        }
+      },
+      {
+        "path": "/users/{userId}/enrollments/{enrollmentId}",
+        "definition": {
+          "entityName": "Enrollment",
+          "schema": {
+            "$ref": "#/backend/entities/Enrollment"
+          },
+          "description": "Stores enrollment records for each user.  Path-based ownership; only a user can list their enrollments. Includes 'userId' and 'courseId' for direct queries.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "enrollmentId",
+              "description": "The unique identifier of the enrollment record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/learningPaths/{learningPathId}",
+        "definition": {
+          "entityName": "LearningPath",
+          "schema": {
+            "$ref": "#/backend/entities/LearningPath"
+          },
+          "description": "Stores learning paths for each user. Path-based ownership; only a user can list their learning paths.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "learningPathId",
+              "description": "The unique identifier of the learning path."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Stores platform-wide announcements. Can be read by all authenticated users, but only created by admins or teachers.",
+          "params": [
+            {
+              "name": "announcementId",
+              "description": "The unique identifier of the announcement."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage users, courses, enrollments, and learning paths for the CloudAI Academy platform. It prioritizes authorization independence by avoiding hierarchical `get()` calls and focuses on clear, debuggable security rules.  The key design considerations are:\n\n1.  **Users (Private Data):** User data is stored under `/users/{userId}` to ensure path-based ownership, making security rules straightforward (only the authenticated user can access their own data).\n2.  **Courses (Global Data):** Courses are stored in a top-level `/courses` collection.  This assumes courses are globally accessible and manageable by admins.  If course visibility needs to be restricted, a `status` field (e.g., `DRAFT`, `PUBLISHED`) or segregation into `/courses_draft` and `/courses_published` would be necessary.\n3.  **Enrollments (User-Owned Data):** Enrollments are nested under `/users/{userId}/enrollments/{enrollmentId}`.  This enforces ownership; only a user can `list` their enrollments, simplifying rules.  The `userId` and `courseId` within each enrollment document enable direct queries.\n4.  **Learning Paths (User-Owned Data):** Learning paths are structured similarly to enrollments, under `/users/{userId}/learningPaths/{learningPathId}`. This enables easy `list` operations for a user's learning paths.\n\n**Authorization Independence and QAPs (Rules are not Filters):**\n\n*   The structure avoids `get()` calls in security rules by embedding authorization information directly within the documents where needed. For example, enrollments do not need to look up course details to determine access.\n*   QAPs are supported via structural segregation: user data is separated from global course data.  Enrollments and learning paths are nested under users, enabling secure `list` operations scoped to the authenticated user.\n\nThis structure provides a scalable and maintainable foundation for the CloudAI Academy platform."
+  }
+}

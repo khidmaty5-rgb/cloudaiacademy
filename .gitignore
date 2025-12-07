@@ -1,0 +1,40 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+dist/
+build/
+out/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Large media (examples – adjust as needed)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.psd
+*.zip
+*.rar
+*.7z
+*.iso

@@ -1,0 +1,76 @@
+{
+  "placeholderImages": [
+    {
+      "id": "course-aws",
+      "description": "AWS Solutions Architect course image",
+      "imageUrl": "/images/course-aws.jpg",
+      "imageHint": "lake mountain"
+    },
+    {
+      "id": "course-ml",
+      "description": "Machine Learning Engineering course image",
+      "imageUrl": "/images/course-ml.jpg",
+      "imageHint": "calm lake"
+    },
+    {
+      "id": "course-azure",
+      "description": "Azure AI Engineer course image",
+      "imageUrl": "/images/course-azure.jpg",
+      "imageHint": "mountain landscape"
+    },
+    {
+      "id": "course-fcc",
+      "description": "freeCodeCamp Responsive Web Design course image",
+      "imageUrl": "/images/course-fcc.jpg",
+      "imageHint": "serene lake"
+    },
+    {
+      "id": "course-full-stack",
+      "description": "Full Stack Development course image",
+      "imageUrl": "/images/course-full-stack.jpg",
+      "imageHint": "forest lake"
+    },
+    {
+      "id": "course-bi",
+      "description": "Business Intelligence course image",
+      "imageUrl": "/images/course-bi.jpg",
+      "imageHint": "data charts"
+    },
+    {
+      "id": "course-python",
+      "description": "Python Programming course image",
+      "imageUrl": "/images/course-python.jpg",
+      "imageHint": "code abstract"
+    },
+    {
+      "id": "avatar-jessica",
+      "description": "Jessica Smith avatar",
+      "imageUrl": "/images/avatar-jessica.png",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar-michael",
+      "description": "Michael Rodriguez avatar",
+      "imageUrl": "/images/avatar-michael.png",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar-sarah",
+      "description": "Sarah Johnson avatar",
+      "imageUrl": "/images/avatar-sarah.png",
+      "imageHint": "woman smiling"
+    },
+    {
+      "id": "hero-background",
+      "description": "Hero section background image",
+      "imageUrl": "/images/hero-bg.jpg",
+      "imageHint": "abstract technology"
+    },
+    {
+      "id": "hero-browser",
+      "description": "Browser window illustration for hero section",
+      "imageUrl": "/images/hero-browser.png",
+      "imageHint": "browser window"
+    }
+  ]
+}

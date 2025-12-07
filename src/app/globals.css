@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    /* Light theme mapped to provided palette */
+    --background: 219 40% 97%; /* #F5F7FB */
+    --foreground: 0 0% 10%;   /* #1A1A1A */
+    --card: 0 0% 100%;        /* #FFFFFF */
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 212 30% 17%;   /* Navy #1E2A38 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 212 29% 23%; /* Navy-light #2A3A4D */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 216 11% 53%; /* #7A8494 */
+    --accent: 24 100% 62%;    /* Orange #FF8A3D */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 24 100% 62%;
+    --radius: 0.5rem;
+    /* Charts use support colors */
+    --chart-1: 211 100% 65%;  /* Sky #4DA3FF */
+    --chart-2: 162 57% 50%;   /* Mint #37C99E */
+    --chart-3: 254 100% 74%;  /* Purple #9B7DFF */
+    --chart-4: 24 100% 67%;   /* Orange-light #FF9A55 */
+    --chart-5: 210 100% 74%;  /* Sky-light #6BB5FF */
+  }
+
+  .dark {
+    /* Dark theme mapped to provided palette */
+    --background: 213 37% 7%;   /* #0D1117 */
+    --foreground: 220 23% 92%;  /* #E5E9F0 */
+    --card: 213 27% 12%;        /* #161B22 */
+    --card-foreground: 220 23% 92%;
+    --popover: 213 27% 12%;
+    --popover-foreground: 220 23% 92%;
+    --primary: 212 29% 23%;     /* Navy-light for header */
+    --primary-foreground: 220 23% 96%;
+    --secondary: 213 22% 17%;
+    --secondary-foreground: 220 23% 92%;
+    --muted: 213 18% 20%;
+    --muted-foreground: 214 12% 58%; /* #8B949E */
+    --accent: 24 100% 62%;      /* Orange */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 213 18% 20%;
+    --input: 213 18% 20%;
+    --ring: 24 100% 62%;
+    --radius: 0.5rem;
+    --chart-1: 211 100% 65%;
+    --chart-2: 162 57% 50%;
+    --chart-3: 254 100% 74%;
+    --chart-4: 24 100% 67%;
+    --chart-5: 210 100% 74%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
