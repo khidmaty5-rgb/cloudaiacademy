@@ -60,7 +60,7 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
     return collection(firestore, 'users', user.uid, 'enrollments');
   }, [firestore, user]);
 
-  const { data: enrollments, isLoading: enrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
+  const { data: enrollments, isLoading: enrollmentsLoading, error: enrollmentsError } = useCollection<Enrollment>(enrollmentsQuery);
   
   const enrolledCourseIds = useMemo(() => {
     if (!enrollments) return [];
@@ -78,7 +78,7 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
   }, [firestore, useRealtime, enrolledCourseIds]);
 
 
-  const { data: realtimeCourses, isLoading: coursesLoading } = useCollection<Course>(coursesQuery);
+  const { data: realtimeCourses, isLoading: coursesLoading, error: coursesError } = useCollection<Course>(coursesQuery);
 
   // Fallback for >10 ids
   useEffect(() => {
@@ -126,6 +126,14 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
       })
       .filter(Boolean);
   }, [enrollments, allCourses]);
+
+  if (enrollmentsError || coursesError) {
+    return (
+      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+        {enrollmentsError?.message || coursesError?.message || 'Failed to load your courses.'}
+      </div>
+    );
+  }
 
   if (enrollmentsLoading || isUserLoading || (useRealtime ? coursesLoading : largeSetLoading)) {
     return (
@@ -206,8 +214,16 @@ function SavedLearningPaths({ t }: { t: DashboardText }) {
     return collection(firestore, 'users', user.uid, 'learningPaths');
   }, [firestore, user]);
 
-  const { data: learningPaths, isLoading: pathsLoading } = useCollection<LearningPath>(learningPathsQuery);
+  const { data: learningPaths, isLoading: pathsLoading, error: pathsError } = useCollection<LearningPath>(learningPathsQuery);
   
+  if (pathsError) {
+    return (
+      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+        {pathsError.message || 'Failed to load learning paths.'}
+      </div>
+    );
+  }
+
   if (pathsLoading || isUserLoading) {
     return <Skeleton className="h-32 w-full" />;
   }

@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
     () => (canListUsers ? collection(firestore, 'users') : null),
     [firestore, canListUsers]
   );
-  const { data: users, isLoading: isUsersLoading } = useCollection(usersQuery);
+  const { data: users, isLoading: isUsersLoading, error: usersError } = useCollection(usersQuery);
 
   // Fetch all enrollments for total enrollment count and revenue
   const canListEnrollments = hasAdminOrTeacherClaim === true;
@@ -161,13 +161,13 @@ export default function AdminDashboardPage() {
     () => (canListEnrollments ? query(collectionGroup(firestore, 'enrollments')) : null),
     [firestore, canListEnrollments]
   );
-  const { data: enrollments, isLoading: isEnrollmentsLoading } = useCollection(enrollmentsQuery);
+  const { data: enrollments, isLoading: isEnrollmentsLoading, error: enrollmentsError } = useCollection(enrollmentsQuery);
 
   const coursesQuery = useMemoFirebase(
     () => collection(firestore, 'courses'),
     [firestore]
   );
-  const { data: allCourses, isLoading: isCoursesLoading } =
+  const { data: allCourses, isLoading: isCoursesLoading, error: coursesError } =
     useCollection(coursesQuery);
 
   // Calculate total revenue
@@ -287,6 +287,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   const isLoading = isUserLoading || isProfileLoading || hasAdminOrTeacherClaim === null;
+  const loadError = usersError || enrollmentsError || coursesError;
   const canView = (userProfile?.role === 'admin' || userProfile?.role === 'teacher' || hasAdminOrTeacherClaim === true);
   const isDataLoading =
     isUsersLoading || isEnrollmentsLoading || isCoursesLoading;
@@ -302,6 +303,22 @@ export default function AdminDashboardPage() {
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 py-10 md:py-16">
+          <div className="container">
+            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+              {loadError.message || 'Failed to load dashboard data. Please try again.'}
+            </div>
           </div>
         </main>
         <Footer />

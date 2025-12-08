@@ -7,6 +7,7 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal, Search } from 'lucide-react';
@@ -57,7 +58,7 @@ export default function CoursesPage() {
     () => query(collection(firestore, 'courses'), orderBy('createdAt', 'desc')),
     [firestore]
   );
-  const { data: allCourses, isLoading } = useCollection(coursesQuery);
+  const { data: allCourses, isLoading, error } = useCollection(coursesQuery);
 
   const categories = useMemo(() => {
     if (!allCourses) return [];
@@ -142,7 +143,11 @@ export default function CoursesPage() {
             </div>
           </div>
 
-          {isLoading ? (
+          {error ? (
+             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive text-center max-w-2xl mx-auto">
+               {error.message || 'Failed to load courses. Please try again.'}
+             </div>
+          ) : isLoading ? (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-96 w-full" />
@@ -207,6 +212,9 @@ export default function CoursesPage() {
               <p className="text-muted-foreground text-lg">
                 {t.noResults}
               </p>
+              <Button asChild className="mt-4">
+                <Link href="/courses">{t.title}</Link>
+              </Button>
             </div>
           )}
         </div>
