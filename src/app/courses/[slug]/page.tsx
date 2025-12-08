@@ -16,6 +16,28 @@ import { doc, collection, query, orderBy } from 'firebase/firestore';
 import type { Lesson } from '@/lib/lessons';
 import type { Course, Enrollment } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLang } from '@/components/i18n/lang';
+
+const courseCopy = {
+  en: {
+    courseNotFound: 'Course not found.',
+    goToCourse: 'Go to Course',
+    enrollNow: 'Enroll Now',
+    enrollSuccess: 'Successfully Enrolled!',
+    enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
+    enrollFailed: 'Enrollment Failed',
+    enrollFailedDesc: 'There was an error enrolling in the course.',
+  },
+  ar: {
+    courseNotFound: 'Course not found.',
+    goToCourse: 'Go to Course',
+    enrollNow: 'Enroll Now',
+    enrollSuccess: 'Successfully Enrolled!',
+    enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
+    enrollFailed: 'Enrollment Failed',
+    enrollFailedDesc: 'There was an error enrolling in the course.',
+  },
+} as const;
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -24,6 +46,8 @@ export default function CourseDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { lang } = useLang();
+  const t = courseCopy[lang];
 
   const courseDocRef = useMemoFirebase(() => {
       if (!slug) return null;
@@ -63,8 +87,8 @@ export default function CourseDetailPage() {
     try {
       await enrollInCourse(user.uid, course.id);
       toast({
-        title: 'Successfully Enrolled!',
-        description: `You have enrolled in ${course.title}.`,
+        title: t.enrollSuccess,
+        description: t.enrollSuccessDesc(course.title),
       });
       if (firstLessonId) {
         router.push(`/learn/${slug}/${firstLessonId}`);
@@ -74,8 +98,8 @@ export default function CourseDetailPage() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Enrollment Failed',
-        description: error.message || 'There was an error enrolling in the course.',
+        title: t.enrollFailed,
+        description: error.message || t.enrollFailedDesc,
       });
     }
   };
@@ -109,7 +133,7 @@ export default function CourseDetailPage() {
         <Header />
         <main className="flex-1">
           <div className="container py-10 md:py-16">
-            <p className="text-muted-foreground">Course not found.</p>
+            <p className="text-muted-foreground">{t.courseNotFound}</p>
           </div>
         </main>
         <Footer />
@@ -167,11 +191,11 @@ export default function CourseDetailPage() {
                         }
                       }}
                     >
-                      Go to Course
+                      {t.goToCourse}
                     </Button>
                 ) : (
                     <Button onClick={handleEnroll} size="lg" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-                        Enroll Now
+                        {t.enrollNow}
                     </Button>
                 )}
               </div>

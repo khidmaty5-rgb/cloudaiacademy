@@ -164,7 +164,11 @@ service cloud.firestore {
      */
     match /journalArticles/{articleId} {
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow get, list: if (isSignedIn() && resource.data.createdBy == request.auth.uid) || isAdminOrTeacher();
+      allow get, list: if (
+        isAdminOrTeacher()
+        || (isSignedIn() && resource.data.createdBy == request.auth.uid)
+        || (resource != null && resource.data.status == 'PUBLISHED')
+      );
       allow update, delete: if isAdminOrTeacher();
     }
 

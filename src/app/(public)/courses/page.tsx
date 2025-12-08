@@ -20,11 +20,37 @@ import {
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLang } from '@/components/i18n/lang';
+
+const coursesCopy = {
+  en: {
+    title: 'Explore Our Courses',
+    subtitle: 'Find the perfect course to advance your skills in Cloud and AI.',
+    searchPlaceholder: 'Search for courses...',
+    filterCategory: 'Filter by category',
+    filterLevel: 'Filter by level',
+    allCategories: 'All Categories',
+    allLevels: 'All Levels',
+    noResults: 'No courses found matching your criteria.',
+  },
+  ar: {
+    title: 'Explore Our Courses',
+    subtitle: 'Find the perfect course to advance your skills in Cloud and AI.',
+    searchPlaceholder: 'Search for courses...',
+    filterCategory: 'Filter by category',
+    filterLevel: 'Filter by level',
+    allCategories: 'All Categories',
+    allLevels: 'All Levels',
+    noResults: 'No courses found matching your criteria.',
+  },
+} as const;
 
 export default function CoursesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('all');
   const [level, setLevel] = useState('all');
+  const { lang } = useLang();
+  const t = coursesCopy[lang];
 
   const firestore = getFirestore();
   const coursesQuery = useMemoFirebase(
@@ -65,10 +91,10 @@ export default function CoursesPage() {
         <div className="container">
           <div className="text-center">
             <h1 className="font-headline text-3xl md:text-4xl font-bold">
-              Explore Our Courses
+              {t.title}
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-              Find the perfect course to advance your skills in Cloud and AI.
+              {t.subtitle}
             </p>
           </div>
 
@@ -78,7 +104,7 @@ export default function CoursesPage() {
                      <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
-                            placeholder="Search for courses..."
+                            placeholder={t.searchPlaceholder}
                             className="pl-10 w-full"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -88,12 +114,12 @@ export default function CoursesPage() {
               <div className='sm:col-span-1'>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filter by category" />
+                    <SelectValue placeholder={t.filterCategory} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
                       <SelectItem key={cat} value={cat} className='capitalize'>
-                        {cat === 'all' ? 'All Categories' : cat}
+                        {cat === 'all' ? t.allCategories : cat}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -102,12 +128,12 @@ export default function CoursesPage() {
               <div className='sm:col-span-1'>
                 <Select value={level} onValueChange={setLevel}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filter by level" />
+                    <SelectValue placeholder={t.filterLevel} />
                   </SelectTrigger>
                   <SelectContent>
                     {levels.map((lvl) => (
                       <SelectItem key={lvl} value={lvl} className='capitalize'>
-                        {lvl === 'all' ? 'All Levels' : lvl}
+                        {lvl === 'all' ? t.allLevels : lvl}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -179,7 +205,7 @@ export default function CoursesPage() {
           ) : (
             <div className="text-center py-16">
               <p className="text-muted-foreground text-lg">
-                No courses found matching your criteria.
+                {t.noResults}
               </p>
             </div>
           )}

@@ -18,9 +18,40 @@ import { Clock, Signal, BookOpen } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import AnnouncementsFeed from '@/components/dashboard/announcements-feed';
 import type { Course, Enrollment, LearningPath } from '@/types/models';
+import { useLang } from '@/components/i18n/lang';
 
+const dashboardCopy = {
+  en: {
+    noEnrollments: "You haven't enrolled in any courses yet.",
+    exploreCourses: 'Explore Courses',
+    progress: 'Progress',
+    noLearningPaths: "You haven't saved any learning paths yet.",
+    createLearningPath: 'Create One Now',
+    welcome: (name: string) => `Welcome, ${name}!`,
+    defaultName: 'User',
+    startLearning: "Let’s start learning.",
+    myCourses: 'My Courses',
+    myLearningPaths: 'My Learning Paths',
+    aiRecommendations: 'AI Recommendations',
+  },
+  ar: {
+    noEnrollments: "You haven't enrolled in any courses yet.",
+    exploreCourses: 'Explore Courses',
+    progress: 'Progress',
+    noLearningPaths: "You haven't saved any learning paths yet.",
+    createLearningPath: 'Create One Now',
+    welcome: (name: string) => `Welcome, ${name}!`,
+    defaultName: 'User',
+    startLearning: "Let’s start learning.",
+    myCourses: 'My Courses',
+    myLearningPaths: 'My Learning Paths',
+    aiRecommendations: 'AI Recommendations',
+  },
+} as const;
 
-function EnrolledCourses() {
+type DashboardText = typeof dashboardCopy.en;
+
+function EnrolledCourses({ t }: { t: DashboardText }) {
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
 
@@ -109,10 +140,10 @@ function EnrolledCourses() {
     return (
         <div className="flex flex-col items-center justify-center text-center p-10 bg-muted/50 rounded-lg">
             <p className="text-muted-foreground mb-4">
-            You haven't enrolled in any courses yet.
+            {t.noEnrollments}
             </p>
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Link href="/courses">Explore Courses</Link>
+            <Link href="/courses">{t.exploreCourses}</Link>
             </Button>
       </div>
     );
@@ -152,7 +183,7 @@ function EnrolledCourses() {
                     </div>
                     <div className='mt-4'>
                         <div className='flex justify-between items-center mb-1'>
-                             <p className="text-sm text-muted-foreground">Progress</p>
+                             <p className="text-sm text-muted-foreground">{t.progress}</p>
                              <p className="text-sm font-bold text-accent">{course.progress}%</p>
                         </div>
                         <Progress value={course.progress} className="h-2" />
@@ -166,7 +197,7 @@ function EnrolledCourses() {
 
 }
 
-function SavedLearningPaths() {
+function SavedLearningPaths({ t }: { t: DashboardText }) {
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
 
@@ -185,10 +216,10 @@ function SavedLearningPaths() {
     return (
        <div className="flex flex-col items-center justify-center text-center p-10 bg-muted/50 rounded-lg">
             <p className="text-muted-foreground mb-4">
-            You haven't saved any learning paths yet.
+            {t.noLearningPaths}
             </p>
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Link href="/learning-path">Create One Now</Link>
+            <Link href="/learning-path">{t.createLearningPath}</Link>
             </Button>
       </div>
     )
@@ -215,6 +246,8 @@ function SavedLearningPaths() {
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const { lang } = useLang();
+  const t = dashboardCopy[lang];
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -261,10 +294,10 @@ export default function DashboardPage() {
     
         <div className="container py-10">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">
-            Welcome, {user.displayName || 'User'}!
+            {t.welcome(user.displayName || t.defaultName)}
           </h1>
           <p className="mt-2 text-lg text-muted-foreground">
-            Let&apos;s start learning.
+            {t.startLearning}
           </p>
 
           <div className="mt-8 grid gap-10 lg:grid-cols-3">
@@ -273,17 +306,17 @@ export default function DashboardPage() {
                     <AnnouncementsFeed />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold mb-4">My Courses</h2>
-                  <EnrolledCourses />
+                  <h2 className="text-2xl font-headline font-bold mb-4">{t.myCourses}</h2>
+                  <EnrolledCourses t={t} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold mb-4">My Learning Paths</h2>
-                  <SavedLearningPaths />
+                  <h2 className="text-2xl font-headline font-bold mb-4">{t.myLearningPaths}</h2>
+                  <SavedLearningPaths t={t} />
                 </div>
             </div>
 
             <div className="lg:col-span-1">
-                <h2 className="text-2xl font-headline font-bold mb-4">AI Recommendations</h2>
+                <h2 className="text-2xl font-headline font-bold mb-4">{t.aiRecommendations}</h2>
                 <Card>
                     <CardContent className="pt-6">
                         <Recommendations />
