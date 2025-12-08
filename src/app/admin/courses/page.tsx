@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Pencil } from 'lucide-react';
 import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -338,9 +338,7 @@ export default function AdminCoursesPage() {
                       ))
                     ) : courses && courses.length > 0 ? (
                       courses.map((course) => {
-                        const image = PlaceHolderImages.find(
-                          (img) => img.id === course.imageId,
-                        );
+                        const image = getPlaceholderImage(course.imageId);
                         return (
                           <TableRow key={course.id}>
                             <TableCell>
@@ -399,4 +397,3 @@ export default function AdminCoursesPage() {
     </div>
   );
 }
-

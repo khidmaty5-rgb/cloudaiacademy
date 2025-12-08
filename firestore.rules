@@ -154,5 +154,29 @@ service cloud.firestore {
         allow get, list: if true;
         allow create, update, delete: if isAdminOrTeacher();
     }
+
+    /**
+     * @description Rules for journal article submissions.
+     * @path /journalArticles/{articleId}
+     * @allow (create) Any signed-in user can submit; createdBy must match the authenticated user.
+     * @allow (get, list) Authors can read their own submissions; admins/teachers can read any.
+     * @allow (update, delete) Admins/teachers can manage submissions (e.g., status/issue assignment).
+     */
+    match /journalArticles/{articleId} {
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow get, list: if (isSignedIn() && resource.data.createdBy == request.auth.uid) || isAdminOrTeacher();
+      allow update, delete: if isAdminOrTeacher();
+    }
+
+    /**
+     * @description Rules for journal issues.
+     * @path /journalIssues/{issueId}
+     * @allow (get, list) Anyone can read issues.
+     * @allow (create, update, delete) Only admins can manage issues.
+     */
+    match /journalIssues/{issueId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
   }
 }

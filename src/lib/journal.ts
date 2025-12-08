@@ -8,23 +8,14 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import type { JournalArticle, JournalIssue } from '@/types/models';
 
 const { firestore } = initializeFirebase();
 
-export type JournalArticleStatus =
-  | 'SUBMITTED'
-  | 'UNDER_REVIEW'
-  | 'ACCEPTED'
-  | 'PUBLISHED';
-
-export type JournalArticleInput = {
-  title: string;
-  abstract: string;
-  authors: string;
-  language: 'en' | 'ar' | 'both';
-  pdfUrl: string;
-  codeUrl?: string;
-};
+export type JournalArticleInput = Pick<
+  JournalArticle,
+  'title' | 'abstract' | 'authors' | 'language' | 'pdfUrl' | 'codeUrl'
+>;
 
 export async function submitJournalArticle(
   data: JournalArticleInput,
@@ -39,14 +30,16 @@ export async function submitJournalArticle(
 
   const articlesRef = collection(firestore, 'journalArticles');
 
-  await addDoc(articlesRef, {
+  const payload: JournalArticle = {
     ...data,
-    status: 'SUBMITTED' as JournalArticleStatus,
+    status: 'SUBMITTED',
     createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     issueId: null,
-  });
+  };
+
+  await addDoc(articlesRef, payload);
 }
 
 export async function updateJournalArticleStatusAndIssue(
@@ -63,11 +56,7 @@ export async function updateJournalArticleStatusAndIssue(
   });
 }
 
-export type JournalIssueInput = {
-  id?: string;
-  label: string;
-  year?: number;
-};
+export type JournalIssueInput = Pick<JournalIssue, 'id' | 'label' | 'year'>;
 
 export async function createJournalIssue(input: JournalIssueInput) {
   const { id, label, year } = input;
@@ -97,6 +86,5 @@ export async function createJournalIssue(input: JournalIssueInput) {
     year: year || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  } satisfies JournalIssue);
 }
-

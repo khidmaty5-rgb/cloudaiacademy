@@ -12,11 +12,12 @@ import Link from 'next/link';
 import Recommendations from '@/components/dashboard/recommendations';
 import { collection, getFirestore, query, where, getDocs } from 'firebase/firestore';
 import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal, BookOpen } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import AnnouncementsFeed from '@/components/dashboard/announcements-feed';
+import type { Course, Enrollment, LearningPath } from '@/types/models';
 
 
 function EnrolledCourses() {
@@ -28,14 +29,14 @@ function EnrolledCourses() {
     return collection(firestore, 'users', user.uid, 'enrollments');
   }, [firestore, user]);
 
-  const { data: enrollments, isLoading: enrollmentsLoading } = useCollection(enrollmentsQuery);
+  const { data: enrollments, isLoading: enrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
   
   const enrolledCourseIds = useMemo(() => {
     if (!enrollments) return [];
     return enrollments.map(e => e.id);
   }, [enrollments]);
 
-  const [largeSetCourses, setLargeSetCourses] = useState<any[] | null>(null);
+  const [largeSetCourses, setLargeSetCourses] = useState<Course[] | null>(null);
   const [largeSetLoading, setLargeSetLoading] = useState(false);
 
   const useRealtime = enrolledCourseIds.length > 0 && enrolledCourseIds.length <= 10;
@@ -46,7 +47,7 @@ function EnrolledCourses() {
   }, [firestore, useRealtime, enrolledCourseIds]);
 
 
-  const { data: realtimeCourses, isLoading: coursesLoading } = useCollection(coursesQuery);
+  const { data: realtimeCourses, isLoading: coursesLoading } = useCollection<Course>(coursesQuery);
 
   // Fallback for >10 ids
   useEffect(() => {
@@ -62,11 +63,11 @@ function EnrolledCourses() {
       for (let i = 0; i < enrolledCourseIds.length; i += 10) {
         chunks.push(enrolledCourseIds.slice(i, i + 10));
       }
-      const results: any[] = [];
+      const results: Course[] = [];
       for (const c of chunks) {
         const q = query(collection(firestore, 'courses'), where('id', 'in', c));
         const snap = await getDocs(q);
-        snap.forEach(d => results.push({ id: d.id, ...d.data() } as any));
+        snap.forEach(d => results.push({ id: d.id, ...(d.data() as Course) }));
       }
       if (!cancelled) {
         setLargeSetCourses(results);
@@ -121,9 +122,7 @@ function EnrolledCourses() {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {enrolledCourses.map(course => {
             if (!course) return null;
-             const image = PlaceHolderImages.find(
-                (img) => img.id === course.imageId
-              );
+             const image = getPlaceholderImage(course.imageId);
             return (
             <Link href={`/learn/${course.slug}`} key={course.id}>
                 <Card  className="overflow-hidden group hover:shadow-lg transition-shadow duration-300 h-full">
@@ -176,7 +175,7 @@ function SavedLearningPaths() {
     return collection(firestore, 'users', user.uid, 'learningPaths');
   }, [firestore, user]);
 
-  const { data: learningPaths, isLoading: pathsLoading } = useCollection(learningPathsQuery);
+  const { data: learningPaths, isLoading: pathsLoading } = useCollection<LearningPath>(learningPathsQuery);
   
   if (pathsLoading || isUserLoading) {
     return <Skeleton className="h-32 w-full" />;

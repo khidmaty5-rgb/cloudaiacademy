@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, limit } from 'firebase/firestore';
@@ -12,7 +12,7 @@ import { Skeleton } from '../ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
 
 function CourseCard({ course }: { course: any }) {
-  const image = PlaceHolderImages.find((img) => img.id === course.imageId);
+          const image = getPlaceholderImage(course.imageId);
   return (
     <Link href={`/courses/${course.slug}`} className="block h-full">
       <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300 h-full border-accent border-2">

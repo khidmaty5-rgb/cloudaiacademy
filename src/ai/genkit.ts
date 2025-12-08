@@ -1,7 +1,7 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
-const AI_AVAILABLE = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+const AI_AVAILABLE = !!process.env.GEMINI_API_KEY;
 
 export const ai = AI_AVAILABLE
   ? genkit({

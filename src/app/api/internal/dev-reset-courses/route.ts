@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApps, initializeApp, cert, applicationDefault, App } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
@@ -177,14 +178,39 @@ async function seedAll(db: FirebaseFirestore.Firestore) {
   return created;
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const app = getAdminApp();
+    let decoded: any;
+    try {
+      decoded = await getAuth(app).verifyIdToken(token);
+    } catch (e) {
+      // Dev-only fallback to decode token payload locally if verification fails
+      const isDev = process.env.NODE_ENV !== 'production';
+      if (isDev) {
+        try {
+          const parts = token.split('.');
+          const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+          decoded = payload;
+        } catch (e2) { throw e; }
+      } else { throw e; }
+    }
+
     const db = getFirestore(app);
+    const uid = decoded.uid || decoded.sub;
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
+    const roleFromToken = decoded?.role || decoded?.claims?.role;
+    const isAdmin = roleFromDoc === 'admin' || roleFromToken === 'admin';
+    if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const deletedCourses = await wipeCoursesAndLessons(db);
     const deletedEnrollments = await wipeEnrollments(db);

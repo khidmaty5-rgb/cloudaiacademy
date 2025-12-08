@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Input } from '@/components/ui/input';
@@ -125,9 +125,7 @@ export default function CoursesPage() {
           ) : filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredCourses.map((course) => {
-                const image = PlaceHolderImages.find(
-                  (img) => img.id === course.imageId
-                );
+                const image = getPlaceholderImage(course.imageId);
                 return (
                   <Link
                     href={`/courses/${course.slug}`}

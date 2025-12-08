@@ -14,6 +14,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import type { JournalArticle, JournalIssue } from "@/types/models";
 
 const content = {
   en: {
@@ -158,26 +159,26 @@ export default function JournalPage() {
     [firestore],
   );
   const { data: publishedArticles, isLoading: isArticlesLoading } =
-    useCollection<any>(publishedArticlesQuery as any);
+    useCollection<JournalArticle>(publishedArticlesQuery as any);
 
   // Issues for grouping
   const issuesQuery = useMemoFirebase(
     () => collection(firestore, "journalIssues"),
     [firestore],
   );
-  const { data: issues } = useCollection<any>(issuesQuery as any);
+  const { data: issues } = useCollection<JournalIssue>(issuesQuery as any);
 
   const groupedArticles = useMemo(() => {
     if (!publishedArticles || publishedArticles.length === 0) return [];
-    const issueMap = new Map<string, any>();
-    (issues || []).forEach((issue: any) => {
+    const issueMap = new Map<string, JournalIssue>();
+    (issues || []).forEach((issue) => {
       issueMap.set(issue.id, issue);
     });
 
-    const groups: { key: string; label: string; items: any[] }[] = [];
-    const byKey = new Map<string, { key: string; label: string; items: any[] }>();
+    const groups: { key: string; label: string; items: JournalArticle[] }[] = [];
+    const byKey = new Map<string, { key: string; label: string; items: JournalArticle[] }>();
 
-    publishedArticles.forEach((article: any) => {
+    publishedArticles.forEach((article) => {
       const rawIssueId = article.issueId || "__unassigned__";
       const issue = rawIssueId === "__unassigned__" ? null : issueMap.get(rawIssueId);
       const label = issue
@@ -388,4 +389,3 @@ export default function JournalPage() {
     </div>
   );
 }
-

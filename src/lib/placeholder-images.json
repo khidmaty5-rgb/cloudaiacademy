@@ -3,31 +3,31 @@
     {
       "id": "course-aws",
       "description": "AWS Solutions Architect course image",
-      "imageUrl": "/images/course-aws.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "lake mountain"
     },
     {
       "id": "course-ml",
       "description": "Machine Learning Engineering course image",
-      "imageUrl": "/images/course-ml.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "calm lake"
     },
     {
       "id": "course-azure",
       "description": "Azure AI Engineer course image",
-      "imageUrl": "/images/course-azure.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "mountain landscape"
     },
     {
       "id": "course-fcc",
       "description": "freeCodeCamp Responsive Web Design course image",
-      "imageUrl": "/images/course-fcc.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "serene lake"
     },
     {
       "id": "course-full-stack",
       "description": "Full Stack Development course image",
-      "imageUrl": "/images/course-full-stack.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "forest lake"
     },
     {
@@ -39,31 +39,31 @@
     {
       "id": "course-python",
       "description": "Python Programming course image",
-      "imageUrl": "/images/course-python.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "code abstract"
     },
     {
       "id": "avatar-jessica",
       "description": "Jessica Smith avatar",
-      "imageUrl": "/images/avatar-jessica.png",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "woman portrait"
     },
     {
       "id": "avatar-michael",
       "description": "Michael Rodriguez avatar",
-      "imageUrl": "/images/avatar-michael.png",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "man portrait"
     },
     {
       "id": "avatar-sarah",
       "description": "Sarah Johnson avatar",
-      "imageUrl": "/images/avatar-sarah.png",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "woman smiling"
     },
     {
       "id": "hero-background",
       "description": "Hero section background image",
-      "imageUrl": "/images/hero-bg.jpg",
+      "imageUrl": "/images/hero-browser.png",
       "imageHint": "abstract technology"
     },
     {

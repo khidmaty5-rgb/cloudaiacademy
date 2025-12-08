@@ -2,6 +2,7 @@
 
 import { getFirestore, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import type { Enrollment } from '@/types/models';
 
 const { firestore } = initializeFirebase();
 
@@ -18,7 +19,7 @@ export async function enrollInCourse(userId: string, courseId: string) {
     enrollmentDate: serverTimestamp(),
     progress: 0,
     completedLessons: [],
-  }, { merge: true });
+  } satisfies Enrollment, { merge: true });
 }
 
 
@@ -32,5 +33,5 @@ export async function updateUserProgress(userId: string, courseId: string, newPr
     await updateDoc(enrollmentRef, {
         progress: newProgress,
         completedLessons: completedLessons,
-    });
+    } satisfies Partial<Enrollment>);
 }

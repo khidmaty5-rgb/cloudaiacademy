@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Signal, CheckCircle } from 'lucide-react';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 import type { Lesson } from '@/lib/lessons';
+import type { Course, Enrollment } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CourseDetailPage() {
@@ -29,7 +30,7 @@ export default function CourseDetailPage() {
       return doc(firestore, 'courses', slug);
   }, [firestore, slug]);
 
-  const { data: course, isLoading: isCourseLoading } = useDoc(courseDocRef);
+  const { data: course, isLoading: isCourseLoading } = useDoc<Course>(courseDocRef);
 
   const lessonsQuery = useMemoFirebase(() => {
     if (!course) return null;
@@ -43,12 +44,12 @@ export default function CourseDetailPage() {
     return doc(firestore, 'users', user.uid, 'enrollments', course.id);
   }, [firestore, user, course]);
 
-  const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
+  const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc<Enrollment>(enrollmentDocRef);
 
   const isEnrolled = !!enrollment;
   const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading;
 
-  const image = course ? PlaceHolderImages.find((img) => img.id === course.imageId) : undefined;
+  const image = course ? getPlaceholderImage(course.imageId) : undefined;
 
   // Do not redirect during render lifecycle; instead show a friendly fallback below if not found
 

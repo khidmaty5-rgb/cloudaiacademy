@@ -3,12 +3,12 @@
 import {
   collection,
   doc,
-  addDoc,
   updateDoc,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import type { Course, CourseLevel } from '@/types/models';
 
 const { firestore } = initializeFirebase();
 
@@ -25,14 +25,8 @@ const generateImageId = (title: string) => {
     return `course-${createSlug(title)}`;
 }
 
-// Data type for course creation/update
-type CourseData = {
-  title: string;
-  description: string;
-  category: string;
-  price: string;
-  duration: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
+type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
+  level: CourseLevel;
 };
 
 export async function addCourse(data: CourseData) {
@@ -48,7 +42,7 @@ export async function addCourse(data: CourseData) {
     id: slug, // Use slug as id
     imageId: imageId,
     createdAt: serverTimestamp(),
-  });
+  } satisfies Omit<Course, 'updatedAt'>);
 }
 
 export async function updateCourse(courseId: string, data: Partial<CourseData>) {
