@@ -98,14 +98,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       try {
         const userDocRef = doc(firestore, 'users', u.uid);
         const snap = await getDoc(userDocRef);
-        const ownerEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'dhnos@hotmail.com').toLowerCase();
-        const isOwner = !!(u.email && u.email.toLowerCase() === ownerEmail);
         const docRole = snap.exists() ? ((snap.data() as any)?.role as string | undefined) : undefined;
-        const devAutoAdminEnabled = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_DEV_AUTO_ADMIN === 'true';
-        let desiredRole = isOwner ? 'admin' : docRole;
-        if (!desiredRole && devAutoAdminEnabled) {
-          desiredRole = 'admin';
-        }
+        const desiredRole = docRole;
         if (!desiredRole) return;
         const tokenResult = await u.getIdTokenResult();
         const claimRole = (tokenResult.claims as any)?.role;

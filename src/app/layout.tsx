@@ -23,11 +23,8 @@ export const metadata: Metadata = {
   description: 'Unlock Your Potential in Cloud & AI.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout(props: { children: React.ReactNode }) {
+  const { children } = props;
   return (
     <html
       lang="en"

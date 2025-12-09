@@ -61,24 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const app = getAdminApp();
-    let decoded: any;
-    try {
-      decoded = await getAuth(app).verifyIdToken(token);
-    } catch (e) {
-      // Dev-only fallback: decode token without verification to recover uid locally
-      if (process.env.NODE_ENV !== 'production') {
-        try {
-          const parts = token.split('.');
-          const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
-          decoded = payload; // contains 'sub' as uid
-          console.warn('[adminApp] Using unverified token payload in development.');
-        } catch (e2) {
-          throw e;
-        }
-      } else {
-        throw e;
-      }
-    }
+    const decoded = await getAuth(app).verifyIdToken(token);
     const requesterUid = decoded.uid || decoded.sub;
 
     const db = getFirestore(app);
@@ -131,10 +114,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: any) {
     console.error('update-user-role error:', e);
-    return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
+    const status = e?.code === 'auth/argument-error' ? 401 : 500;
+    return NextResponse.json({ error: e?.message || 'Internal error' }, { status });
   }
 }
