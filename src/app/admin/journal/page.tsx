@@ -195,6 +195,32 @@ export default function AdminJournalPage() {
     year: '',
   });
 
+  const filteredArticles = useMemo(() => {
+    if (!articles) return [] as WithId<any>[];
+    return articles.filter((article) => {
+      if (statusFilter !== 'ALL' && article.status !== statusFilter) {
+        return false;
+      }
+      if (
+        languageFilter !== 'ALL' &&
+        article.language !== languageFilter
+      ) {
+        return false;
+      }
+      if (issueFilter === 'UNASSIGNED') {
+        if (article.issueId) return false;
+      } else if (issueFilter !== 'ALL') {
+        if (article.issueId !== issueFilter) return false;
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const haystack = `${article.title || ''} ${article.authors || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [articles, statusFilter, languageFilter, issueFilter, search]);
+
   const handleSaveIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -260,32 +286,6 @@ export default function AdminJournalPage() {
       </div>
     );
   }
-
-  const filteredArticles = useMemo(() => {
-    if (!articles) return [];
-    return articles.filter((article) => {
-      if (statusFilter !== 'ALL' && article.status !== statusFilter) {
-        return false;
-      }
-      if (
-        languageFilter !== 'ALL' &&
-        article.language !== languageFilter
-      ) {
-        return false;
-      }
-      if (issueFilter === 'UNASSIGNED') {
-        if (article.issueId) return false;
-      } else if (issueFilter !== 'ALL') {
-        if (article.issueId !== issueFilter) return false;
-      }
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        const haystack = `${article.title || ''} ${article.authors || ''}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [articles, statusFilter, languageFilter, issueFilter, search]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

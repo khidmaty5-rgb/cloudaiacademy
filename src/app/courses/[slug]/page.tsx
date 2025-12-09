@@ -56,13 +56,6 @@ export default function CourseDetailPage() {
 
   const { data: course, isLoading: isCourseLoading } = useDoc<Course>(courseDocRef);
 
-  const lessonsQuery = useMemoFirebase(() => {
-    if (!course) return null;
-    return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course]);
-  const { data: lessons } = useCollection<Lesson>(lessonsQuery);
-  const firstLessonId = lessons && lessons.length > 0 ? lessons[0].id : null;
-
   const enrollmentDocRef = useMemoFirebase(() => {
     if (!user || !course) return null;
     return doc(firestore, 'users', user.uid, 'enrollments', course.id);
@@ -74,6 +67,13 @@ export default function CourseDetailPage() {
   const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading;
 
   const image = course ? getPlaceholderImage(course.imageId) : undefined;
+
+  const lessonsQuery = useMemoFirebase(() => {
+    if (!course || !isEnrolled) return null;
+    return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
+  }, [firestore, course, isEnrolled]);
+  const { data: lessons } = useCollection<Lesson>(lessonsQuery);
+  const firstLessonId = lessons && lessons.length > 0 ? lessons[0].id : null;
 
   // Do not redirect during render lifecycle; instead show a friendly fallback below if not found
 

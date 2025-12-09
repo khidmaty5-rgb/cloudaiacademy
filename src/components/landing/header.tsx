@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { doc, getFirestore } from 'firebase/firestore';
+import { doc, getFirestore, setDoc } from 'firebase/firestore';
 import { useLang, LangToggle } from '@/components/i18n/lang';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -47,6 +47,8 @@ type UserProfileMenuProps = {
   canAccessAdmin: boolean;
   isUserLoading: boolean;
   isProfileLoading: boolean;
+  showJournalNav: boolean;
+  onToggleJournalNav: () => void;
 };
 
 function UserProfileMenu({
@@ -54,6 +56,8 @@ function UserProfileMenu({
   canAccessAdmin,
   isUserLoading,
   isProfileLoading,
+  showJournalNav,
+  onToggleJournalNav,
 }: UserProfileMenuProps) {
   const { user } = useUser();
   const router = useRouter();
@@ -155,6 +159,11 @@ function UserProfileMenu({
             </Link>
           </DropdownMenuItem>
         )}
+        {role === 'admin' && (
+          <DropdownMenuItem onClick={onToggleJournalNav}>
+            {showJournalNav ? 'Hide Journal from Nav' : 'Show Journal in Nav'}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
@@ -184,6 +193,17 @@ export default function Header() {
   const canAccessAdmin = role === 'admin' || role === 'teacher';
   const isTeacher = role === 'teacher';
   const isAdminRoute = !!pathname && pathname.startsWith('/admin');
+
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: uiSettings } = useDoc(settingsDocRef);
+  const showJournalNav = uiSettings?.showJournalNav !== false;
+
+  const visibleLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
+
+  const toggleJournalNav = async () => {
+    const next = !showJournalNav;
+    await setDoc(settingsDocRef as any, { showJournalNav: next }, { merge: true });
+  };
 
   const navLabel = (id: 'home' | 'courses' | 'journal') => {
     const map: Record<'en' | 'ar', Record<typeof id, string>> = {
@@ -263,7 +283,7 @@ export default function Header() {
         <nav className="hidden items-center gap-8 md:flex">
           {!isAdminRoute && (
             <>
-              {navLinks.map((link) => (
+              {visibleLinks.map((link) => (
                 <Link
                   key={link.id}
                   href={link.href}
@@ -317,6 +337,8 @@ export default function Header() {
             canAccessAdmin={canAccessAdmin}
             isUserLoading={isUserLoading}
             isProfileLoading={isProfileLoading}
+            showJournalNav={showJournalNav}
+            onToggleJournalNav={toggleJournalNav}
           />
 
           <div className="md:hidden">
@@ -346,7 +368,7 @@ export default function Header() {
                   <ThemeToggle className="mb-2" />
                   {!isAdminRoute && (
                     <>
-                      {navLinks.map((link) => (
+                      {visibleLinks.map((link) => (
                         <Link
                           key={link.id}
                           href={link.href}

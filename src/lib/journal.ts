@@ -6,9 +6,10 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { JournalArticle, JournalIssue } from '@/types/models';
+import type { JournalArticle, JournalIssue, JournalArticleStatus } from '@/types/models';
 
 const { firestore } = initializeFirebase();
 
@@ -66,18 +67,12 @@ export async function createJournalIssue(input: JournalIssueInput) {
 
   if (id) {
     const issueRef = doc(issuesRef, id);
-    await updateDoc(issueRef, {
+    await setDoc(issueRef, {
       label,
       year: year || null,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }).catch(async () => {
-      await updateDoc(issueRef, {
-        label,
-        year: year || null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    });
+    }, { merge: true });
     return;
   }
 
