@@ -140,6 +140,9 @@ export default function JournalPage() {
   const t = content[lang];
   const isArabic = lang === "ar";
   const { user } = useUser();
+  const guidelinesUrl =
+    process.env.NEXT_PUBLIC_JOURNAL_GUIDELINES_URL ||
+    "/templates/cloudai-journal-author-guidelines.pdf";
 
   const bodyTextClass = isArabic
     ? "text-base leading-relaxed"
@@ -313,7 +316,9 @@ export default function JournalPage() {
                 {t.ctaPrimary}
               </a>
               <Link
-                href="/templates/cloudai-journal-author-guidelines.pdf"
+                href={guidelinesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-full border border-primary-foreground/30 px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/80"
               >
                 {t.ctaSecondary}

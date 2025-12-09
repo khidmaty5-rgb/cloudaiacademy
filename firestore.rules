@@ -164,7 +164,7 @@ service cloud.firestore {
      */
     match /journalArticles/{articleId} {
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow get, list: if (
+      allow read: if (
         isAdminOrTeacher()
         || (isSignedIn() && resource.data.createdBy == request.auth.uid)
         || (resource != null && resource.data.status == 'PUBLISHED')

@@ -6,3 +6,13 @@ export const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "432146246011",
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
 };
+const hasEnvConfig = !!(
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
+  process.env.NEXT_PUBLIC_FIREBASE_APP_ID &&
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+);
+if (process.env.NODE_ENV === 'production' && !hasEnvConfig) {
+  console.warn('[Firebase] Missing NEXT_PUBLIC_FIREBASE_* env vars in production; using fallback firebaseConfig for project', firebaseConfig.projectId);
+}
