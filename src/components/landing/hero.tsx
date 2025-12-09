@@ -9,7 +9,11 @@ import { useLang } from '@/components/i18n/lang';
 
 export default function Hero() {
   const { user, isUserLoading } = useUser();
-  const { lang } = useLang();
+  const { lang, dir } = useLang();
+  const isRTL = dir === 'rtl';
+  const textAlign = isRTL ? 'lg:text-right' : 'lg:text-left';
+  const textOrder = isRTL ? 'lg:order-2' : 'lg:order-1';
+  const imageOrder = isRTL ? 'lg:order-1' : 'lg:order-2';
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-background');
   const browserImage = PlaceHolderImages.find((img) => img.id === 'hero-browser');
   const text = {
@@ -22,7 +26,7 @@ export default function Hero() {
       trial: 'Free Trial',
     },
     ar: {
-      title: 'أطلق إمكاناتك في السحابة والذكاء الاصطناعي',
+      title: 'أطلق إمكاناتك في لحوسبة السحابية والذكاء الاصطناعي',
       desc:
         'انضم إلى آلاف المهنيين الذين يطوّرون مسيرتهم عبر دوراتنا الرائدة ومشاريع تطبيقية.',
       explore: 'استكشف الدورات',
@@ -80,14 +84,14 @@ export default function Hero() {
       </div>
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className='text-center lg:text-left'>
+            <div className={`text-center ${textAlign} ${textOrder}`}>
                  <h1 className="font-headline text-4xl md:text-6xl font-bold tracking-tighter">
                     {text[lang].title}
                 </h1>
                 <p className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
                     {text[lang].desc}
                 </p>
-                <div className="mt-10 flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
+                <div className={`mt-10 flex flex-col sm:flex-row justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}>
                     <Button
                         asChild
                         size="lg"
@@ -118,15 +122,15 @@ export default function Hero() {
                     )}
                 </div>
             </div>
-           <div className="relative max-w-xs mx-auto lg:max-w-sm">
+           <div className={`relative mx-auto w-full max-w-[260px] sm:max-w-[320px] md:max-w-[360px] lg:max-w-[420px] aspect-square overflow-hidden rounded-xl shadow-2xl bg-white p-3 ${imageOrder}`}>
   {browserImage && (
     <Image
       src={browserImage.imageUrl}
       alt={browserImage.description}
-      width={320}
-      height={180}
-      sizes="(max-width: 1024px) 70vw, 320px"
-      className="w-full h-auto rounded-lg shadow-2xl"
+      fill
+      sizes="(max-width: 1024px) 70vw, 480px"
+      className="object-contain object-center"
+      priority
       data-ai-hint={browserImage.imageHint}
     />
   )}

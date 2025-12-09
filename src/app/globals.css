@@ -15,7 +15,7 @@ body {
     --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
-    --primary: 212 30% 17%;   /* Navy #1E2A38 */
+    --primary: 212 34% 10%;   /* Navy #1E2A38 */
     --primary-foreground: 0 0% 100%;
     --secondary: 212 29% 23%; /* Navy-light #2A3A4D */
     --secondary-foreground: 0 0% 100%;
@@ -45,7 +45,7 @@ body {
     --card-foreground: 220 23% 92%;
     --popover: 213 27% 12%;
     --popover-foreground: 220 23% 92%;
-    --primary: 212 29% 23%;     /* Navy-light for header */
+    --primary: 212 29% 13%;     /* Navy-light for header */
     --primary-foreground: 220 23% 96%;
     --secondary: 213 22% 17%;
     --secondary-foreground: 220 23% 92%;

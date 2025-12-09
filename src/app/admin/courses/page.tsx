@@ -342,13 +342,13 @@ export default function AdminCoursesPage() {
                         return (
                           <TableRow key={course.id}>
                             <TableCell>
-                              <div className="relative h-12 w-12">
+                              <div className="relative h-12 w-12 bg-white">
                                 {image && (
                                   <Image
                                     src={image.imageUrl}
                                     alt={course.title}
                                     fill
-                                    className="rounded-md object-cover"
+                                    className="rounded-md object-contain bg-white"
                                   />
                                 )}
                               </div>

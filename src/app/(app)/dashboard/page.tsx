@@ -98,7 +98,11 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
       for (const c of chunks) {
         const q = query(collection(firestore, 'courses'), where('id', 'in', c));
         const snap = await getDocs(q);
-        snap.forEach(d => results.push({ id: d.id, ...(d.data() as Course) }));
+        snap.forEach(d => {
+          const data = d.data() as Course;
+          const { id: _ignored, ...rest } = (data as any) || {};
+          results.push({ ...rest, id: d.id });
+        });
       }
       if (!cancelled) {
         setLargeSetCourses(results);
@@ -166,13 +170,13 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
             <Link href={`/learn/${course.slug}`} key={course.id}>
                 <Card  className="overflow-hidden group hover:shadow-lg transition-shadow duration-300 h-full">
                 <CardHeader className="p-0">
-                    <div className="relative h-48 w-full">
+                    <div className="relative h-48 w-full bg-white">
                     {image && (
                         <Image
                         src={image.imageUrl}
                         alt={course.title}
                         fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="object-contain bg-white group-hover:scale-105 transition-transform duration-300"
                         data-ai-hint={image.imageHint}
                         />
                     )}

@@ -165,13 +165,13 @@ export default function CoursesPage() {
                   >
                     <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300 h-full border-accent border-2">
                       <CardHeader className="p-0">
-                        <div className="relative h-60 w-full">
+                        <div className="relative h-60 w-full bg-white">
                           {image && (
                             <Image
                               src={image.imageUrl}
                               alt={course.title}
                               fill
-                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="object-contain bg-white group-hover:scale-105 transition-transform duration-300"
                               data-ai-hint={image.imageHint}
                             />
                           )}
