@@ -243,6 +243,10 @@ export default function Header() {
       label: lang === 'ar' ? 'المجلة' : 'Journal',
     },
     {
+      href: '/admin/access',
+      label: lang === 'ar' ? 'التحكم بالوصول' : 'Access',
+    },
+    {
       href: '/admin/users',
       label: lang === 'ar' ? 'إدارة المستخدمين' : 'Users',
     },
@@ -261,7 +265,8 @@ export default function Header() {
         (i) =>
           i.href !== '/admin/users' &&
           i.href !== '/admin/seed' &&
-          i.href !== '/admin/journal',
+          i.href !== '/admin/journal' &&
+          i.href !== '/admin/access',
       )
     : adminNavItems;
 

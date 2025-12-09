@@ -49,6 +49,13 @@ export default function CourseDetailPage() {
   const { lang } = useLang();
   const t = courseCopy[lang];
 
+  const userDocRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  const { data: userProfile } = useDoc(userDocRef);
+  const requirePayment = userProfile?.requirePayment === true;
+
   const courseDocRef = useMemoFirebase(() => {
       if (!slug) return null;
       return doc(firestore, 'courses', slug);
@@ -80,6 +87,11 @@ export default function CourseDetailPage() {
   const handleEnroll = async () => {
     if (!user) {
       router.push('/login');
+      return;
+    }
+    if (requirePayment) {
+      toast({ variant: 'destructive', title: 'Payment required', description: 'Please complete payment to access this course.' });
+      router.push('/pricing');
       return;
     }
     if (!course) return;
@@ -179,6 +191,9 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="mt-8">
+                {requirePayment && (
+                  <p className="mb-4 text-sm text-destructive">Payment required to enroll or access lessons.</p>
+                )}
                 {isEnrolled ? (
                     <Button
                       size="lg"
@@ -194,7 +209,7 @@ export default function CourseDetailPage() {
                       {t.goToCourse}
                     </Button>
                 ) : (
-                    <Button onClick={handleEnroll} size="lg" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Button onClick={handleEnroll} size="lg" disabled={requirePayment} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60">
                         {t.enrollNow}
                     </Button>
                 )}

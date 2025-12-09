@@ -61,6 +61,13 @@ service cloud.firestore {
       return isAdmin() || isTeacher();
     }
 
+    // Deny access if the user's profile indicates payment is required
+    function accountActive() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment != true
+      );
+    }
+
     /**
      * @description Rules for user profiles.
      * @path /users/{userId}
@@ -98,9 +105,9 @@ service cloud.firestore {
 
       // Lessons subcollection access
       match /lessons/{lessonId} {
-        // Read if admin/teacher or the user is enrolled in the course
+        // Read if admin/teacher or the user is enrolled AND account is active (no payment required)
         allow get, list: if isAdminOrTeacher() || (
-          isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId))
+          accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId))
         );
 
         // Only admins/teachers can create/update/delete lessons
@@ -119,8 +126,8 @@ service cloud.firestore {
       // Admins/Teachers can read enrollments across users (for dashboards)
       allow get: if isAdminOrTeacher() || isOwner(userId);
       allow list: if isAdminOrTeacher() || isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow create: if isOwner(userId) && accountActive() && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && accountActive() && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 

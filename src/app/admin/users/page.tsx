@@ -30,6 +30,7 @@ import { updateUserRole } from '@/lib/user';
 import { Button } from '@/components/ui/button';
 import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useLang } from '@/components/i18n/lang';
+import { Switch } from '@/components/ui/switch';
 
 const usersText = {
   en: {
@@ -39,6 +40,8 @@ const usersText = {
     name: 'Name',
     role: 'Role',
     dateJoined: 'Date Joined',
+    access: 'Access',
+    requirePayment: 'Require Payment',
     noPermission: 'You do not have permission to view this page.',
     student: 'Student',
     teacher: 'Teacher',
@@ -57,6 +60,8 @@ const usersText = {
     name: 'الاسم',
     role: 'الدور',
     dateJoined: 'تاريخ الانضمام',
+    access: 'الصلاحية',
+    requirePayment: 'يتطلب الدفع',
     noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     student: 'طالب',
     teacher: 'معلم',

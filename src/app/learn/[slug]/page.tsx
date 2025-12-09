@@ -21,6 +21,12 @@ export default function LearnCoursePage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
+  const userDocRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  const { data: userProfile } = useDoc(userDocRef);
+  const requirePayment = userProfile?.requirePayment === true;
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -29,9 +35,9 @@ export default function LearnCoursePage() {
   const { data: course, isLoading: isCourseLoading } = useDoc(courseDocRef);
 
   const lessonsQuery = useMemoFirebase(() => {
-    if (!course) return null;
+    if (!course || requirePayment) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course]);
+  }, [firestore, course, requirePayment]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const enrollmentDocRef = useMemoFirebase(() => {
@@ -120,6 +126,7 @@ export default function LearnCoursePage() {
   // enrollment fallback shown before checking lessons
   const handleEnroll = async () => {
     if (!user || !course) return;
+    if (requirePayment) { window.location.assign('/#pricing'); return; }
     try {
       setEnrolling(true);
       await enrollInCourse(user.uid, course.id);
