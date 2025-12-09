@@ -154,7 +154,7 @@ export default function CourseDetailPage() {
                     src={image.imageUrl}
                     alt={course.title}
                     fill
-                    className="object-cover"
+                    className="object-contain bg-white"
                     data-ai-hint={image.imageHint}
                   />
                 )}
