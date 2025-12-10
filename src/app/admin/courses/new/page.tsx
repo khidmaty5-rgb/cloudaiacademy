@@ -3,17 +3,17 @@
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import CourseForm from '@/components/admin/CourseForm';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useLang } from '@/components/i18n/lang';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function NewCoursePage() {
   const { user } = useUser();
   const firestore = getFirestore();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = {
     en: {
@@ -31,42 +31,9 @@ export default function NewCoursePage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userDocRef);
+  const canView = isAdmin === true;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch {
-        setHasAdminOrTeacherClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  const canView = (userProfile?.role === 'admin' || userProfile?.role === 'teacher' || hasAdminOrTeacherClaim === true);
-
-  if (hasAdminOrTeacherClaim === null) {
+  if (roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />

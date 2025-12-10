@@ -6,7 +6,7 @@ import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, getFirestore, orderBy, query } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import {
   Table,
   TableBody,
@@ -54,7 +54,7 @@ export default function AdminJournalPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
-  const auth = getAuth();
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { toast } = useToast();
   const { lang } = useLang();
 
@@ -109,7 +109,7 @@ export default function AdminJournalPage() {
     },
   }[lang];
 
-  const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
+  // useCurrentRole handles role detection
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -117,46 +117,8 @@ export default function AdminJournalPage() {
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) {
-        if (!cancelled) setHasAdminClaim(false);
-        return;
-      }
-      try {
-        const tr = await user.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        if (!cancelled) setHasAdminClaim(!!isAdmin);
-      } catch {
-        if (!cancelled) setHasAdminClaim(false);
-      }
-    }
-    checkClaims();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) {
-        setHasAdminClaim(false);
-        return;
-      }
-      try {
-        const tr = await u.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        setHasAdminClaim(!!isAdmin);
-      } catch {
-        setHasAdminClaim(false);
-      }
-    });
-    return () => unsub();
-  }, [auth]);
-
-  const isLoading = isUserLoading || isProfileLoading || hasAdminClaim === null;
-  const canView = userProfile?.role === 'admin' || hasAdminClaim === true;
+  const isLoading = isUserLoading || isProfileLoading || roleLoading;
+  const canView = isAdmin === true;
 
   const articlesQuery = useMemoFirebase(
     () =>

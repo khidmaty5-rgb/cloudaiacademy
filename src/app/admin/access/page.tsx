@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -9,14 +9,14 @@ import { collection, getFirestore, query, orderBy, doc, updateDoc } from 'fireba
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useLang } from '@/components/i18n/lang';
 import { Switch } from '@/components/ui/switch';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function AdminAccessPage() {
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
-  const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
 
   const t = {
@@ -44,46 +44,15 @@ export default function AdminAccessPage() {
     },
   }[lang];
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminClaim(null); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        if (!cancelled) setHasAdminClaim(isAdmin);
-      } catch {
-        if (!cancelled) setHasAdminClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        setHasAdminClaim(!!isAdmin);
-      } catch {
-        setHasAdminClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
   const usersQuery = useMemoFirebase(() => {
-    if (hasAdminClaim !== true) return null;
+    if (!isAdmin) return null;
     return query(collection(firestore, 'users'), orderBy('dateJoined', 'desc'));
-  }, [firestore, hasAdminClaim]);
+  }, [firestore, isAdmin]);
 
   const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
 
-  const isLoading = isUserLoading || hasAdminClaim === null || areUsersLoading;
-  const canViewPage = hasAdminClaim === true;
+  const isLoading = isUserLoading || roleLoading || areUsersLoading;
+  const canViewPage = isAdmin === true;
 
   if (isLoading) {
     return (
@@ -176,7 +145,9 @@ export default function AdminAccessPage() {
                       <TableCell>
                         <Switch
                           checked={u.requirePayment === true}
+                          disabled={u.role !== 'student'}
                           onCheckedChange={async (checked) => {
+                            if (u.role !== 'student') return;
                             try {
                               await updateDoc(doc(firestore, 'users', u.id), { requirePayment: !!checked });
                             } catch {}

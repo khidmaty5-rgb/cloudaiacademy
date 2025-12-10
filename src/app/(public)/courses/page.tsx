@@ -22,6 +22,7 @@ import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
+ 
 
 const coursesCopy = {
   en: {

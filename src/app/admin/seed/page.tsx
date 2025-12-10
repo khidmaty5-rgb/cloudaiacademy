@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useState } from 'react';
 import { useLang } from '@/components/i18n/lang';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function AdminSeedPage() {
   const { user } = useUser();
   const { toast } = useToast();
   const firestore = getFirestore();
-  const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const { lang } = useLang();
@@ -55,38 +55,7 @@ export default function AdminSeedPage() {
   }, [firestore, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult(true);
-        const role = (tr.claims as any)?.role;
-        if (!cancelled) setHasAdminClaim(role === 'admin');
-      } catch {
-        if (!cancelled) setHasAdminClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        const role = (tr.claims as any)?.role;
-        setHasAdminClaim(role === 'admin');
-      } catch {
-        setHasAdminClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  const canRun = hasAdminClaim === true || profile?.role === 'admin';
+  const canRun = isAdmin === true;
 
   const runSeed = async () => {
     if (!user) {
@@ -139,7 +108,7 @@ export default function AdminSeedPage() {
           <h1 className="font-headline text-3xl md:text-4xl font-bold">
             {t.pageTitle}
           </h1>
-          {hasAdminClaim === null ? (
+          {roleLoading ? (
             <p className="text-muted-foreground">
               {t.checkingPermissions}
             </p>

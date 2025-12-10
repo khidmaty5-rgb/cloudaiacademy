@@ -4,20 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, getFirestore, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, doc } from 'firebase/firestore';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
+import { Shield, BookOpen, GraduationCap } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -28,9 +21,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { updateUserRole } from '@/lib/user';
 import { Button } from '@/components/ui/button';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useLang } from '@/components/i18n/lang';
-import { Switch } from '@/components/ui/switch';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
+ 
 
 const usersText = {
   en: {
@@ -126,103 +119,102 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
 
 function UserList() {
     const firestore = getFirestore();
-    const { user } = useUser();
-    const [canListUsers, setCanListUsers] = useState(false);
-    const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
-
-    // Only allow the users list subscription when the ID token has the admin claim.
-    useEffect(() => {
-        let cancelled = false;
-        async function checkClaims() {
-            if (!user) { setCanListUsers(false); return; }
-            try {
-                const tr = await user.getIdTokenResult();
-                const isAdmin = (tr.claims as any)?.role === 'admin';
-                if (!cancelled) {
-                  setCanListUsers(!!isAdmin);
-                  setHasAdminClaim(!!isAdmin);
-                }
-            } catch {
-                if (!cancelled) {
-                  setCanListUsers(false);
-                  setHasAdminClaim(false);
-                }
-            }
-        }
-        checkClaims();
-        return () => { cancelled = true };
-    }, [user]);
-
-    useEffect(() => {
-        const auth = getAuth();
-        const unsub = onIdTokenChanged(auth, async (u) => {
-            if (!u) { setCanListUsers(false); setHasAdminClaim(false); return; }
-            try {
-                const tr = await u.getIdTokenResult(true);
-                const isAdmin = (tr.claims as any)?.role === 'admin';
-                setCanListUsers(!!isAdmin);
-                setHasAdminClaim(!!isAdmin);
-            } catch {
-                setCanListUsers(false);
-                setHasAdminClaim(false);
-            }
-        });
-        return () => unsub();
-    }, []);
+    const { lang } = useLang();
+    const t = usersText[lang];
+    const { isAdmin, loading: roleLoading } = useCurrentRole();
 
     const usersQuery = useMemoFirebase(() => {
-        if (!canListUsers) return null;
+        if (!isAdmin) return null;
         return query(collection(firestore, 'users'), orderBy('dateJoined', 'desc'));
-    }, [firestore, canListUsers]);
+    }, [firestore, isAdmin]);
 
     const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
 
-    if (areUsersLoading) {
-        return (
-            Array.from({ length: 10 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-48" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
+    const grouped = useMemo(() => {
+      const g: Record<'admin' | 'teacher' | 'student', any[]> = {
+        admin: [],
+        teacher: [],
+        student: [],
+      };
+      for (const u of users || []) {
+        const r = (u.role as 'admin' | 'teacher' | 'student') || 'student';
+        if (g[r]) g[r].push(u);
+      }
+      return g;
+    }, [users]);
+
+    if (areUsersLoading || roleLoading) {
+      return (
+        <div className="grid gap-6 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-24" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-8 w-28" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                </TableRow>
-            ))
-        )
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
     }
 
-    if (!users || users.length === 0) {
-        return (
-            <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                    No users found.
-                </TableCell>
-            </TableRow>
-        );
-    }
+    const roleStyles: Record<'admin' | 'teacher' | 'student', {
+      border: string;
+      bg: string;
+      Icon: (props: any) => JSX.Element;
+      iconColor: string;
+      title: string;
+    }> = {
+      admin: { border: 'border-red-500', bg: 'bg-red-500/10', Icon: Shield as any, iconColor: 'text-red-500', title: t.admin },
+      teacher: { border: 'border-blue-500', bg: 'bg-blue-500/10', Icon: BookOpen as any, iconColor: 'text-blue-500', title: t.teacher },
+      student: { border: 'border-green-500', bg: 'bg-green-500/10', Icon: GraduationCap as any, iconColor: 'text-green-500', title: t.student },
+    };
+
+    const renderCard = (role: 'admin' | 'teacher' | 'student', title: string) => {
+      const S = roleStyles[role];
+      const Icon = S.Icon;
+      return (
+        <Card className={`border ${S.border} border-l-4 ${S.bg}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon className={`h-5 w-5 ${S.iconColor}`} />
+              <span>{title}</span>
+              <span className="ml-1 text-muted-foreground">({grouped[role].length})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {grouped[role].length === 0 ? (
+              <p className="text-sm text-muted-foreground">No users.</p>
+            ) : (
+              grouped[role].map((appUser) => (
+                <div key={appUser.id} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{appUser.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">{`${appUser.firstName} ${appUser.lastName}`}</p>
+                    <p className="truncate text-xs text-muted-foreground">{(() => { const d = toDateValue(appUser.dateJoined); return d ? format(d, 'PPP') : 'N/A'; })()}</p>
+                  </div>
+                  <RoleSelector userId={appUser.id} currentRole={appUser.role} />
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      );
+    };
 
     return (
-        <>
-            {users.map((appUser) => (
-                <TableRow key={appUser.id}>
-                  <TableCell className="font-medium">{appUser.email}</TableCell>
-                  <TableCell>{`${appUser.firstName} ${appUser.lastName}`}</TableCell>
-                  <TableCell>
-                    <RoleSelector userId={appUser.id} currentRole={appUser.role} />
-                  </TableCell>
-                  <TableCell>
-                    {(() => { const d = toDateValue(appUser.dateJoined); return d ? format(d, 'PPP') : 'N/A'; })()}
-                  </TableCell>
-                </TableRow>
-            ))}
-        </>
+      <div className="grid gap-6 md:grid-cols-3">
+        {renderCard('admin', t.admin)}
+        {renderCard('teacher', t.teacher)}
+        {renderCard('student', t.student)}
+      </div>
     );
 }
 
@@ -231,7 +223,7 @@ export default function AdminUsersPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
-  const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = usersText[lang];
 
@@ -243,36 +235,15 @@ export default function AdminUsersPage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
   useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) {
-        if (!cancelled) setHasAdminClaim(null);
-        return;
-      }
-      try {
-        const tr = await user.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        if (!cancelled) setHasAdminClaim(isAdmin);
-      } catch {
-        if (!cancelled) setHasAdminClaim(false);
-      }
-    }
-    checkClaims();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (isUserLoading || isProfileLoading || hasAdminClaim === null) return; // wait until claim check completes
+    if (isUserLoading || isProfileLoading || roleLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
-  }, [user, isUserLoading, userProfile, isProfileLoading, hasAdminClaim, router]);
+  }, [user, isUserLoading, userProfile, isProfileLoading, roleLoading, router]);
 
-  const isLoading = isUserLoading || isProfileLoading || hasAdminClaim === null;
-  const canViewPage = userProfile?.role === 'admin' || hasAdminClaim === true;
+  const isLoading = isUserLoading || isProfileLoading || roleLoading;
+  const canViewPage = isAdmin === true;
 
   if (isLoading) {
      return (
@@ -284,35 +255,22 @@ export default function AdminUsersPage() {
                 <Skeleton className="h-10 w-64" />
                 <Skeleton className="h-10 w-36" />
               </div>
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t.email}</TableHead>
-                      <TableHead>{t.name}</TableHead>
-                      <TableHead>{t.role}</TableHead>
-                      <TableHead>{t.dateJoined}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {Array.from({ length: 10 }).map((_, i) => (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <Skeleton className="h-4 w-48" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-4 w-32" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-8 w-28" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-4 w-24" />
-                          </TableCell>
-                        </TableRow>
+              <div className="grid gap-6 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-28" />
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, j) => (
+                        <div key={j} className="flex items-center justify-between">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-8 w-28" />
+                        </div>
                       ))}
-                  </TableBody>
-                </Table>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
           </main>
@@ -339,21 +297,7 @@ export default function AdminUsersPage() {
           </div>
           
           {canViewPage ? (
-            <div className="border rounded-lg">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>{t.email}</TableHead>
-                    <TableHead>{t.name}</TableHead>
-                    <TableHead>{t.role}</TableHead>
-                    <TableHead>{t.dateJoined}</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <UserList />
-                </TableBody>
-                </Table>
-            </div>
+            <UserList />
           ) : (
              <div className="text-center py-16">
                 <p className="text-muted-foreground">{t.noPermission}</p>

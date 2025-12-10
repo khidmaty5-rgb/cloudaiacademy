@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, getFirestore, query, orderBy, doc } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, doc, where, updateDoc, arrayUnion } from 'firebase/firestore';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,10 +20,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Pencil } from 'lucide-react';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
+ 
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/components/i18n/lang';
+import type { Course } from '@/types/models';
 
 const coursesText = {
   en: {
@@ -40,6 +43,7 @@ const coursesText = {
     level: 'Level',
     actions: 'Actions',
     noCourses: 'No courses found.',
+    teach: 'Teach',
     noPermission: 'You do not have permission to view this page.',
     toastSeedFailedTitle: 'Seed failed',
     toastSeedErrorTitle: 'Seed error',
@@ -63,6 +67,7 @@ const coursesText = {
     level: 'المستوى',
     actions: 'الإجراءات',
     noCourses: 'لا توجد دورات.',
+    teach: 'تدريس',
     noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     toastSeedFailedTitle: 'فشل التهيئة',
     toastSeedErrorTitle: 'خطأ في التهيئة',
@@ -77,7 +82,7 @@ const coursesText = {
 export default function AdminCoursesPage() {
   const firestore = getFirestore();
   const { user } = useUser();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
+  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
   const [seeding, setSeeding] = useState(false);
   const [resetting, setResetting] = useState(false);
   const { toast } = useToast();
@@ -91,51 +96,47 @@ export default function AdminCoursesPage() {
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userDocRef);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-        return;
-      }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-      }
+  const uid = user?.uid;
+
+  // Admins: list all courses; Teachers: list only courses they own or are assigned to
+  const allCoursesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (isAdmin) {
+      return query(collection(firestore, 'courses'), orderBy('title'));
     }
-    checkClaims();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+    return null;
+  }, [firestore, isAdmin]);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) {
-        setHasAdminOrTeacherClaim(false);
-        return;
-      }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch {
-        setHasAdminOrTeacherClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
+  const teacherOwnerQuery = useMemoFirebase(() => {
+    if (!firestore || !uid || !isTeacher) return null;
+    return query(collection(firestore, 'courses'), where('ownerId', '==', uid));
+  }, [firestore, uid, isTeacher]);
 
-  const coursesQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'courses'), orderBy('title'));
-  }, [firestore]);
+  const teacherInstructorQuery = useMemoFirebase(() => {
+    if (!firestore || !uid || !isTeacher) return null;
+    return query(collection(firestore, 'courses'), where('instructorIds', 'array-contains', uid));
+  }, [firestore, uid, isTeacher]);
 
-  const { data: courses, isLoading } = useCollection(coursesQuery);
+  const { data: allCourses, isLoading: isAllLoading } = useCollection(allCoursesQuery);
+  const { data: ownedCourses, isLoading: isOwnedLoading } = useCollection(teacherOwnerQuery);
+  const { data: assignedCourses, isLoading: isAssignedLoading } = useCollection(teacherInstructorQuery);
+
+  // No fallback; teachers only see assigned courses
+
+  const isLoading = roleLoading || isAllLoading || isOwnedLoading || isAssignedLoading;
+  const assignedMerged = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const c of ownedCourses || []) map[c.id] = c;
+    for (const c of assignedCourses || []) map[c.id] = c;
+    return Object.values(map);
+  }, [ownedCourses, assignedCourses]);
+  const courses = useMemo(() => {
+    if (isAdmin) return allCourses || [];
+    if (isTeacher) return assignedMerged;
+    return [];
+  }, [isAdmin, isTeacher, allCourses, assignedMerged]);
+
+  // no teacher self-assign here; admins assign instructors in CourseForm
 
   const handleSeed = async () => {
     try {
@@ -211,12 +212,9 @@ export default function AdminCoursesPage() {
     }
   };
 
-  const canView =
-    userProfile?.role === 'admin' ||
-    userProfile?.role === 'teacher' ||
-    hasAdminOrTeacherClaim === true;
+  const canView = isAdmin || isTeacher;
 
-  if (hasAdminOrTeacherClaim === null) {
+  if (roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -279,25 +277,27 @@ export default function AdminCoursesPage() {
                 <h1 className="font-headline text-3xl md:text-4xl font-bold">
                   {t.pageTitle}
                 </h1>
-                <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    onClick={handleReset}
-                    disabled={resetting}
-                  >
-                    {resetting ? t.resetting : t.resetAndSeed}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleSeed}
-                    disabled={seeding}
-                  >
-                    {seeding ? t.seeding : t.seedSampleData}
-                  </Button>
-                  <Button asChild>
-                    <Link href="/admin/courses/new">{t.addNewCourse}</Link>
-                  </Button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      onClick={handleReset}
+                      disabled={resetting}
+                    >
+                      {resetting ? t.resetting : t.resetAndSeed}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleSeed}
+                      disabled={seeding}
+                    >
+                      {seeding ? t.seeding : t.seedSampleData}
+                    </Button>
+                    <Button asChild>
+                      <Link href="/admin/courses/new">{t.addNewCourse}</Link>
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="border rounded-lg">
@@ -337,7 +337,7 @@ export default function AdminCoursesPage() {
                         </TableRow>
                       ))
                     ) : courses && courses.length > 0 ? (
-                      courses.map((course) => {
+                      courses.map((course: Course) => {
                         const image = getPlaceholderImage(course.imageId);
                         return (
                           <TableRow key={course.id}>
@@ -371,6 +371,7 @@ export default function AdminCoursesPage() {
                                   <Pencil className="h-4 w-4" />
                                 </Link>
                               </Button>
+                              {/* No self-assign for teachers */}
                             </TableCell>
                           </TableRow>
                         );

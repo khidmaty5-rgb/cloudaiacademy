@@ -11,6 +11,7 @@ import Pricing from '@/components/landing/pricing';
 import Stats from '@/components/landing/stats';
 import Testimonials from '@/components/landing/testimonials';
 import Courses from '@/components/landing/courses';
+ 
 
 export default function Home() {
   return (

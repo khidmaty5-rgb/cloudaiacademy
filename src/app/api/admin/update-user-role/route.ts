@@ -75,9 +75,9 @@ export async function POST(req: NextRequest) {
 
     // Owner email override: allow the configured owner to self-promote to admin for local/dev setup
     if (requesterUid === userId && role === 'admin') {
-      const ownerEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'dhnos@hotmail.com').toLowerCase();
+      const ownerEmail = (process.env.INITIAL_ADMIN_EMAIL || '').toLowerCase();
       const requesterEmail = (decoded.email || '').toLowerCase();
-      if (requesterEmail && requesterEmail === ownerEmail) {
+      if (ownerEmail && requesterEmail && requesterEmail === ownerEmail) {
         await getAuth(app).setCustomUserClaims(userId, { role: 'admin' });
         await db.doc(`users/${userId}`).set({ role: 'admin' }, { merge: true });
         return NextResponse.json({ ok: true, owner: true }, { status: 200 });

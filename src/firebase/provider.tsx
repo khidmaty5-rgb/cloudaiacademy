@@ -2,10 +2,11 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
-import { doc, getDoc } from 'firebase/firestore';
+import { ensureUserClaimsSync } from '@/firebase/claim-sync';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -96,24 +97,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       const u = userAuthState.user;
       if (!u) return;
       try {
-        const userDocRef = doc(firestore, 'users', u.uid);
-        const snap = await getDoc(userDocRef);
-        const docRole = snap.exists() ? ((snap.data() as any)?.role as string | undefined) : undefined;
-        const desiredRole = docRole;
-        if (!desiredRole) return;
-        const tokenResult = await u.getIdTokenResult();
-        const claimRole = (tokenResult.claims as any)?.role;
-        if (claimRole === desiredRole) return;
-        const token = await u.getIdToken();
-        await fetch('/api/admin/update-user-role', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ userId: u.uid, role: desiredRole }),
-        });
-        await u.getIdToken(true);
-      } catch {}
+        await ensureUserClaimsSync(auth, firestore, u);
+      } catch (e) {
+        console.error('[FirebaseProvider.ensureClaims] Claim sync failed', e);
+        try { errorEmitter.emit('claim-error', (e as Error) || new Error('Claim sync failed')); } catch {}
+      }
     }
     ensureClaims();
+  }, [auth, firestore, userAuthState.user]);
+
+  // React to role changes in the user's Firestore document and re-sync custom claims immediately
+  useEffect(() => {
+    if (!auth || !firestore) return;
+    const u = userAuthState.user;
+    if (!u) return;
+
+    const ref = doc(firestore, 'users', u.uid);
+    const unsubscribe = onSnapshot(ref, async (snap) => {
+      if (!snap.exists()) return;
+      try {
+        await ensureUserClaimsSync(auth, firestore, u);
+      } catch (e) {
+        console.error('[FirebaseProvider.role-listener] Claim sync failed after role update', e);
+        try { errorEmitter.emit('claim-error', (e as Error) || new Error('Claim sync failed')); } catch {}
+      }
+    });
+    return () => unsubscribe();
   }, [auth, firestore, userAuthState.user]);
 
   // Memoize the context value

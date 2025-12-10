@@ -37,7 +37,7 @@ import { useEffect } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
 
 const newUserSchema = z.object({
@@ -55,7 +55,7 @@ export default function NewUserPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useUser();
   const firestore = getFirestore();
-  const [hasAdminClaim, setHasAdminClaim] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = {
     en: {
@@ -110,35 +110,7 @@ export default function NewUserPage() {
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userDocRef);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        if (!cancelled) setHasAdminClaim(isAdmin);
-      } catch {
-        if (!cancelled) setHasAdminClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        setHasAdminClaim((tr.claims as any)?.role === 'admin');
-      } catch {
-        setHasAdminClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
+  // useCurrentRole handles admin detection
 
   const form = useForm<NewUserFormValues>({
     resolver: zodResolver(newUserSchema),
@@ -173,9 +145,9 @@ export default function NewUserPage() {
     }
   };
 
-  const canView = (userProfile?.role === 'admin' || hasAdminClaim === true);
+  const canView = isAdmin === true;
 
-  if (hasAdminClaim === null) {
+  if (roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />

@@ -24,13 +24,7 @@ export async function signUp(email: string, password: string, fullName: string) 
   });
 
   // Default role for all public sign-ups is 'student'
-  let userRole = 'student';
-
-  // Special one-time rule to create the first admin user.
-  // This should be removed after the first admin has been created.
-  if (email.toLowerCase() === 'dhnos@hotmail.com') {
-    userRole = 'admin';
-  }
+  const userRole = 'student';
 
   await setDoc(doc(firestore, 'users', user.uid), {
     id: user.uid,

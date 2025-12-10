@@ -12,11 +12,13 @@ import { enrollInCourse } from '@/lib/enrollment';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal, CheckCircle } from 'lucide-react';
-import { doc, collection, query, orderBy } from 'firebase/firestore';
+import { doc, collection, query, orderBy, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import type { Lesson } from '@/lib/lessons';
 import type { Course, Enrollment } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
+import LiveSessionButton from '@/components/LiveSessionButton';
 
 const courseCopy = {
   en: {
@@ -27,6 +29,7 @@ const courseCopy = {
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
     enrollFailedDesc: 'There was an error enrolling in the course.',
+    startLive: 'Start Live Class',
   },
   ar: {
     courseNotFound: 'Course not found.',
@@ -36,6 +39,7 @@ const courseCopy = {
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
     enrollFailedDesc: 'There was an error enrolling in the course.',
+    startLive: 'بدء الحصة المباشرة',
   },
 } as const;
 
@@ -54,7 +58,37 @@ export default function CourseDetailPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userDocRef);
-  const requirePayment = userProfile?.requirePayment === true;
+  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    async function checkClaims() {
+      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await user.getIdTokenResult();
+        const role = (tr.claims as any)?.role;
+        const allowed = role === 'admin' || role === 'teacher';
+        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
+      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
+    }
+    checkClaims();
+    return () => { cancelled = true };
+  }, [user]);
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onIdTokenChanged(auth, async (u) => {
+      if (!u) { setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await u.getIdTokenResult(true);
+        const role = (tr.claims as any)?.role;
+        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
+      } catch { setHasAdminOrTeacherClaim(false); }
+    });
+    return () => unsub();
+  }, []);
+
+  const isStudent = ((userProfile?.role as string | undefined) || 'student') === 'student' && hasAdminOrTeacherClaim !== true;
+  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
+  const isTeacherOrAdmin = (userProfile?.role === 'teacher' || userProfile?.role === 'admin' || hasAdminOrTeacherClaim === true);
 
   const courseDocRef = useMemoFirebase(() => {
       if (!slug) return null;
@@ -75,6 +109,10 @@ export default function CourseDetailPage() {
 
   const image = course ? getPlaceholderImage(course.imageId) : undefined;
 
+  const uid = user?.uid;
+  const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
+  const canJoinLive = !!(isCourseInstructor || isEnrolled);
+
   const lessonsQuery = useMemoFirebase(() => {
     if (!course || !isEnrolled) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
@@ -89,7 +127,7 @@ export default function CourseDetailPage() {
       router.push('/login');
       return;
     }
-    if (requirePayment) {
+    if (studentPaymentRequired) {
       toast({ variant: 'destructive', title: 'Payment required', description: 'Please complete payment to access this course.' });
       router.push('/pricing');
       return;
@@ -115,6 +153,8 @@ export default function CourseDetailPage() {
       });
     }
   };
+
+  // no teacher self-assign; admin assigns instructors in Admin → Courses
 
   if (isLoading) {
       return (
@@ -191,10 +231,24 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="mt-8">
-                {requirePayment && (
+                {studentPaymentRequired && (
                   <p className="mb-4 text-sm text-destructive">Payment required to enroll or access lessons.</p>
                 )}
-                {isEnrolled ? (
+                {isTeacherOrAdmin ? (
+                    <Button
+                      size="lg"
+                      className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"
+                      onClick={() => {
+                        if (firstLessonId) {
+                          router.push(`/learn/${slug}/${firstLessonId}`);
+                        } else {
+                          router.push(`/learn/${slug}`);
+                        }
+                      }}
+                    >
+                      {t.goToCourse}
+                    </Button>
+                ) : isEnrolled ? (
                     <Button
                       size="lg"
                       className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"
@@ -209,10 +263,18 @@ export default function CourseDetailPage() {
                       {t.goToCourse}
                     </Button>
                 ) : (
-                    <Button onClick={handleEnroll} size="lg" disabled={requirePayment} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60">
+                    <Button onClick={handleEnroll} size="lg" disabled={studentPaymentRequired} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60">
                         {t.enrollNow}
                     </Button>
                 )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {isCourseInstructor && (
+                    <LiveSessionButton courseId={course.id} label={t.startLive} />
+                  )}
+                  {!isCourseInstructor && isEnrolled && (
+                    <LiveSessionButton courseId={course.id} />
+                  )}
+                </div>
               </div>
             </div>
           </div>

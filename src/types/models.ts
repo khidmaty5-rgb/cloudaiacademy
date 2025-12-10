@@ -23,6 +23,9 @@ export interface Course {
   duration: string;
   level: CourseLevel;
   imageId: string;
+  // Optional teacher association
+  ownerId?: string;          // primary instructor/creator uid
+  instructorIds?: string[];  // additional instructors if any
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
 }

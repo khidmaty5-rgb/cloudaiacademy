@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,7 +25,10 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { addCourse, updateCourse } from '@/lib/courses';
-import { courses as allCourses } from '@/components/landing/courses';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, getFirestore, query, where } from 'firebase/firestore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 const courseSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),
@@ -46,6 +49,8 @@ export default function CourseForm({ course }: CourseFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const firestore = getFirestore();
+  const { isAdmin } = useCurrentRole();
 
   const isEditMode = !!course;
 
@@ -61,17 +66,38 @@ export default function CourseForm({ course }: CourseFormProps) {
     },
   });
 
+  // Admin-only teacher list and instructor assignment state
+  const teachersQuery = useMemoFirebase(
+    () => query(collection(firestore, 'users'), where('role', '==', 'teacher')),
+    [firestore]
+  );
+  const { data: teachers } = useCollection<any>(teachersQuery);
+  const initialOwnerId = (course as any)?.ownerId as string | undefined;
+  const initialInstructorIds = ((course as any)?.instructorIds as string[] | undefined) || [];
+  const [ownerId, setOwnerId] = useState<string | undefined>(initialOwnerId);
+  const [instructorIds, setInstructorIds] = useState<string[]>(initialInstructorIds);
+  const teacherOptions = useMemo(
+    () => (teachers || []).map((t: any) => ({ id: t.id, name: `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || t.email })),
+    [teachers]
+  );
+
   const onSubmit = async (data: CourseFormValues) => {
     setIsLoading(true);
     try {
+      const extra = isAdmin
+        ? {
+            ownerId: ownerId,
+            instructorIds: Array.from(new Set([...(instructorIds || []), ...(ownerId ? [ownerId] : [])])),
+          }
+        : undefined;
       if (isEditMode) {
-        await updateCourse(course.id!, data);
+        await updateCourse(course.id!, { ...data, ...(extra || {}) });
         toast({
           title: 'Course Updated!',
           description: `${data.title} has been successfully updated.`,
         });
       } else {
-        await addCourse(data);
+        await addCourse(data, extra);
         toast({
           title: 'Course Created!',
           description: `${data.title} has been successfully added.`,
@@ -150,6 +176,53 @@ export default function CourseForm({ course }: CourseFormProps) {
             )}
             />
         </div>
+
+        {isAdmin && (
+          <div className="space-y-4 border-t pt-6">
+            <FormLabel>Instructors</FormLabel>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <FormLabel className="text-sm text-muted-foreground">Primary Instructor</FormLabel>
+                <Select onValueChange={(v) => setOwnerId(v)} defaultValue={ownerId}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select primary instructor" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {teacherOptions.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <FormLabel className="text-sm text-muted-foreground">Additional Instructors</FormLabel>
+                <div className="space-y-2 max-h-56 overflow-auto p-2 border rounded-md">
+                  {teacherOptions.map((t) => {
+                    const checked = instructorIds.includes(t.id);
+                    return (
+                      <label key={t.id} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const isChecked = !!v;
+                            setInstructorIds((prev) => {
+                              const set = new Set(prev);
+                              if (isChecked) set.add(t.id); else set.delete(t.id);
+                              return Array.from(set);
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{t.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <FormField
             control={form.control}

@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
+import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,7 +28,37 @@ export default function LearnCoursePage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userDocRef);
-  const requirePayment = userProfile?.requirePayment === true;
+  const { isAdmin, isTeacher, isStudent: isStudentRole } = useCurrentRole();
+  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    async function checkClaims() {
+      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await user.getIdTokenResult();
+        const role = (tr.claims as any)?.role;
+        const allowed = role === 'admin' || role === 'teacher';
+        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
+      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
+    }
+    checkClaims();
+    return () => { cancelled = true };
+  }, [user]);
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onIdTokenChanged(auth, async (u) => {
+      if (!u) { setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await u.getIdTokenResult(true);
+        const role = (tr.claims as any)?.role;
+        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
+      } catch { setHasAdminOrTeacherClaim(false); }
+    });
+    return () => unsub();
+  }, []);
+  // Treat teacher-not-instructor as student for learn access unless admin or instructor
+  const isStudent = isStudentRole && hasAdminOrTeacherClaim !== true;
+  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -35,9 +67,9 @@ export default function LearnCoursePage() {
   const { data: course, isLoading: isCourseLoading } = useDoc(courseDocRef);
 
   const lessonsQuery = useMemoFirebase(() => {
-    if (!course || requirePayment) return null;
+    if (!course || studentPaymentRequired) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, requirePayment]);
+  }, [firestore, course, studentPaymentRequired]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const enrollmentDocRef = useMemoFirebase(() => {
@@ -62,6 +94,9 @@ export default function LearnCoursePage() {
   }, [isUserLoading, isEnrollmentLoading, isCourseLoading]);
 
 
+  const uid = user?.uid;
+  const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
+  const canAccessWithoutEnroll = !!(isAdmin || isCourseInstructor);
   const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
 
   if (isLoading) {
@@ -126,7 +161,7 @@ export default function LearnCoursePage() {
   // enrollment fallback shown before checking lessons
   const handleEnroll = async () => {
     if (!user || !course) return;
-    if (requirePayment) { window.location.assign('/#pricing'); return; }
+    if (studentPaymentRequired) { window.location.assign('/#pricing'); return; }
     try {
       setEnrolling(true);
       await enrollInCourse(user.uid, course.id);
@@ -135,7 +170,29 @@ export default function LearnCoursePage() {
     }
   };
 
-  if (enrollment === null) {
+  if (studentPaymentRequired && !canAccessWithoutEnroll) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 py-10 md:py-16">
+          <div className="container max-w-3xl mx-auto">
+            <Card className="border-destructive/30 bg-destructive/10">
+              <CardHeader>
+                <CardTitle>Payment required</CardTitle>
+                <CardDescription>Please complete payment to access this course.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href="/#pricing" className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">View Plans</Link>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isStudent && !canAccessWithoutEnroll && enrollment === null) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />

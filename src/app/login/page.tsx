@@ -29,8 +29,10 @@ export default function LoginPage() {
       const cred = await signIn(email, password);
       const tr = await cred.user.getIdTokenResult(true);
       const role = (tr.claims as any)?.role;
-      if (role === 'admin' || role === 'teacher') {
+      if (role === 'admin') {
         router.push('/admin/dashboard');
+      } else if (role === 'teacher') {
+        router.push('/teacher/dashboard');
       } else {
         router.push('/dashboard');
       }

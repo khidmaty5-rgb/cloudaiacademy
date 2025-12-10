@@ -32,6 +32,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { doc, getFirestore, setDoc } from 'firebase/firestore';
 import { useLang, LangToggle } from '@/components/i18n/lang';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navLinks = [
@@ -140,7 +141,7 @@ function UserProfileMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/dashboard">
+          <Link href={role === 'admin' ? '/admin/dashboard' : role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
           </Link>
@@ -153,7 +154,7 @@ function UserProfileMenu({
         </DropdownMenuItem>
         {canAccessAdmin && (
           <DropdownMenuItem asChild>
-            <Link href="/admin/dashboard">
+            <Link href={role === 'teacher' ? '/teacher/dashboard' : '/admin/dashboard'}>
               <Shield className="mr-2 h-4 w-4" />
               {effectiveAdminLabel ?? 'Admin'}
             </Link>
@@ -181,6 +182,7 @@ export default function Header() {
   const router = useRouter();
   const { lang } = useLang();
   const firestore = getFirestore();
+  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -189,9 +191,11 @@ export default function Header() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-  const role = (userProfile?.role as Role) ?? null;
-  const canAccessAdmin = role === 'admin' || role === 'teacher';
-  const isTeacher = role === 'teacher';
+  // Prefer claims for gating; fall back to profile when claims are unavailable
+  const effectiveRole: Role = user
+    ? (isAdmin ? 'admin' : isTeacher ? 'teacher' : ((userProfile?.role as Role) ?? 'student'))
+    : null;
+  const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'teacher';
   const isAdminRoute = !!pathname && pathname.startsWith('/admin');
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
@@ -260,6 +264,11 @@ export default function Header() {
     },
   ] as const;
 
+  const teachingNavItems = [
+    { href: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة المعلم' : 'Teaching' },
+    { href: '/teacher/courses', label: lang === 'ar' ? 'دوراتي' : 'My Courses' },
+  ] as const;
+
   const filteredAdminNavItems = isTeacher
     ? adminNavItems.filter(
         (i) =>
@@ -274,6 +283,13 @@ export default function Header() {
     router.push('/');
   };
 
+  // Stable dashboard target to avoid flicker while role claims load
+  const preferredDashboardHref = (isAdminRoute || effectiveRole === 'admin')
+    ? '/admin/dashboard'
+    : (effectiveRole === 'teacher'
+      ? '/teacher/dashboard'
+      : '/dashboard');
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
       <div className="container flex h-20 items-center justify-between">
@@ -286,51 +302,52 @@ export default function Header() {
         </button>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {!isAdminRoute && (
+          {/* Always show public nav */}
+          {visibleLinks.map((link) => (
+            <Link
+              key={link.id}
+              href={link.href}
+              className={`font-medium text-primary-foreground/80 transition-colors hover:text-accent ${
+                pathname === link.href ? 'font-semibold text-accent' : ''
+              }`}
+            >
+              {navLabel(link.id)}
+            </Link>
+          ))}
+          {user && (
             <>
-              {visibleLinks.map((link) => (
+              <Link
+                href={preferredDashboardHref}
+                className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
+              >
+                {t('dashboard')}
+              </Link>
+              {!canAccessAdmin && !roleLoading && (
                 <Link
-                  key={link.id}
-                  href={link.href}
-                  className={`font-medium text-primary-foreground/80 transition-colors hover:text-accent ${
-                    pathname === link.href ? 'font-semibold text-accent' : ''
-                  }`}
+                  href="/learning-path"
+                  className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
                 >
-                  {navLabel(link.id)}
+                  {t('learningPath')}
                 </Link>
-              ))}
-              {user && (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
-                  >
-                    {t('dashboard')}
-                  </Link>
-                  <Link
-                    href="/learning-path"
-                    className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
-                  >
-                    {t('learningPath')}
-                  </Link>
-                </>
               )}
             </>
           )}
-          {isAdminRoute && canAccessAdmin && (
-            <>
-              {filteredAdminNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`font-medium text-primary-foreground/80 transition-colors hover:text-accent ${
-                    pathname === item.href ? 'font-semibold text-accent' : ''
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </>
+          {/* Add Teaching/Admin dropdown */}
+          {canAccessAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="font-medium text-primary-foreground/80 hover:text-accent">
+                  {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {(isTeacher ? teachingNavItems : adminNavItems).map((item) => (
+                  <DropdownMenuItem asChild key={item.href}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </nav>
 
@@ -338,7 +355,7 @@ export default function Header() {
           <LangToggle className="hidden md:flex" />
           <ThemeToggle className="hidden md:flex" />
           <UserProfileMenu
-            role={role}
+            role={effectiveRole}
             canAccessAdmin={canAccessAdmin}
             isUserLoading={isUserLoading}
             isProfileLoading={isProfileLoading}
@@ -386,20 +403,39 @@ export default function Header() {
                       {user && (
                         <>
                           <Link
-                            href="/dashboard"
+                            href={preferredDashboardHref}
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
                             {t('dashboard')}
                           </Link>
-                          <Link
-                            href="/learning-path"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {t('learningPath')}
-                          </Link>
+                          {!canAccessAdmin && (
+                            <Link
+                              href="/learning-path"
+                              onClick={() => setIsOpen(false)}
+                              className="text-lg font-medium hover:text-accent"
+                            >
+                              {t('learningPath')}
+                            </Link>
+                          )}
                         </>
+                      )}
+                      {canAccessAdmin && (
+                        <div className="mt-2">
+                          <p className="px-2 text-xs text-primary-foreground/60">
+                            {isTeacher ? (lang==='ar' ? 'التدريس' : 'Teaching') : (lang==='ar' ? 'الإدارة' : 'Admin')}
+                          </p>
+                          {(isTeacher ? teachingNavItems : adminNavItems).map((item) => (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setIsOpen(false)}
+                              className="text-lg font-medium hover:text-accent block"
+                            >
+                              {item.label}
+                            </Link>
+                          ))}
+                        </div>
                       )}
                       {!user && (
                         <>

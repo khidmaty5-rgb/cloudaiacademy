@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/landing/header';
@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { createAnnouncement } from '@/lib/announcements';
 import { doc, getFirestore } from 'firebase/firestore';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
 
 export default function CreateAnnouncementPage() {
@@ -30,6 +30,7 @@ export default function CreateAnnouncementPage() {
   const { toast } = useToast();
   const firestore = getFirestore();
   const { lang } = useLang();
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
   const t = {
     en: {
       pageTitle: 'Create Announcement',
@@ -80,48 +81,6 @@ export default function CreateAnnouncementPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult(true);
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch {
-        setHasAdminOrTeacherClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    if (isUserLoading || isProfileLoading || hasAdminOrTeacherClaim === null) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    // Do not redirect on lack of permission; show a message instead.
-  }, [user, isUserLoading, isProfileLoading, hasAdminOrTeacherClaim, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +111,7 @@ export default function CreateAnnouncementPage() {
     }
   };
   
-  if (isUserLoading || isProfileLoading || hasAdminOrTeacherClaim === null || !user) {
+  if (isUserLoading || isProfileLoading || roleLoading || !user) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
           <Header />
@@ -178,7 +137,7 @@ export default function CreateAnnouncementPage() {
     );
   }
 
-  const canView = (userProfile?.role === 'admin' || userProfile?.role === 'teacher' || hasAdminOrTeacherClaim === true);
+  const canView = isAdmin === true;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

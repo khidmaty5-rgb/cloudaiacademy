@@ -4,8 +4,6 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -13,16 +11,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import {
-  Shield,
-  LayoutDashboard,
-  UserCog,
-  BookOpen,
-  GraduationCap,
-  Newspaper,
-  BookMarked,
-  Users,
-} from 'lucide-react';
+import { LayoutDashboard, UserCog, BookOpen, GraduationCap } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -42,14 +31,6 @@ const menuItems = [
     icon: GraduationCap,
   },
   { href: '/courses', label: 'All Courses', icon: BookOpen },
-];
-
-const adminMenuItems = [
-  { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { href: '/admin/courses', label: 'Courses', icon: BookMarked },
-   { href: '/admin/journal', label: 'Journal', icon: Newspaper },
-  { href: '/admin/announcements', label: 'Announcements', icon: Newspaper },
-  { href: '/admin/users', label: 'Users', icon: Users },
 ];
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -103,14 +84,6 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   const canAccessAdmin = hasAdminOrTeacherClaim === true;
-  const isTeacher =
-    userProfile?.role === 'teacher' || roleLabel === 'Teacher';
-  const adminGroupLabel = isTeacher ? 'Teaching' : 'Administration';
-  const filteredAdminMenuItems = isTeacher
-    ? adminMenuItems.filter(
-        (i) => i.href !== '/admin/users' && i.href !== '/admin/journal',
-      )
-    : adminMenuItems;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -141,29 +114,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                   </>
                 )}
               </SidebarMenu>
-              {canAccessAdmin && (
-                <SidebarGroup>
-                  <SidebarGroupLabel className="flex items-center gap-2">
-                    <Shield />
-                    <span>{adminGroupLabel}</span>
-                  </SidebarGroupLabel>
-                  <SidebarMenu>
-                    {filteredAdminMenuItems.map((item) => (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === item.href}
-                        >
-                          <Link href={item.href}>
-                            <item.icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroup>
-              )}
+              {/* Admin/Teaching links are no longer duplicated here; they live in the top header dropdown. */}
             </SidebarContent>
           </Sidebar>
           <SidebarInset>{children}</SidebarInset>

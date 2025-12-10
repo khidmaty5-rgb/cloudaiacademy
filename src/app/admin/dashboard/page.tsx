@@ -21,7 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Users, BookOpen, DollarSign, LineChart, BarChart } from 'lucide-react';
 import { format } from 'date-fns';
 import { RevenueChart } from '@/components/admin/RevenueChart';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+ 
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
 
 function toDateValue(v: any): Date | null {
@@ -118,9 +119,8 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  const [roleLabel, setRoleLabel] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
+  const roleLabel = isAdmin ? 'Admin' : isTeacher ? 'Teacher' : null;
   const { lang } = useLang();
   const t = dashboardText[lang];
 
@@ -132,22 +132,7 @@ export default function AdminDashboardPage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
   // Fetch all users for total user count and growth calculation (admin-only)
-  const [canListUsers, setCanListUsers] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setCanListUsers(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const isAdmin = (tr.claims as any)?.role === 'admin';
-        if (!cancelled) setCanListUsers(!!isAdmin);
-      } catch {
-        if (!cancelled) setCanListUsers(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
+  const canListUsers = isAdmin;
 
   const usersQuery = useMemoFirebase(
     () => (canListUsers ? collection(firestore, 'users') : null),
@@ -156,7 +141,7 @@ export default function AdminDashboardPage() {
   const { data: users, isLoading: isUsersLoading, error: usersError } = useCollection(usersQuery);
 
   // Fetch all enrollments for total enrollment count and revenue
-  const canListEnrollments = hasAdminOrTeacherClaim === true;
+  const canListEnrollments = isAdmin || isTeacher;
   const enrollmentsQuery = useMemoFirebase(
     () => (canListEnrollments ? query(collectionGroup(firestore, 'enrollments')) : null),
     [firestore, canListEnrollments]
@@ -248,47 +233,9 @@ export default function AdminDashboardPage() {
       });
   }, [enrollments, users, allCourses]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) {
-          setHasAdminOrTeacherClaim(allowed);
-          setRoleLabel(role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : null);
-          setIsAdmin(role === 'admin');
-        }
-      } catch {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-        setRoleLabel(role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : null);
-        setIsAdmin(role === 'admin');
-      } catch {
-        setHasAdminOrTeacherClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  const isLoading = isUserLoading || isProfileLoading || hasAdminOrTeacherClaim === null;
+  const isLoading = isUserLoading || isProfileLoading || roleLoading;
   const loadError = usersError || enrollmentsError || coursesError;
-  const canView = (userProfile?.role === 'admin' || userProfile?.role === 'teacher' || hasAdminOrTeacherClaim === true);
+  const canView = isAdmin || isTeacher;
   const isDataLoading =
     isUsersLoading || isEnrollmentsLoading || isCoursesLoading;
 
@@ -434,7 +381,7 @@ export default function AdminDashboardPage() {
                       ))
                     ) : recentEnrollments.length > 0 ? (
                       recentEnrollments.map((enrollment) => (
-                        <TableRow key={enrollment.id}>
+                        <TableRow key={`${enrollment.userId}-${enrollment.courseId}-${enrollment.id}`}>
                           <TableCell>{enrollment.userEmail}</TableCell>
                           <TableCell>{enrollment.courseTitle}</TableCell>
                           <TableCell>

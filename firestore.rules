@@ -64,7 +64,11 @@ service cloud.firestore {
     // Deny access if the user's profile indicates payment is required
     function accountActive() {
       return isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment != true
+        // Only students are restricted by payment gate; admins/teachers always pass
+        !(
+          (request.auth.token.role == 'student') &&
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment == true)
+        )
       );
     }
 

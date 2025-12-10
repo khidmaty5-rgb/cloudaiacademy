@@ -5,6 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
+import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { canTeachCourse } from '@/lib/roles';
 import { updateUserProgress, enrollInCourse } from '@/lib/enrollment';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -28,6 +31,35 @@ export default function LessonPage() {
 
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
+  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
+  const { isAdmin } = useCurrentRole();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkClaims() {
+      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await user.getIdTokenResult();
+        const role = (tr.claims as any)?.role;
+        const allowed = role === 'admin' || role === 'teacher';
+        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
+      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
+    }
+    checkClaims();
+    return () => { cancelled = true };
+  }, [user]);
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onIdTokenChanged(auth, async (u) => {
+      if (!u) { setHasAdminOrTeacherClaim(false); return; }
+      try {
+        const tr = await u.getIdTokenResult(true);
+        const role = (tr.claims as any)?.role;
+        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
+      } catch { setHasAdminOrTeacherClaim(false); }
+    });
+    return () => unsub();
+  }, []);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -86,7 +118,8 @@ export default function LessonPage() {
       return;
     }
 
-    if (user && enrollment === null && course && !autoEnrolled) {
+    const isTeacherOrAdmin = hasAdminOrTeacherClaim === true;
+    if (!isTeacherOrAdmin && user && enrollment === null && course && !autoEnrolled) {
       (async () => {
         try {
           await enrollInCourse(user.uid, course.id);
@@ -147,6 +180,10 @@ export default function LessonPage() {
     }
   };
   
+  const uid = user?.uid;
+  const isInstructor = !!(uid && canTeachCourse(course as any, uid));
+  const canAccessWithoutEnroll = !!(isAdmin || isInstructor);
+  const isStudent = !canAccessWithoutEnroll;
   const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
 
   if (isLoading || !course || !lesson) {
@@ -168,7 +205,7 @@ export default function LessonPage() {
   const displayTitle = lang === 'ar' && lesson.title_ar ? lesson.title_ar : lesson.title;
   const displayContent = lang === 'ar' && lesson.content_ar ? lesson.content_ar : lesson.content;
 
-  if (enrollment === null) {
+  if (isStudent && enrollment === null) {
       // This can happen briefly while enrollment data is loading or if the user is not enrolled.
       // The main useEffect hook will handle redirection.
       return null;
@@ -208,44 +245,58 @@ export default function LessonPage() {
             </div>
             
             <div className="flex gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
+                {isStudent && (
+                  <>
+                    <Dialog>
+                      <DialogTrigger asChild>
                         <Button variant="outline">
-                        <BrainCircuit className="mr-2" /> Take Quiz
+                          <BrainCircuit className="mr-2" /> Take Quiz
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl">
                         <DialogHeader>
-                        <DialogTitle>Quiz: {displayTitle}</DialogTitle>
+                          <DialogTitle>Quiz: {displayTitle}</DialogTitle>
                         </DialogHeader>
                         <Quiz lessonContent={displayContent} />
-                    </DialogContent>
-                </Dialog>
-                <Button
-                onClick={handleToggleComplete}
-                className={`min-w-[200px] ${isLessonCompleted ? 'bg-green-600 hover:bg-green-700' : 'bg-accent hover:bg-accent/90'} text-accent-foreground`}
-                >
-                {isLessonCompleted ? (
-                    <>
-                    <CheckCircle className="mr-2" /> Mark as Incomplete
-                    </>
-                ) : (
-                    'Complete Lesson'
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      onClick={handleToggleComplete}
+                      className={`min-w-[200px] ${isLessonCompleted ? 'bg-green-600 hover:bg-green-700' : 'bg-accent hover:bg-accent/90'} text-accent-foreground`}
+                    >
+                      {isLessonCompleted ? (
+                        <>
+                          <CheckCircle className="mr-2" /> Mark as Incomplete
+                        </>
+                      ) : (
+                        'Complete Lesson'
+                      )}
+                    </Button>
+                  </>
                 )}
-                </Button>
             </div>
             
             <div>
-                {nextLesson && !isLessonCompleted ? (
-                    <Button variant="outline" disabled>
+                {nextLesson ? (
+                  isStudent ? (
+                    !isLessonCompleted ? (
+                      <Button variant="outline" disabled>
                         Next Lesson <ArrowRight className="ml-2" />
-                    </Button>
-                ) : nextLesson ? (
-                     <Button variant="outline" asChild>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" asChild>
                         <Link href={`/learn/${slug}/${nextLesson.id}`}>
-                            Next Lesson <ArrowRight className="ml-2" />
+                          Next Lesson <ArrowRight className="ml-2" />
                         </Link>
+                      </Button>
+                    )
+                  ) : (
+                    <Button variant="outline" asChild>
+                      <Link href={`/learn/${slug}/${nextLesson.id}`}>
+                        Next Lesson <ArrowRight className="ml-2" />
+                      </Link>
                     </Button>
+                  )
                 ) : <div className='w-40' />}
             </div>
           </div>
