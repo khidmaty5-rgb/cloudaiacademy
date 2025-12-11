@@ -72,7 +72,7 @@ export default function TeacherCoursesPage() {
                   <TableCell className="space-x-2">
                     <Link href={`/courses/${course.slug}`} className="text-accent hover:underline">View</Link>
                     <Link href={`/admin/courses/edit/${course.slug}`} className="text-accent hover:underline">Manage</Link>
-                    <LiveSessionButton courseId={course.id} label="Start Live" />
+                    <LiveSessionButton course={course as any} label="Start Live" />
                   </TableCell>
                 </TableRow>
               ))}

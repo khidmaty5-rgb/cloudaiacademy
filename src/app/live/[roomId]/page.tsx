@@ -2,6 +2,7 @@
 import { use } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { getFirestore, doc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import Link from 'next/link';
@@ -23,7 +24,8 @@ export default function LiveRoomPage({ params }: PageProps) {
 
   const { user } = useUser();
   const firestore = getFirestore();
-  const { isAdmin } = useCurrentRole();
+  const { isAdmin, isTeacher } = useCurrentRole();
+  const router = useRouter();
 
   const courseDocRef = useMemoFirebase(() => {
     if (!courseId) return null;
@@ -41,6 +43,8 @@ export default function LiveRoomPage({ params }: PageProps) {
   const isInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const isEnrolled = !!enrollment;
   const canJoinLive = !!(isAdmin || isInstructor || isEnrolled);
+
+  const dashboardHref = isAdmin ? '/admin/dashboard' : isTeacher ? '/teacher/dashboard' : '/dashboard';
 
   if (!canJoinLive) {
     return (
@@ -67,22 +71,52 @@ export default function LiveRoomPage({ params }: PageProps) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 gap-2">
           <h1 className="text-sm font-medium md:text-base">
             Live Class – <span className="font-semibold">{prettyLabel}</span>
           </h1>
-          <span className="text-xs text-slate-400">Powered by Jitsi (meet.jit.si)</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.open(jitsiUrl, '_blank', 'noopener,noreferrer')}
+              className="rounded bg-accent px-2 py-1 text-xs text-accent-foreground hover:bg-accent/90"
+            >
+              Join in new tab
+            </button>
+            <button
+              onClick={() => router.push(dashboardHref)}
+              className="rounded bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700"
+            >
+              Back to dashboard
+            </button>
+            <span className="hidden md:inline text-xs text-slate-400">Powered by Jitsi (meet.jit.si)</span>
+          </div>
         </div>
       </header>
 
       <main className="min-h-0 flex-1">
-        <div className="h-[calc(100vh-3.5rem)]">
-          <iframe
-            src={jitsiUrl}
-            className="h-full w-full border-0"
-            allow="camera; microphone; fullscreen; display-capture"
-            title={`Live: ${prettyLabel}`}
-          />
+        <div className="h-[calc(100vh-3.5rem)] grid place-items-center p-4">
+          <Card className="max-w-lg w-full bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle>Join your live class</CardTitle>
+              <CardDescription>We open Jitsi in a separate tab to avoid the embed time limit.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.open(jitsiUrl, '_blank', 'noopener,noreferrer')}
+                  className="rounded bg-accent px-4 py-2 text-sm text-accent-foreground hover:bg-accent/90"
+                >
+                  Join in new tab
+                </button>
+                <button
+                  onClick={() => navigator.clipboard.writeText(jitsiUrl)}
+                  className="rounded bg-slate-800 px-4 py-2 text-sm hover:bg-slate-700"
+                >
+                  Copy invite link
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

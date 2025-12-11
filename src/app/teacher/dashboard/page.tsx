@@ -87,7 +87,7 @@ export default function TeacherDashboardPage() {
                     <Button asChild variant="outline">
                       <Link href={`/admin/courses/edit/${course.slug}`}>Manage Lessons</Link>
                     </Button>
-                    <LiveSessionButton courseId={course.id} label="Start Live Class" />
+                    <LiveSessionButton course={course as any} label="Start Live Class" />
                   </div>
                 </CardContent>
               </Card>

@@ -28,6 +28,9 @@ const generateImageId = (title: string) => {
 
 type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
   level: CourseLevel;
+  livePlatform?: Course['livePlatform'];
+  liveJitsiRoom?: Course['liveJitsiRoom'];
+  liveMeetUrl?: Course['liveMeetUrl'];
 };
 
 export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, 'ownerId' | 'instructorIds'>>) {
@@ -43,6 +46,9 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
     slug: slug,
     id: slug, // Use slug as id
     imageId: imageId,
+    livePlatform: data.livePlatform ?? 'none',
+    liveJitsiRoom: data.liveJitsiRoom ?? null,
+    liveMeetUrl: data.liveMeetUrl ?? null,
     ...(extra && (extra.ownerId || extra.instructorIds)
       ? { ownerId: extra.ownerId, instructorIds: extra.instructorIds }
       : (uid ? { ownerId: uid, instructorIds: [uid] } : {})),

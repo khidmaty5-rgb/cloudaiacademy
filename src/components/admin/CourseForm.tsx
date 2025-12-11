@@ -30,6 +30,8 @@ import { collection, getFirestore, query, where } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 
+const livePlatformSchema = z.enum(['none', 'jitsi', 'google-meet']);
+
 const courseSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),
   description: z.string().min(10, 'Description is too short'),
@@ -37,6 +39,9 @@ const courseSchema = z.object({
   price: z.string().min(1, 'Price is required'),
   duration: z.string().min(1, 'Duration is required'),
   level: z.enum(['Beginner', 'Intermediate', 'Advanced']),
+  livePlatform: livePlatformSchema.default('none'),
+  liveJitsiRoom: z.string().optional(),
+  liveMeetUrl: z.union([z.string().url('Must be a valid https://meet.google.com/... URL'), z.literal('')]).optional(),
 });
 
 type CourseFormValues = z.infer<typeof courseSchema>;
@@ -56,13 +61,16 @@ export default function CourseForm({ course }: CourseFormProps) {
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseSchema),
-    defaultValues: course || {
-      title: '',
-      description: '',
-      category: '',
-      price: '',
-      duration: '',
-      level: 'Beginner',
+    defaultValues: {
+      title: (course as any)?.title ?? '',
+      description: (course as any)?.description ?? '',
+      category: (course as any)?.category ?? '',
+      price: (course as any)?.price ?? '',
+      duration: (course as any)?.duration ?? '',
+      level: ((course as any)?.level as any) ?? 'Beginner',
+      livePlatform: ((course as any)?.livePlatform as any) ?? 'none',
+      liveJitsiRoom: ((course as any)?.liveJitsiRoom as any) ?? '',
+      liveMeetUrl: ((course as any)?.liveMeetUrl as any) ?? '',
     },
   });
 
@@ -84,6 +92,21 @@ export default function CourseForm({ course }: CourseFormProps) {
   const onSubmit = async (data: CourseFormValues) => {
     setIsLoading(true);
     try {
+      // simple guard: if google-meet selected, ensure URL is present
+      if (data.livePlatform === 'google-meet' && !data.liveMeetUrl) {
+        toast({ variant: 'destructive', title: 'Live URL required', description: 'Please provide the Google Meet URL.' });
+        setIsLoading(false);
+        return;
+      }
+      // normalize live fields
+      const makeSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+      const defaultRoom = `CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || makeSlug(data.title)}`;
+      const cleaned = {
+        ...data,
+        liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom?.trim() || defaultRoom) : null,
+        liveMeetUrl: data.livePlatform === 'google-meet' ? (data.liveMeetUrl?.trim() || null) : null,
+      } as CourseFormValues;
+
       const extra = isAdmin
         ? {
             ownerId: ownerId,
@@ -91,16 +114,16 @@ export default function CourseForm({ course }: CourseFormProps) {
           }
         : undefined;
       if (isEditMode) {
-        await updateCourse(course.id!, { ...data, ...(extra || {}) });
+        await updateCourse(course.id!, { ...cleaned, ...(extra || {}) });
         toast({
           title: 'Course Updated!',
-          description: `${data.title} has been successfully updated.`,
+          description: `${cleaned.title} has been successfully updated.`,
         });
       } else {
-        await addCourse(data, extra);
+        await addCourse(cleaned, extra);
         toast({
           title: 'Course Created!',
-          description: `${data.title} has been successfully added.`,
+          description: `${cleaned.title} has been successfully added.`,
         });
       }
       router.push('/admin/courses');
@@ -220,6 +243,67 @@ export default function CourseForm({ course }: CourseFormProps) {
                   })}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {isAdmin && (
+          <div className="space-y-4 border-t pt-6">
+            <FormLabel>Live session</FormLabel>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="livePlatform"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Live platform</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select live platform" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="jitsi">Jitsi</SelectItem>
+                        <SelectItem value="google-meet">Google Meet</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch('livePlatform') === 'jitsi' && (
+                <FormField
+                  control={form.control}
+                  name="liveJitsiRoom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jitsi room name</FormLabel>
+                      <FormControl>
+                        <Input placeholder={`CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || 'course-slug'}`} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {form.watch('livePlatform') === 'google-meet' && (
+                <FormField
+                  control={form.control}
+                  name="liveMeetUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Google Meet URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://meet.google.com/abc-defg-hij" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
           </div>
         )}

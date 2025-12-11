@@ -269,10 +269,10 @@ export default function CourseDetailPage() {
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {isCourseInstructor && (
-                    <LiveSessionButton courseId={course.id} label={t.startLive} />
+                    <LiveSessionButton course={course as any} label={t.startLive} />
                   )}
                   {!isCourseInstructor && isEnrolled && (
-                    <LiveSessionButton courseId={course.id} />
+                    <LiveSessionButton course={course as any} />
                   )}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import type { FieldValue, Timestamp } from 'firebase/firestore';
 export type FirestoreTimestamp = Timestamp | FieldValue | null;
 export type UserRole = 'student' | 'teacher' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
+export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
 
 export interface UserProfile {
   id: string;
@@ -26,6 +27,10 @@ export interface Course {
   // Optional teacher association
   ownerId?: string;          // primary instructor/creator uid
   instructorIds?: string[];  // additional instructors if any
+  // Live session configuration
+  livePlatform?: LivePlatform;
+  liveJitsiRoom?: string | null;
+  liveMeetUrl?: string | null;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
 }
