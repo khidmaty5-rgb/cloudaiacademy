@@ -1,6 +1,8 @@
 'use client';
 
 import { useLang } from '@/components/i18n/lang';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { getFirestore, doc } from 'firebase/firestore';
 
 const statsEn = [
   { value: '10,000+', label: 'Students Enrolled' },
@@ -19,6 +21,12 @@ const statsAr = [
 export default function Stats() {
   const { lang } = useLang();
   const stats = lang === 'ar' ? statsAr : statsEn;
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui } = useDoc<any>(settingsDocRef);
+  const showStats = ui?.showStats !== false; // default: show
+
+  if (!showStats) return null;
 
   return (
     <section className="bg-primary text-primary-foreground py-20 md:py-24">

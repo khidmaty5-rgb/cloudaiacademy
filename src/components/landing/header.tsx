@@ -50,6 +50,10 @@ type UserProfileMenuProps = {
   isProfileLoading: boolean;
   showJournalNav: boolean;
   onToggleJournalNav: () => void;
+  showStats: boolean;
+  onToggleStats: () => void;
+  showTestimonials: boolean;
+  onToggleTestimonials: () => void;
 };
 
 function UserProfileMenu({
@@ -59,6 +63,10 @@ function UserProfileMenu({
   isProfileLoading,
   showJournalNav,
   onToggleJournalNav,
+  showStats,
+  onToggleStats,
+  showTestimonials,
+  onToggleTestimonials,
 }: UserProfileMenuProps) {
   const { user } = useUser();
   const router = useRouter();
@@ -165,6 +173,16 @@ function UserProfileMenu({
             {showJournalNav ? 'Hide Journal from Nav' : 'Show Journal in Nav'}
           </DropdownMenuItem>
         )}
+        {role === 'admin' && (
+          <DropdownMenuItem onClick={onToggleStats}>
+            {showStats ? 'Hide Stats on Home' : 'Show Stats on Home'}
+          </DropdownMenuItem>
+        )}
+        {role === 'admin' && (
+          <DropdownMenuItem onClick={onToggleTestimonials}>
+            {showTestimonials ? 'Hide Testimonials on Home' : 'Show Testimonials on Home'}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
@@ -201,12 +219,22 @@ export default function Header() {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: uiSettings } = useDoc(settingsDocRef);
   const showJournalNav = uiSettings?.showJournalNav !== false;
+  const showStats = uiSettings?.showStats !== false;
+  const showTestimonials = uiSettings?.showTestimonials !== false;
 
   const visibleLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
 
   const toggleJournalNav = async () => {
     const next = !showJournalNav;
     await setDoc(settingsDocRef as any, { showJournalNav: next }, { merge: true });
+  };
+  const toggleStats = async () => {
+    const next = !showStats;
+    await setDoc(settingsDocRef as any, { showStats: next }, { merge: true });
+  };
+  const toggleTestimonials = async () => {
+    const next = !showTestimonials;
+    await setDoc(settingsDocRef as any, { showTestimonials: next }, { merge: true });
   };
 
   const navLabel = (id: 'home' | 'courses' | 'journal') => {
@@ -361,6 +389,10 @@ export default function Header() {
             isProfileLoading={isProfileLoading}
             showJournalNav={showJournalNav}
             onToggleJournalNav={toggleJournalNav}
+            showStats={showStats}
+            onToggleStats={toggleStats}
+            showTestimonials={showTestimonials}
+            onToggleTestimonials={toggleTestimonials}
           />
 
           <div className="md:hidden">

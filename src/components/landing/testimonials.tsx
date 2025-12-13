@@ -4,9 +4,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useLang } from '@/components/i18n/lang';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { getFirestore, doc } from 'firebase/firestore';
 
 export default function Testimonials() {
   const { lang } = useLang();
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui } = useDoc<any>(settingsDocRef);
+  const showTestimonials = ui?.showTestimonials !== false; // default: show
+
+  if (!showTestimonials) return null;
   const heading = lang === 'ar' ? 'قصص نجاح الطلاب' : 'Student Success Stories';
   const sub = lang === 'ar' ? 'اقرأ شهادات خريجينا الذين غيّروا مسارهم المهني.' : 'Hear from our graduates who transformed their careers.';
   const testimonials =
