@@ -20,6 +20,13 @@ export type Lesson = {
   content_ar?: string;
   embedUrl?: string;
   order?: number;
+  // Optional integrations per lesson
+  whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
+  whiteboardUrl?: string;
+  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab';
+  codingUrl?: string;
+  labPlatform?: 'labex' | 'whizlabs' | 'vmware-hol' | 'virtual-labs';
+  labUrl?: string;
 };
 
 
@@ -30,6 +37,13 @@ type LessonData = {
   content_ar?: string;
   embedUrl?: string;
   order?: number;
+  // Optional integrations per lesson
+  whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
+  whiteboardUrl?: string;
+  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab';
+  codingUrl?: string;
+  labPlatform?: 'labex' | 'whizlabs' | 'vmware-hol' | 'virtual-labs';
+  labUrl?: string;
 };
 
 // Helper to create a slug from a title, can be used for lesson IDs

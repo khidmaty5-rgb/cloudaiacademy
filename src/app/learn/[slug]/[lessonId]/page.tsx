@@ -103,6 +103,35 @@ export default function LessonPage() {
   const isLessonCompleted = completedLessons.includes(lessonId);
   const [autoEnrolled, setAutoEnrolled] = useState(false);
   const { lang } = useLang();
+  const [showWBEmbed, setShowWBEmbed] = useState(false);
+  const [showCodingEmbed, setShowCodingEmbed] = useState(false);
+  const [showLabEmbed, setShowLabEmbed] = useState(false);
+  const toEmbedUrl = (url: string) => {
+    try {
+      const u = new URL(url);
+      const h = u.hostname;
+      if (h.includes('stackblitz.com')) {
+        if (!u.searchParams.has('embed')) u.searchParams.set('embed', '1');
+        return u.toString();
+      }
+      if (h.includes('replit.com')) {
+        u.searchParams.set('embed', '1');
+        return u.toString();
+      }
+      if (h.includes('codesandbox.io')) {
+        u.pathname = u.pathname.replace('/s/', '/embed/').replace('/p/', '/embed/');
+        return u.toString();
+      }
+      if (h.includes('livecodes.io')) {
+        // LiveCodes supports embedding; ensure embed mode param for best UX.
+        if (!u.searchParams.has('embed')) u.searchParams.set('embed', '1');
+        return u.toString();
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
 
   useEffect(() => {
     if (enrollment) {
@@ -204,6 +233,47 @@ export default function LessonPage() {
   
   const displayTitle = lang === 'ar' && lesson.title_ar ? lesson.title_ar : lesson.title;
   const displayContent = lang === 'ar' && lesson.content_ar ? lesson.content_ar : lesson.content;
+  const hasInteractiveTools = !!(lesson.whiteboardUrl || lesson.codingUrl || lesson.labUrl);
+  const wbLabel = (() => {
+    const p = (lesson as any).whiteboardPlatform as
+      | 'excalidraw'
+      | 'miro'
+      | 'ms-whiteboard'
+      | undefined;
+    if (p === 'excalidraw') return 'Open Excalidraw';
+    if (p === 'miro') return 'Open Miro';
+    if (p === 'ms-whiteboard') return 'Open Microsoft Whiteboard';
+    return 'Open Whiteboard';
+  })();
+  const codingLabel = (() => {
+    const p = (lesson as any).codingPlatform as
+      | 'replit'
+      | 'codesandbox'
+      | 'stackblitz'
+      | 'colab'
+      | 'livecodes'
+      | undefined;
+    if (p === 'replit') return 'Open Replit';
+    if (p === 'codesandbox') return 'Open CodeSandbox';
+    if (p === 'stackblitz') return 'Open StackBlitz';
+    if (p === 'colab') return 'Open Colab';
+    if (p === 'livecodes') return 'Open LiveCodes';
+    return 'Open Coding Lab';
+  })();
+  const labLabel = (() => {
+    const p = (lesson as any).labPlatform as
+      | 'labex'
+      | 'whizlabs'
+      | 'vmware-hol'
+      | 'virtual-labs'
+      | undefined;
+    if (p === 'labex') return 'Open LabEx';
+    if (p === 'whizlabs') return 'Open Whizlabs';
+    if (p === 'vmware-hol') return 'Open VMware Hands-on Labs';
+    if (p === 'virtual-labs') return 'Open Virtual Labs';
+    return 'Open Cloud Lab';
+  })();
+
 
   if (isStudent && enrollment === null) {
       // This can happen briefly while enrollment data is loading or if the user is not enrolled.
@@ -229,9 +299,88 @@ export default function LessonPage() {
                 <div className="prose prose-lg max-w-none text-foreground whitespace-pre-wrap font-body mb-8" dir={lang==='ar' ? 'rtl' : 'ltr'}>
                     <p>{displayContent}</p>
                 </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  If you see a blocked icon, the provider may disallow embedding. Use the Open button instead.
+                </p>
                 {lesson.embedUrl && <CodeEmbed src={lesson.embedUrl} />}
             </CardContent>
           </Card>
+
+          {hasInteractiveTools && (
+            <Card className="mt-8 border-accent">
+              <CardHeader>
+                <CardTitle>Interactive Tools</CardTitle>
+                <CardDescription>
+                  Use these tools for live collaboration, coding practice, or hands-on labs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-3">
+                  {lesson.whiteboardUrl && (
+                    <>
+                      <Button asChild variant="outline">
+                        <a href={lesson.whiteboardUrl} target="_blank" rel="noopener noreferrer">
+                          {wbLabel}
+                        </a>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowWBEmbed((v) => !v)}
+                      >
+                        {showWBEmbed ? 'Hide Whiteboard' : 'Embed Whiteboard'}
+                      </Button>
+                    </>
+                  )}
+                  {lesson.codingUrl && (
+                    <>
+                      <Button asChild variant="outline">
+                        <a href={lesson.codingUrl} target="_blank" rel="noopener noreferrer">
+                          {codingLabel}
+                        </a>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowCodingEmbed((v) => !v)}
+                      >
+                        {showCodingEmbed ? 'Hide Coding Lab' : 'Embed Coding Lab'}
+                      </Button>
+                    </>
+                  )}
+                  {lesson.labUrl && (
+                    <>
+                      <Button asChild variant="outline">
+                        <a href={lesson.labUrl} target="_blank" rel="noopener noreferrer">
+                          {labLabel}
+                        </a>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowLabEmbed((v) => !v)}
+                      >
+                        {showLabEmbed ? 'Hide Cloud Lab' : 'Embed Cloud Lab'}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {lesson.whiteboardUrl && showWBEmbed && (
+                  <div className="mt-6">
+                    <CodeEmbed src={lesson.whiteboardUrl} />
+                  </div>
+                )}
+                {lesson.codingUrl && showCodingEmbed && (
+                  <div className="mt-6">
+                    <CodeEmbed src={toEmbedUrl(lesson.codingUrl)} />
+                  </div>
+                )}
+                {lesson.labUrl && showLabEmbed && (
+                  <div className="mt-6">
+                    <CodeEmbed src={lesson.labUrl} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
            <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div>

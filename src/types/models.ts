@@ -43,6 +43,13 @@ export interface Lesson {
   order?: number;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
+  // Optional integrations per lesson
+  whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
+  whiteboardUrl?: string | null;
+  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab' | 'livecodes';
+  codingUrl?: string | null;
+  labPlatform?: 'labex' | 'whizlabs' | 'vmware-hol' | 'virtual-labs';
+  labUrl?: string | null;
 }
 
 export interface Enrollment {

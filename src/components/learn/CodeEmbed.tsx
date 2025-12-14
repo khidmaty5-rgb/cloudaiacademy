@@ -7,7 +7,8 @@ export default function CodeEmbed({ src }: { src: string }) {
         height="100%"
         frameBorder="0"
         title="Code Editor"
-        allow="fullscreen"
+        allow="fullscreen; clipboard-read; clipboard-write; geolocation; microphone; camera"
+        loading="lazy"
       ></iframe>
     </div>
   );
