@@ -271,6 +271,10 @@ export default function Header() {
       label: lang === 'ar' ? 'الدورات' : 'Courses',
     },
     {
+      href: '/admin/analytics',
+      label: lang === 'ar' ? 'التحليلات' : 'Analytics',
+    },
+    {
       href: '/admin/journal',
       label: lang === 'ar' ? 'المجلة' : 'Journal',
     },

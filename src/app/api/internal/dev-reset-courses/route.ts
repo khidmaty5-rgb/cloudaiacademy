@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getApps, initializeApp, cert, applicationDefault, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
@@ -84,7 +84,7 @@ const seedCourses: Array<{
     { title: 'MLOps with Azure ML', content: 'Pipelines, endpoints, and model registries.' },
   ]},
   { title: 'Full Stack Development', description: 'Build modern web apps with Node, React, and SQL.', category: 'Web Dev', price: '$149', duration: '6 weeks', level: 'Beginner', imageId: 'course-full-stack', lessons: [
-    { title: 'Web Fundamentals', content: 'HTTP, HTML/CSS/JS, and the client–server model.' },
+    { title: 'Web Fundamentals', content: 'HTTP, HTML/CSS/JS, and the clientâ€“server model.' },
     { title: 'REST APIs with Express', content: 'Routing, middleware, and CRUD patterns.' },
     { title: 'React Basics', content: 'Components, state, and effects.' },
     { title: 'Persistence with PostgreSQL', content: 'Schemas, queries, and migrations.' },
@@ -180,7 +180,7 @@ async function seedAll(db: FirebaseFirestore.Firestore) {
 
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.NODE_ENV === 'production') {
+    if ((process.env.NODE_ENV as string) === 'production') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
       decoded = await getAuth(app).verifyIdToken(token);
     } catch (e) {
       // Dev-only fallback to decode token payload locally if verification fails
-      const isDev = process.env.NODE_ENV !== 'production';
+      const isDev = (process.env.NODE_ENV as string) !== 'production';
       if (isDev) {
         try {
           const parts = token.split('.');
@@ -222,3 +222,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
+

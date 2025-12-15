@@ -58,11 +58,7 @@ export async function POST(req: NextRequest) {
 
     const app = getAdminApp();
     const decoded = await getAuth(app).verifyIdToken(token);
-    const requesterUid = decoded.uid;
-
-    // Check Firestore user doc for admin role (does not depend on custom claims)
-    const requesterDoc = await getFirestore(app).doc(`users/${requesterUid}`).get();
-    const requesterRole = requesterDoc.exists ? (requesterDoc.data() as any).role : undefined;
+    const requesterRole = (decoded as any)?.role as string | undefined;
     if (requesterRole !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

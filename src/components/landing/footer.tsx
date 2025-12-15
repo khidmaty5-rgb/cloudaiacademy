@@ -190,10 +190,10 @@ export default function Footer() {
                 <Mail className="h-4 w-4" /> info@cloudai.academy
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <Phone className="h-4 w-4" /> +1 (555) 123-4567
+                <Phone className="h-4 w-4" /> +1 (519) 694-2661
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <MapPin className="h-4 w-4" /> San Francisco, CA
+                <MapPin className="h-4 w-4" /> London Ontario, CA
               </li>
             </ul>
           </div>

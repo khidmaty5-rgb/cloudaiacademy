@@ -61,6 +61,23 @@ service cloud.firestore {
       return isAdmin() || isTeacher();
     }
 
+    // Helper to determine if the requester is an instructor of a given course
+    function isInstructorOfCourse(courseId) {
+      return (
+        isAdmin() || (
+          isTeacher() &&
+          exists(/databases/$(database)/documents/courses/$(courseId)) &&
+          (
+            get(/databases/$(database)/documents/courses/$(courseId)).data.ownerId == request.auth.uid ||
+            (
+              (get(/databases/$(database)/documents/courses/$(courseId)).data.instructorIds is list) &&
+              request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.instructorIds
+            )
+          )
+        )
+      );
+    }
+
     // Deny access if the user's profile indicates payment is required
     function accountActive() {
       return isSignedIn() && (
@@ -85,12 +102,24 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       // Only admins can list users
       allow list: if isAdmin();
-      // Owners create their own profile
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Owners can update their profile; admins can update any user (incl. role changes)
+      // Owners create their own profile with strict constraints
+      allow create: if (
+        isOwner(userId) &&
+        request.resource.data.id == userId &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.role == 'student' &&
+        request.resource.data.requirePayment != true
+      );
+      // Owners can update their profile only if sensitive fields are unchanged; admins can update any
       allow update: if (
-        (isExistingOwner(userId) && request.resource.data.id == resource.data.id)
-        || isAdmin()
+        (
+          isExistingOwner(userId) &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.requirePayment == resource.data.requirePayment &&
+          request.resource.data.dateJoined == resource.data.dateJoined
+        ) || isAdmin()
       );
       // Owners can delete themselves; admins can delete any user
       allow delete: if isExistingOwner(userId) || isAdmin();
@@ -127,16 +156,16 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/enrollments/{enrollmentId} {
-      // Admins/Teachers can read enrollments across users (for dashboards)
-      allow get: if isAdminOrTeacher() || isOwner(userId);
-      allow list: if isAdminOrTeacher() || isOwner(userId);
+      // Owners, admins, or instructors of the course can read enrollments
+      allow get: if isOwner(userId) || isAdmin() || isInstructorOfCourse(enrollmentId);
+      allow list: if isOwner(userId) || isAdmin() || isInstructorOfCourse(enrollmentId);
       allow create: if isOwner(userId) && accountActive() && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && accountActive() && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     match /{path=**}/enrollments/{enrollmentId} {
-      allow get, list: if isAdminOrTeacher() || (isSignedIn() && request.auth.uid == resource.data.userId);
+      allow get, list: if isAdmin() || isInstructorOfCourse(enrollmentId) || (isSignedIn() && request.auth.uid == resource.data.userId);
     }
 
     /**

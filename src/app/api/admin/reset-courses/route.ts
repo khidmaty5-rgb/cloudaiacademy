@@ -200,10 +200,8 @@ export async function POST(req: NextRequest) {
     const uid = decoded.uid || decoded.sub;
 
     const db = getFirestore(app);
-    const userDoc = await db.doc(`users/${uid}`).get();
-    const roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    const isAdmin = roleFromDoc === 'admin' || roleFromToken === 'admin';
+    const isAdmin = roleFromToken === 'admin';
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const url = new URL(req.url);

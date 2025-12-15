@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApps, getApp, initializeApp, applicationDefault, cert, App } from 'firebase-admin/app';
+import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
     const app = getAdminApp();
     const decoded = await getAuth(app).verifyIdToken(token);
     const requesterUid = decoded.uid || decoded.sub;
+    const requesterRoleRaw = (decoded as any)?.role as string | undefined;
+    const requesterRole: 'admin' | 'teacher' | 'student' | undefined =
+      requesterRoleRaw === 'admin' ? 'admin' : requesterRoleRaw === 'teacher' ? 'teacher' : requesterRoleRaw === 'student' ? 'student' : undefined;
 
     const db = getFirestore(app);
     const { userId, role } = await req.json();
@@ -70,8 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const requesterDoc = await db.doc(`users/${requesterUid}`).get();
-    const requesterRole = requesterDoc.exists ? (requesterDoc.data() as any).role : undefined;
+    const allowBootstrap = process.env.ALLOW_BOOTSTRAP_ADMIN === 'true';
 
     // Owner email override: allow the configured owner to self-promote to admin for local/dev setup
     if (requesterUid === userId && role === 'admin') {
@@ -85,8 +87,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Bootstrap: if there are no admins in the system yet, allow the first
-    // signed-in user to promote themselves to admin by requesting role 'admin'.
-    if (requesterUid === userId && role === 'admin') {
+    // signed-in user to promote themselves to admin by requesting role 'admin',
+    // but only when explicitly allowed via ALLOW_BOOTSTRAP_ADMIN=true.
+    if (allowBootstrap && requesterUid === userId && role === 'admin') {
       const adminsSnap = await db.collection('users').where('role', '==', 'admin').limit(1).get();
       if (adminsSnap.empty) {
         await getAuth(app).setCustomUserClaims(userId, { role: 'admin' });
@@ -102,16 +105,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 
-    // Case B: Non-admin can only sync their own claims to the role stored in their document (no escalation)
-    if (requesterUid === userId) {
-      const targetDoc = await db.doc(`users/${userId}`).get();
-      const storedRole = targetDoc.exists ? (targetDoc.data() as any).role : undefined;
-      if (!storedRole || storedRole !== role) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      await getAuth(app).setCustomUserClaims(userId, { role: storedRole });
-      return NextResponse.json({ ok: true }, { status: 200 });
-    }
+    // Non-admins cannot modify roles via this route
 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   } catch (e: any) {

@@ -12,6 +12,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   dateJoined?: FirestoreTimestamp;
+  requirePayment?: boolean;
 }
 
 export interface Course {
@@ -39,6 +40,8 @@ export interface Lesson {
   id: string;
   title: string;
   content: string;
+  title_ar?: string;
+  content_ar?: string;
   embedUrl?: string | null;
   order?: number;
   createdAt?: FirestoreTimestamp;

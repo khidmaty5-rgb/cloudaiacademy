@@ -1,9 +1,7 @@
-'use client';
+﻿'use client';
 
 import {
-  collection,
   doc,
-  addDoc,
   updateDoc,
   serverTimestamp,
   setDoc,
@@ -23,7 +21,7 @@ export type Lesson = {
   // Optional integrations per lesson
   whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
   whiteboardUrl?: string;
-  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab';
+  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab' | 'livecodes';
   codingUrl?: string;
   labPlatform?: 'labex' | 'whizlabs' | 'vmware-hol' | 'virtual-labs';
   labUrl?: string;
@@ -40,7 +38,7 @@ type LessonData = {
   // Optional integrations per lesson
   whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
   whiteboardUrl?: string;
-  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab';
+  codingPlatform?: 'replit' | 'codesandbox' | 'stackblitz' | 'colab' | 'livecodes';
   codingUrl?: string;
   labPlatform?: 'labex' | 'whizlabs' | 'vmware-hol' | 'virtual-labs';
   labUrl?: string;
@@ -84,3 +82,4 @@ export async function updateLesson(
     updatedAt: serverTimestamp(),
   });
 }
+

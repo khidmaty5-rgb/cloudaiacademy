@@ -230,11 +230,9 @@ export async function POST(req: NextRequest) {
     const only = url.searchParams.get('only');
     const limit = limitParam ? Math.max(1, Math.min(seedCourses.length, parseInt(limitParam))) : seedCourses.length;
 
-    // Authorize: require admin role from Firestore user document or custom claim
-    const userDoc = await db.doc(`users/${uid}`).get();
-    const roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
+    // Authorize: require admin role from ID token custom claims only
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    const isAdmin = roleFromDoc === 'admin' || roleFromToken === 'admin';
+    const isAdmin = roleFromToken === 'admin';
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const results: string[] = [];
