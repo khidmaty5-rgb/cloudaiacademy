@@ -26,6 +26,10 @@ const generateImageId = (title: string) => {
     return `course-${createSlug(title)}`;
 }
 
+const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+};
+
 type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
   level: CourseLevel;
   livePlatform?: Course['livePlatform'];
@@ -41,19 +45,26 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
   // Use the slug as the document ID for predictability
   const courseDocRef = doc(firestore, 'courses', slug);
 
-  await setDoc(courseDocRef, {
+  const base = {
     ...data,
-    slug: slug,
-    id: slug, // Use slug as id
-    imageId: imageId,
+    slug,
+    id: slug,
+    imageId,
     livePlatform: data.livePlatform ?? 'none',
-    liveJitsiRoom: data.liveJitsiRoom ?? null,
-    liveMeetUrl: data.liveMeetUrl ?? null,
-    ...(extra && (extra.ownerId || extra.instructorIds)
-      ? { ownerId: extra.ownerId, instructorIds: extra.instructorIds }
-      : (uid ? { ownerId: uid, instructorIds: [uid] } : {})),
+    liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom ?? null) : null,
+    liveMeetUrl: data.livePlatform === 'google-meet' ? (data.liveMeetUrl ?? null) : null,
     createdAt: serverTimestamp(),
-  } satisfies Omit<Course, 'updatedAt'>);
+  } as Record<string, any>;
+
+  const extraNormalized: Partial<Pick<Course, 'ownerId' | 'instructorIds'>> =
+    extra && (typeof extra.ownerId === 'string' || Array.isArray(extra.instructorIds))
+      ? {
+          ...(typeof extra.ownerId === 'string' ? { ownerId: extra.ownerId } : {}),
+          ...(Array.isArray(extra.instructorIds) ? { instructorIds: extra.instructorIds } : {}),
+        }
+      : (uid ? { ownerId: uid, instructorIds: [uid] } : {});
+
+  await setDoc(courseDocRef, removeUndefined({ ...base, ...extraNormalized }) as Omit<Course, 'updatedAt'>);
 }
 
 export async function updateCourse(courseId: string, data: Partial<CourseData & Pick<Course, 'ownerId' | 'instructorIds'>>) {
@@ -62,8 +73,9 @@ export async function updateCourse(courseId: string, data: Partial<CourseData & 
   }
 
   const courseDocRef = doc(firestore, 'courses', courseId);
+  const sanitized = removeUndefined(data as Record<string, any>);
   await updateDoc(courseDocRef, {
-    ...data,
+    ...sanitized,
     updatedAt: serverTimestamp(),
   });
 }

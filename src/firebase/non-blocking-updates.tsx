@@ -12,12 +12,18 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import {FirestorePermissionError} from '@/firebase/errors';
 
+const stripUndefined = (obj: any) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+};
+
 /**
  * Initiates a setDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
 export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
-  setDoc(docRef, data, options).catch(error => {
+  const safe = stripUndefined(data);
+  setDoc(docRef, safe, options).catch(error => {
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
@@ -37,7 +43,8 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
 export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
-  const promise = addDoc(colRef, data)
+  const safe = stripUndefined(data);
+  const promise = addDoc(colRef, safe)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
@@ -57,7 +64,8 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
  * Does NOT await the write operation internally.
  */
 export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
-  updateDoc(docRef, data)
+  const safe = stripUndefined(data);
+  updateDoc(docRef, safe)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',

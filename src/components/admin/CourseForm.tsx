@@ -109,7 +109,7 @@ export default function CourseForm({ course }: CourseFormProps) {
 
       const extra = isAdmin
         ? {
-            ownerId: ownerId,
+            ...(ownerId ? { ownerId } : {}),
             instructorIds: Array.from(new Set([...(instructorIds || []), ...(ownerId ? [ownerId] : [])])),
           }
         : undefined;

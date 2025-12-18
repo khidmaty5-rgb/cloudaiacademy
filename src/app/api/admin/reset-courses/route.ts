@@ -21,7 +21,7 @@ function getAdminApp(): App {
   }
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const rawKey = process.env.FIREBASE_PRIVATE_KEY;
-  const privateKey = rawKey ? rawKey.replace(/\n/g, '\n') : undefined;
+  const privateKey = rawKey ? rawKey.replace(/\\n/g, '\n') : undefined;
   if (projectId && clientEmail && privateKey) {
     return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }, name);
   }
