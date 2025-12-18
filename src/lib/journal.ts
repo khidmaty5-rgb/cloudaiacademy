@@ -83,3 +83,5 @@ export async function createJournalIssue(input: JournalIssueInput) {
     updatedAt: serverTimestamp(),
   } satisfies JournalIssue);
 }
+
+export type { JournalArticleStatus };
