@@ -8,11 +8,12 @@ import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { enrollInCourse } from '@/lib/enrollment';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Signal, CheckCircle } from 'lucide-react';
-import { doc, collection, query, orderBy, updateDoc, arrayUnion } from 'firebase/firestore';
+import { Clock, Signal } from 'lucide-react';
+import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import type { Lesson } from '@/lib/lessons';
 import type { Course, Enrollment } from '@/types/models';
@@ -52,6 +53,7 @@ export default function CourseDetailPage() {
   const firestore = useFirestore();
   const { lang } = useLang();
   const t = courseCopy[lang];
+  const { isAdmin, isTeacher } = useCurrentRole();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -88,7 +90,7 @@ export default function CourseDetailPage() {
 
   const isStudent = ((userProfile?.role as string | undefined) || 'student') === 'student' && hasAdminOrTeacherClaim !== true;
   const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
-  const isTeacherOrAdmin = (userProfile?.role === 'teacher' || userProfile?.role === 'admin' || hasAdminOrTeacherClaim === true);
+  
 
   const courseDocRef = useMemoFirebase(() => {
       if (!slug) return null;
@@ -111,12 +113,14 @@ export default function CourseDetailPage() {
 
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
+  const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
+  const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
   const canJoinLive = !!(isCourseInstructor || isEnrolled);
 
   const lessonsQuery = useMemoFirebase(() => {
-    if (!course || !isEnrolled) return null;
+    if (!course || !canAccessCourseContent) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, isEnrolled]);
+  }, [firestore, course, canAccessCourseContent]);
   const { data: lessons } = useCollection<Lesson>(lessonsQuery);
   const firstLessonId = lessons && lessons.length > 0 ? lessons[0].id : null;
 
@@ -234,21 +238,7 @@ export default function CourseDetailPage() {
                 {studentPaymentRequired && (
                   <p className="mb-4 text-sm text-destructive">Payment required to enroll or access lessons.</p>
                 )}
-                {isTeacherOrAdmin ? (
-                    <Button
-                      size="lg"
-                      className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"
-                      onClick={() => {
-                        if (firstLessonId) {
-                          router.push(`/learn/${slug}/${firstLessonId}`);
-                        } else {
-                          router.push(`/learn/${slug}`);
-                        }
-                      }}
-                    >
-                      {t.goToCourse}
-                    </Button>
-                ) : isEnrolled ? (
+                {canAccessCourseContent ? (
                     <Button
                       size="lg"
                       className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"

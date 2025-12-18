@@ -66,18 +66,24 @@ export default function LearnCoursePage() {
   }, [firestore, slug]);
   const { data: course, isLoading: isCourseLoading } = useDoc(courseDocRef);
 
-  const lessonsQuery = useMemoFirebase(() => {
-    if (!course || studentPaymentRequired) return null;
-    return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, studentPaymentRequired]);
-  const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
-
   const enrollmentDocRef = useMemoFirebase(() => {
     if (!user || !course) return null;
     return doc(firestore, 'users', user.uid, 'enrollments', course.id);
   }, [firestore, user, course]);
   
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
+  const isEnrolled = !!enrollment;
+
+  const lessonsQuery = useMemoFirebase(() => {
+    if (!course) return null;
+    const uid = user?.uid;
+    const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || ((course.instructorIds || []).includes(uid))));
+    const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
+    const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
+    if (!canAccessCourseContent) return null;
+    return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
+  }, [firestore, course, user, isAdmin, isTeacher, isEnrolled]);
+  const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [enrolling, setEnrolling] = useState(false);
@@ -96,7 +102,8 @@ export default function LearnCoursePage() {
 
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
-  const canAccessWithoutEnroll = !!(isAdmin || isCourseInstructor);
+  const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
+  const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
   const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
 
   if (isLoading) {
@@ -170,7 +177,7 @@ export default function LearnCoursePage() {
     }
   };
 
-  if (studentPaymentRequired && !canAccessWithoutEnroll) {
+  if (studentPaymentRequired && !canPreviewCourse) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -192,7 +199,7 @@ export default function LearnCoursePage() {
     );
   }
 
-  if (isStudent && !canAccessWithoutEnroll && enrollment === null) {
+  if (!canAccessCourseContent && !studentPaymentRequired) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -255,7 +262,7 @@ export default function LearnCoursePage() {
               <ul className="space-y-3">
                 {courseLessons.map((lesson, index) => {
                   const isCompleted = completedLessons.includes(lesson.id);
-                  const isLocked = index > 0 && !completedLessons.includes(courseLessons[index - 1].id);
+                  const isLocked = index > 0 && !completedLessons.includes(courseLessons[index - 1].id) && !canPreviewCourse;
 
                   return (
                     <li key={lesson.id}>

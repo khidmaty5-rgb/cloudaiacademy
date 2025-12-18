@@ -32,7 +32,7 @@ export default function LessonPage() {
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
   const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  const { isAdmin } = useCurrentRole();
+  const { isAdmin, isTeacher } = useCurrentRole();
 
   useEffect(() => {
     let cancelled = false;
@@ -67,10 +67,27 @@ export default function LessonPage() {
   }, [firestore, slug]);
   const { data: course, isLoading: isCourseLoading } = useDoc(courseDocRef);
 
+  // lessons list for navigation/sequencing; gated below after enrollment check
+  // We'll initialize after we know if the user can access content
+
+
+  const enrollmentDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'enrollments', course.id);
+  }, [firestore, user, course]);
+
+  const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
+
   const lessonsQuery = useMemoFirebase(() => {
     if (!course) return null;
+    const uid = user?.uid;
+    const isInstructor = !!(uid && course && ((course.ownerId === uid) || ((course.instructorIds || []).includes(uid))));
+    const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
+    const isEnrolled = !!enrollment;
+    const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
+    if (!canAccessCourseContent) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course]);
+  }, [firestore, course, user, isAdmin, isTeacher, enrollment]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const sortedLessons = useMemo(() => {
@@ -91,13 +108,6 @@ export default function LessonPage() {
   
   const prevLesson = lessonIndex > 0 ? sortedLessons?.[lessonIndex - 1] : null;
   const nextLesson = (sortedLessons && lessonIndex < sortedLessons.length - 1) ? sortedLessons[lessonIndex + 1] : null;
-
-  const enrollmentDocRef = useMemoFirebase(() => {
-    if (!user || !course) return null;
-    return doc(firestore, 'users', user.uid, 'enrollments', course.id);
-  }, [firestore, user, course]);
-
-  const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
 
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const isLessonCompleted = completedLessons.includes(lessonId);
@@ -148,6 +158,7 @@ export default function LessonPage() {
     }
 
     const isTeacherOrAdmin = hasAdminOrTeacherClaim === true;
+    // Do not auto-enroll admin/teacher per spec
     if (!isTeacherOrAdmin && user && enrollment === null && course && !autoEnrolled) {
       (async () => {
         try {
@@ -161,8 +172,11 @@ export default function LessonPage() {
     if (user && enrollment && sortedLessons && sortedLessons.length > 0) {
       // Check for sequential access
       const isFirstRun = completedLessons.length === 0;
+      const uid2 = user?.uid;
+      const isInstructor2 = !!(uid2 && course && ((course.ownerId === uid2) || ((course.instructorIds || []).includes(uid2))));
+      const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor2));
       const isLocked = !isFirstRun && lessonIndex > 0 && !completedLessons.includes(sortedLessons[lessonIndex - 1].id);
-      if (isLocked) {
+      if (isLocked && !canPreviewCourse) {
         toast({
           variant: 'destructive',
           title: 'Lesson Locked',
@@ -170,7 +184,7 @@ export default function LessonPage() {
         });
       }
     }
-  }, [user, isUserLoading, enrollment, isEnrollmentLoading, router, slug, course, sortedLessons, lessonIndex, completedLessons, toast, areLessonsLoading, autoEnrolled]);
+  }, [user, isUserLoading, enrollment, isEnrollmentLoading, router, slug, course, sortedLessons, lessonIndex, completedLessons, toast, areLessonsLoading, autoEnrolled, isAdmin]);
 
 
   const handleToggleComplete = async () => {
@@ -211,8 +225,9 @@ export default function LessonPage() {
   
   const uid = user?.uid;
   const isInstructor = !!(uid && canTeachCourse(course as any, uid));
-  const canAccessWithoutEnroll = !!(isAdmin || isInstructor);
-  const isStudent = !canAccessWithoutEnroll;
+  const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
+  const canAccessCourseContent = !!(!!enrollment || canPreviewCourse);
+  const isStudent = !canPreviewCourse;
   const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
 
   if (isLoading || !course || !lesson) {

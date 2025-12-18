@@ -1,0 +1,7 @@
+node_modules
+.next
+functions/**
+dist
+lib
+coverage
+**/*.min.js

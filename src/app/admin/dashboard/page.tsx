@@ -18,9 +18,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Users, BookOpen, DollarSign, LineChart, BarChart } from 'lucide-react';
+import { Users, BookOpen, DollarSign, LineChart } from 'lucide-react';
 import { format } from 'date-fns';
-import { RevenueChart } from '@/components/admin/RevenueChart';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
  
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
@@ -77,11 +78,12 @@ const dashboardText = {
     adminDashboard: 'Admin Dashboard',
     teacherDashboard: 'Teacher Dashboard',
     totalRevenue: 'Total Revenue',
+    revenueNotConfigured: 'Revenue tracking not configured',
     totalUsers: 'Total Users',
     totalEnrollments: 'Total Enrollments',
     monthlyGrowth: 'Monthly Growth',
-    revenueByCourse: 'Revenue by Course',
-    revenueByCourseDesc: 'A breakdown of revenue from each course.',
+    enrollmentsByCourse: 'Enrollments by Course',
+    enrollmentsByCourseDesc: 'A breakdown of enrollments for each course.',
     recentEnrollments: 'Recent Enrollments',
     recentEnrollmentsDesc: 'The 5 most recent course enrollments.',
     student: 'Student',
@@ -97,11 +99,12 @@ const dashboardText = {
     adminDashboard: 'لوحة تحكم المشرف',
     teacherDashboard: 'لوحة تحكم المعلم',
     totalRevenue: 'إجمالي الإيرادات',
+    revenueNotConfigured: 'تتبع الإيرادات غير مُهيأ',
     totalUsers: 'إجمالي المستخدمين',
     totalEnrollments: 'إجمالي التسجيلات',
     monthlyGrowth: 'النمو الشهري',
-    revenueByCourse: 'الإيرادات حسب الدورة',
-    revenueByCourseDesc: 'توزيع الإيرادات لكل دورة.',
+    enrollmentsByCourse: 'التسجيلات حسب الدورة',
+    enrollmentsByCourseDesc: 'توزيع التسجيلات لكل دورة.',
     recentEnrollments: 'أحدث التسجيلات',
     recentEnrollmentsDesc: 'آخر 5 تسجيلات في الدورات.',
     student: 'الطالب',
@@ -155,37 +158,19 @@ export default function AdminDashboardPage() {
   const { data: allCourses, isLoading: isCoursesLoading, error: coursesError } =
     useCollection(coursesQuery);
 
-  // Calculate total revenue
-  const totalRevenue = useMemo(() => {
-    if (!enrollments || !allCourses) return 0;
-    return enrollments.reduce((acc, enrollment) => {
-      const course = allCourses.find((c) => c.id === enrollment.courseId);
-      if (course && course.price && typeof course.price === 'string' && course.price.startsWith('$')) {
-        const priceNumber = parseFloat(course.price.replace('$', ''));
-        return acc + priceNumber;
-      }
-      return acc;
-    }, 0);
-  }, [enrollments, allCourses]);
-  
-  // Calculate revenue by course for the chart
-  const revenueByCourse = useMemo(() => {
-    if (!enrollments || !allCourses) return [];
-    
-    const revenueMap = new Map<string, { name: string; revenue: number }>();
-
-    enrollments.forEach(enrollment => {
-        const course = allCourses.find(c => c.id === enrollment.courseId);
-        if (course && course.price && typeof course.price === 'string' && course.price.startsWith('$')) {
-            const priceNumber = parseFloat(course.price.replace('$', ''));
-            const existing = revenueMap.get(course.title) || { name: course.title, revenue: 0 };
-            existing.revenue += priceNumber;
-            revenueMap.set(course.title, existing);
-        }
+  // Calculate enrollments by course for the chart (replace fake revenue)
+  const enrollmentsByCourse = useMemo(() => {
+    if (!enrollments || !allCourses) return [] as Array<{ name: string; count: number }>;
+    const map = new Map<string, { name: string; count: number }>();
+    enrollments.forEach((e) => {
+      const course = allCourses.find((c) => c.id === e.courseId);
+      const name = course?.title || e.courseId;
+      const prev = map.get(name) || { name, count: 0 };
+      prev.count += 1;
+      map.set(name, prev);
     });
-
-    return Array.from(revenueMap.values());
-}, [enrollments, allCourses]);
+    return Array.from(map.values());
+  }, [enrollments, allCourses]);
 
   // Calculate user growth percentage
   const userGrowth = useMemo(() => {
@@ -304,9 +289,10 @@ export default function AdminDashboardPage() {
             {isAdmin && (
               <StatCard
                 title={t.totalRevenue}
-                value={`$${totalRevenue.toFixed(2)}`}
+                value={'—'}
                 icon={DollarSign}
                 isLoading={isDataLoading}
+                description={t.revenueNotConfigured}
               />
             )}
             {isAdmin && (
@@ -338,14 +324,37 @@ export default function AdminDashboardPage() {
             {isAdmin && (
               <Card>
                 <CardHeader>
-                  <CardTitle>{t.revenueByCourse}</CardTitle>
-                  <CardDescription>{t.revenueByCourseDesc}</CardDescription>
+                  <CardTitle>{t.enrollmentsByCourse}</CardTitle>
+                  <CardDescription>{t.enrollmentsByCourseDesc}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isDataLoading ? (
                     <Skeleton className="h-80 w-full" />
                   ) : (
-                    <RevenueChart data={revenueByCourse} />
+                    <ChartContainer
+                      className="h-[350px]"
+                      config={{ count: { label: 'Enrollments', color: 'hsl(var(--accent))' } }}
+                    >
+                      <RechartsBarChart data={enrollmentsByCourse} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <XAxis
+                          dataKey="name"
+                          stroke="#888888"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value: string) => value.slice(0, 15) + (value.length > 15 ? '...' : '')}
+                        />
+                        <YAxis
+                          stroke="#888888"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value: number) => `${value}`}
+                        />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                        <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                      </RechartsBarChart>
+                    </ChartContainer>
                   )}
                 </CardContent>
               </Card>

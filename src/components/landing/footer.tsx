@@ -187,7 +187,7 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-3 text-sm">
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <Mail className="h-4 w-4" /> info@cloudai.academy
+                <Mail className="h-4 w-4" /> info@cloudaiacademy.ca
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
                 <Phone className="h-4 w-4" /> +1 (519) 694-2661
