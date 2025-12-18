@@ -41,7 +41,7 @@ const getCourseRecommendationsFlow = ai.defineFlow(
     inputSchema: CourseRecommendationsInputSchema,
     outputSchema: CourseRecommendationsOutputSchema,
   },
-  async input => {
+  async (input: CourseRecommendationsInput): Promise<CourseRecommendationsOutput> => {
     const {output} = await prompt(input);
     return output!;
   }
