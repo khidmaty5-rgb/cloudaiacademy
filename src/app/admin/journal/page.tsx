@@ -35,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useLang } from '@/components/i18n/lang';
 import {
-  JournalArticleStatus,
+  type JournalArticleStatus,
   createJournalIssue,
   updateJournalArticleStatusAndIssue,
 } from '@/lib/journal';
