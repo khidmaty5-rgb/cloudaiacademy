@@ -74,7 +74,9 @@ const personalizedLearningPathFlow = ai.defineFlow(
     inputSchema: PersonalizedLearningPathInputSchema,
     outputSchema: PersonalizedLearningPathOutputSchema,
   },
-  async input => {
+  async (
+    input: PersonalizedLearningPathInput
+  ): Promise<PersonalizedLearningPathOutput> => {
     const {output} = await prompt(input);
     return output!;
   }
