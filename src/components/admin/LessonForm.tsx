@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { getAuth } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -14,6 +16,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addLesson, updateLesson } from '@/lib/lessons';
@@ -25,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+const WHITEBOARD_TEMPLATE_KEY = 'lessons/shared/whiteboard.pdf';
 
 const lessonSchema = z.object({
   title: z.string().min(3, 'Title is too short'),
@@ -61,7 +66,22 @@ type LessonFormProps = {
 export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [whiteboardToggling, setWhiteboardToggling] = useState(false);
+  const [currentPdfPath, setCurrentPdfPath] = useState<string | null>((lesson as any)?.pdfPath ?? null);
+
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const [templateCopying, setTemplateCopying] = useState(false);
   const isEditMode = !!lesson;
+  const usingSharedTemplate = currentPdfPath === WHITEBOARD_TEMPLATE_KEY;
+
+  useEffect(() => {
+    setCurrentPdfPath((lesson as any)?.pdfPath ?? null);
+    setTemplateFile(null);
+    setWhiteboardToggling(false);
+    setTemplateUploading(false);
+    setTemplateCopying(false);
+  }, [lesson?.id]);
 
   const form = useForm<LessonFormValues>({
     resolver: zodResolver(lessonSchema),
@@ -104,6 +124,108 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const toggleSharedWhiteboard = async (checked: boolean) => {
+    if (!lesson) return;
+    setWhiteboardToggling(true);
+    try {
+      if (checked) {
+        await updateLesson(courseId, lesson.id, { pdfPath: WHITEBOARD_TEMPLATE_KEY });
+        setCurrentPdfPath(WHITEBOARD_TEMPLATE_KEY);
+        toast({ title: 'Whiteboard PDF enabled for this lesson.' });
+      } else {
+        await updateLesson(courseId, lesson.id, { pdfPath: null });
+        setCurrentPdfPath(null);
+        toast({ title: 'Whiteboard PDF disabled for this lesson.' });
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setWhiteboardToggling(false);
+    }
+  };
+
+  const uploadSharedTemplate = async () => {
+    if (!templateFile) return;
+    setTemplateUploading(true);
+    try {
+      const maxBytes = 20 * 1024 * 1024;
+      if (templateFile.size > maxBytes) throw new Error('PDF is too large. Max size is 20 MB.');
+      const isPdf =
+        templateFile.type === 'application/pdf' || templateFile.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) throw new Error('File must be a PDF (application/pdf).');
+
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const presignResp = await fetch('/api/lessons/whiteboard-template/presign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ contentType: 'application/pdf' }),
+      });
+      const presignJson = await presignResp.json().catch(() => ({}));
+      if (!presignResp.ok) throw new Error(presignJson?.error || 'Failed to create upload URL');
+      const uploadUrl = presignJson?.url as string | undefined;
+      if (!uploadUrl) throw new Error('Invalid presign response');
+
+      const putResp = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: templateFile,
+      });
+      if (!putResp.ok) throw new Error(`Upload failed with status ${putResp.status}`);
+
+      toast({ title: 'Shared whiteboard template uploaded.' });
+      setTemplateFile(null);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Template Upload Failed',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setTemplateUploading(false);
+    }
+  };
+
+  const copyLessonPdfToTemplate = async () => {
+    if (!lesson) return;
+    if (!currentPdfPath || currentPdfPath === WHITEBOARD_TEMPLATE_KEY) return;
+
+    setTemplateCopying(true);
+    try {
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const resp = await fetch('/api/lessons/whiteboard-template/copy-from-lesson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ courseId, lessonId: lesson.id }),
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || 'Failed to copy template');
+
+      toast({ title: 'Shared whiteboard template updated from this lesson.' });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Copy Failed',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setTemplateCopying(false);
     }
   };
 
@@ -278,6 +400,62 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
             </div>
           </div>
         </div>
+
+        <div className="pt-2">
+          <h3 className="text-lg font-semibold">Whiteboard PDF</h3>
+          <div className="mt-3 space-y-4">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="use-shared-whiteboard"
+                checked={usingSharedTemplate}
+                disabled={!isEditMode || whiteboardToggling}
+                onCheckedChange={(v) => toggleSharedWhiteboard(v === true)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="use-shared-whiteboard">
+                  Use shared whiteboard PDF (reusable across all lessons)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  One global file is reused everywhere. No per-lesson uploads.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+              <p className="text-sm font-medium">Shared template (global)</p>
+              <Input
+                type="file"
+                accept="application/pdf"
+                disabled={templateUploading || templateCopying}
+                onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  className="bg-accent text-accent-foreground"
+                  onClick={uploadSharedTemplate}
+                  disabled={!templateFile || templateUploading || templateCopying}
+                >
+                  {templateUploading ? 'Uploading...' : 'Upload / Replace Whiteboard Template'}
+                </Button>
+                {isEditMode && currentPdfPath && currentPdfPath !== WHITEBOARD_TEMPLATE_KEY ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copyLessonPdfToTemplate}
+                    disabled={templateUploading || templateCopying}
+                  >
+                    {templateCopying ? 'Copying...' : 'Use This Lesson PDF as Template'}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload once, then just check the box above on any lesson to activate it.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <Button type="submit" disabled={isLoading} className="w-full">
           {isLoading
             ? isEditMode

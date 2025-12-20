@@ -17,6 +17,7 @@ export type Lesson = {
   title_ar?: string;
   content_ar?: string;
   embedUrl?: string;
+  pdfPath?: string | null;
   order?: number;
   // Optional integrations per lesson
   whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';
@@ -34,6 +35,7 @@ type LessonData = {
   title_ar?: string;
   content_ar?: string;
   embedUrl?: string;
+  pdfPath?: string | null;
   order?: number;
   // Optional integrations per lesson
   whiteboardPlatform?: 'excalidraw' | 'miro' | 'ms-whiteboard';

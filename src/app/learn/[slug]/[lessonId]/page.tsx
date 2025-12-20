@@ -21,6 +21,8 @@ import Quiz from '@/components/learn/Quiz';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Lesson } from '@/lib/lessons';
 import { useLang } from '@/components/i18n/lang';
+import ToolSandbox from '@/components/learn/tool-sandbox';
+import LessonPdfSandbox from '@/components/learn/lesson-pdf-sandbox';
 
 export default function LessonPage() {
   const params = useParams();
@@ -113,9 +115,6 @@ export default function LessonPage() {
   const isLessonCompleted = completedLessons.includes(lessonId);
   const [autoEnrolled, setAutoEnrolled] = useState(false);
   const { lang } = useLang();
-  const [showWBEmbed, setShowWBEmbed] = useState(false);
-  const [showCodingEmbed, setShowCodingEmbed] = useState(false);
-  const [showLabEmbed, setShowLabEmbed] = useState(false);
   const toEmbedUrl = (url: string) => {
     try {
       const u = new URL(url);
@@ -288,6 +287,7 @@ export default function LessonPage() {
     if (p === 'virtual-labs') return 'Open Virtual Labs';
     return 'Open Cloud Lab';
   })();
+  const openInAppLabel = lang === 'ar' ? 'فتح داخل التطبيق' : 'Open in app';
 
 
   if (isStudent && enrollment === null) {
@@ -318,6 +318,11 @@ export default function LessonPage() {
                   If you see a blocked icon, the provider may disallow embedding. Use the Open button instead.
                 </p>
                 {lesson.embedUrl && <CodeEmbed src={lesson.embedUrl} />}
+                {lesson.pdfPath ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <LessonPdfSandbox courseId={course.id} lessonId={lesson.id} title={displayTitle} />
+                  </div>
+                ) : null}
             </CardContent>
           </Card>
 
@@ -330,7 +335,7 @@ export default function LessonPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex flex-col md:flex-row gap-3 flex-wrap">
                   {lesson.whiteboardUrl && (
                     <>
                       <Button asChild variant="outline">
@@ -338,12 +343,12 @@ export default function LessonPage() {
                           {wbLabel}
                         </a>
                       </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setShowWBEmbed((v) => !v)}
-                      >
-                        {showWBEmbed ? 'Hide Whiteboard' : 'Embed Whiteboard'}
-                      </Button>
+                      <ToolSandbox
+                        title={wbLabel}
+                        triggerLabel={openInAppLabel}
+                        iframeSrc={lesson.whiteboardUrl}
+                        openHref={lesson.whiteboardUrl}
+                      />
                     </>
                   )}
                   {lesson.codingUrl && (
@@ -353,12 +358,12 @@ export default function LessonPage() {
                           {codingLabel}
                         </a>
                       </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setShowCodingEmbed((v) => !v)}
-                      >
-                        {showCodingEmbed ? 'Hide Coding Lab' : 'Embed Coding Lab'}
-                      </Button>
+                      <ToolSandbox
+                        title={codingLabel}
+                        triggerLabel={openInAppLabel}
+                        iframeSrc={toEmbedUrl(lesson.codingUrl)}
+                        openHref={lesson.codingUrl}
+                      />
                     </>
                   )}
                   {lesson.labUrl && (
@@ -368,31 +373,15 @@ export default function LessonPage() {
                           {labLabel}
                         </a>
                       </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setShowLabEmbed((v) => !v)}
-                      >
-                        {showLabEmbed ? 'Hide Cloud Lab' : 'Embed Cloud Lab'}
-                      </Button>
+                      <ToolSandbox
+                        title={labLabel}
+                        triggerLabel={openInAppLabel}
+                        iframeSrc={lesson.labUrl}
+                        openHref={lesson.labUrl}
+                      />
                     </>
                   )}
                 </div>
-
-                {lesson.whiteboardUrl && showWBEmbed && (
-                  <div className="mt-6">
-                    <CodeEmbed src={lesson.whiteboardUrl} />
-                  </div>
-                )}
-                {lesson.codingUrl && showCodingEmbed && (
-                  <div className="mt-6">
-                    <CodeEmbed src={toEmbedUrl(lesson.codingUrl)} />
-                  </div>
-                )}
-                {lesson.labUrl && showLabEmbed && (
-                  <div className="mt-6">
-                    <CodeEmbed src={lesson.labUrl} />
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}

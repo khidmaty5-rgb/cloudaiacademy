@@ -366,7 +366,7 @@ export default function AdminJournalPage() {
       if (!resp.ok) {
         throw new Error(j?.error || 'Failed to update reviewers');
       }
-      setDetailsArticle((prev) =>
+      setDetailsArticle((prev: WithId<any> | null) =>
         prev && prev.id === detailsArticle.id
           ? ({ ...prev, reviewerIds: j.reviewerIds, reviewerEmails: j.reviewerEmails } as any)
           : prev,

@@ -43,6 +43,8 @@ export interface Lesson {
   title_ar?: string;
   content_ar?: string;
   embedUrl?: string | null;
+  // Optional lesson worksheet/whiteboard PDF stored in S3/MinIO (key path)
+  pdfPath?: string | null;
   order?: number;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
