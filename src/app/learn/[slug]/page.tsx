@@ -49,7 +49,7 @@ export default function LearnCoursePage() {
     const unsub = onIdTokenChanged(auth, async (u) => {
       if (!u) { setHasAdminOrTeacherClaim(false); return; }
       try {
-        const tr = await u.getIdTokenResult(true);
+        const tr = await u.getIdTokenResult();
         const role = (tr.claims as any)?.role;
         setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
       } catch { setHasAdminOrTeacherClaim(false); }

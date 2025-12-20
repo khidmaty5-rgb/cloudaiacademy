@@ -61,6 +61,10 @@ service cloud.firestore {
       return isAdmin() || isTeacher();
     }
 
+    function isEditor() {
+      return isSignedIn() && (request.auth.token.role == 'editor' || request.auth.token.role == 'admin');
+    }
+
     // Helper to determine if the requester is an instructor of a given course
     function isInstructorOfCourse(courseId) {
       return (
@@ -200,32 +204,39 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Rules for journal article submissions.
-     * @path /journalArticles/{articleId}
-     * @allow (create) Any signed-in user can submit; createdBy must match the authenticated user.
-     * @allow (get, list) Authors can read their own submissions; admins/teachers can read any.
-     * @allow (update, delete) Admins/teachers can manage submissions (e.g., status/issue assignment).
-     */
     match /journalArticles/{articleId} {
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      // Create: signed-in author can create their own submission
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid
+        && (request.resource.data.title is string)
+        && (request.resource.data.abstract is string)
+        && (request.resource.data.authors is string)
+        && (request.resource.data.language in ['en', 'ar'])
+        && (request.resource.data.pdfPath is string);
+
+      // Read: public can read PUBLISHED; author can read own; editors/admins can read all
       allow read: if (
-        isAdminOrTeacher()
+        isEditor()
+        || isAdminOrTeacher()
         || (isSignedIn() && resource.data.createdBy == request.auth.uid)
         || (resource != null && resource.data.status == 'PUBLISHED')
       );
-      allow update, delete: if isAdminOrTeacher();
+
+      // Update rules
+      // Editors/admins can update anything
+      allow update, delete: if isEditor()
+        || (
+          // Authors may update their own while in DRAFT or SUBMITTED (metadata only)
+          isSignedIn() && resource.data.createdBy == request.auth.uid
+          && (resource.data.status in ['DRAFT', 'SUBMITTED'])
+          // Authors cannot change status in rules (editor moves it forward)
+          && (request.resource.data.status == resource.data.status)
+          // After UNDER_REVIEW, only editors can modify (enforced by first condition)
+        );
     }
 
-    /**
-     * @description Rules for journal issues.
-     * @path /journalIssues/{issueId}
-     * @allow (get, list) Anyone can read issues.
-     * @allow (create, update, delete) Only admins can manage issues.
-     */
     match /journalIssues/{issueId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isEditor();
     }
   }
 }

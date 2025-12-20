@@ -5,6 +5,9 @@ import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import type { UserRole } from '@/types/models';
 import { roleFromClaims } from '@/lib/roles';
 
+const CLAIMS_REFRESH_KEY = 'cloudai:claimsRefreshedAt';
+const CLAIMS_REFRESH_WINDOW_MS = 5 * 60 * 1000;
+
 export function useCurrentRole() {
   const [role, setRole] = useState<UserRole>('student');
   const [loading, setLoading] = useState<boolean>(true);
@@ -20,7 +23,22 @@ export function useCurrentRole() {
           if (!cancelled) { setRole('student'); setLoading(false); }
           return;
         }
-        const tr = await u.getIdTokenResult(true);
+
+        let forceRefresh = false;
+        try {
+          const last = Number(sessionStorage.getItem(CLAIMS_REFRESH_KEY) || '0');
+          if (!last || Date.now() - last > CLAIMS_REFRESH_WINDOW_MS) {
+            forceRefresh = true;
+            sessionStorage.setItem(CLAIMS_REFRESH_KEY, String(Date.now()));
+          }
+        } catch {}
+
+        let tr;
+        try {
+          tr = await u.getIdTokenResult(forceRefresh);
+        } catch {
+          tr = await u.getIdTokenResult();
+        }
         const r = roleFromClaims(tr.claims);
         if (!cancelled) { setRole(r); setLoading(false); }
       } catch {
@@ -33,7 +51,7 @@ export function useCurrentRole() {
     const unsub = onIdTokenChanged(auth, async (u) => {
       try {
         if (!u) { setRole('student'); return; }
-        const tr = await u.getIdTokenResult(true);
+        const tr = await u.getIdTokenResult();
         setRole(roleFromClaims(tr.claims));
       } catch { setRole('student'); }
     });
@@ -46,6 +64,7 @@ export function useCurrentRole() {
     loading,
     isAdmin: role === 'admin',
     isTeacher: role === 'teacher',
+    isEditor: role === 'editor' || role === 'admin',
     isStudent: role === 'student',
   } as const;
 }

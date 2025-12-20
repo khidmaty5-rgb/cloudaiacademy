@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/i18n/lang";
 import Header from "@/components/landing/header";
 import Footer from "@/components/landing/footer";
-import { useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useCurrentRole } from "@/hooks/useCurrentRole";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
   collection,
+  doc,
   getFirestore,
   orderBy,
   query,
@@ -140,6 +142,7 @@ export default function JournalPage() {
   const t = content[lang];
   const isArabic = lang === "ar";
   const { user } = useUser();
+  const { isAdmin, isEditor } = useCurrentRole();
   const guidelinesUrl =
     process.env.NEXT_PUBLIC_JOURNAL_GUIDELINES_URL ||
     "/templates/cloudai-journal-author-guidelines.pdf";
@@ -150,9 +153,33 @@ export default function JournalPage() {
   const listTextClass = isArabic ? "text-[15px] leading-relaxed" : "text-sm";
 
   const firestore = getFirestore();
+  const userDocRef = useMemoFirebase(
+    () => (user ? doc(firestore, "users", user.uid) : null),
+    [firestore, user],
+  );
+  const { data: userProfile } = useDoc(userDocRef);
+  const canAccessJournalDashboard =
+    isAdmin ||
+    isEditor ||
+    (userProfile?.role === "admin" || userProfile?.role === "editor");
+
+  const [forcePublishedFallback, setForcePublishedFallback] = useState(false);
+
+  function toMillis(v: any): number {
+    if (!v) return 0;
+    if (typeof v.toMillis === "function") return v.toMillis();
+    if (typeof v.toDate === "function") return v.toDate().getTime();
+    if (v instanceof Date) return v.getTime();
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    return 0;
+  }
 
   // Published articles (public)
-  const publishedArticlesQuery = useMemoFirebase(
+  const publishedArticlesPrimaryQuery = useMemoFirebase(
     () =>
       query(
         collection(firestore, "journalArticles"),
@@ -161,8 +188,47 @@ export default function JournalPage() {
       ),
     [firestore],
   );
-  const { data: publishedArticles, isLoading: isArticlesLoading } =
-    useCollection<JournalArticle>(publishedArticlesQuery as any);
+  const publishedArticlesFallbackQuery = useMemoFirebase(
+    () =>
+      query(
+        collection(firestore, "journalArticles"),
+        where("status", "==", "PUBLISHED"),
+      ),
+    [firestore],
+  );
+
+  const {
+    data: publishedArticlesPrimary,
+    isLoading: isArticlesLoadingPrimary,
+    error: publishedArticlesErrorPrimary,
+  } = useCollection<JournalArticle>(
+    forcePublishedFallback ? null : (publishedArticlesPrimaryQuery as any),
+  );
+
+  useEffect(() => {
+    const code = (publishedArticlesErrorPrimary as any)?.code as string | undefined;
+    if (code === "failed-precondition") {
+      setForcePublishedFallback(true);
+    }
+  }, [publishedArticlesErrorPrimary]);
+
+  const {
+    data: publishedArticlesFallback,
+    isLoading: isArticlesLoadingFallback,
+    error: publishedArticlesErrorFallback,
+  } = useCollection<JournalArticle>(
+    forcePublishedFallback ? (publishedArticlesFallbackQuery as any) : null,
+  );
+
+  const publishedArticles = forcePublishedFallback
+    ? publishedArticlesFallback
+    : publishedArticlesPrimary;
+  const isArticlesLoading = forcePublishedFallback
+    ? isArticlesLoadingFallback
+    : isArticlesLoadingPrimary;
+  const publishedArticlesError = forcePublishedFallback
+    ? publishedArticlesErrorFallback
+    : publishedArticlesErrorPrimary;
 
   // Issues for grouping
   const issuesQuery = useMemoFirebase(
@@ -171,8 +237,15 @@ export default function JournalPage() {
   );
   const { data: issues } = useCollection<JournalIssue>(issuesQuery as any);
 
-  const groupedArticles = useMemo(() => {
+  const sortedPublishedArticles = useMemo(() => {
     if (!publishedArticles || publishedArticles.length === 0) return [];
+    const copy = [...publishedArticles] as any[];
+    copy.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+    return copy;
+  }, [publishedArticles]);
+
+  const groupedArticles = useMemo(() => {
+    if (!sortedPublishedArticles || sortedPublishedArticles.length === 0) return [];
     const issueMap = new Map<string, JournalIssue>();
     (issues || []).forEach((issue) => {
       issueMap.set(issue.id, issue);
@@ -181,7 +254,7 @@ export default function JournalPage() {
     const groups: { key: string; label: string; items: JournalArticle[] }[] = [];
     const byKey = new Map<string, { key: string; label: string; items: JournalArticle[] }>();
 
-    publishedArticles.forEach((article) => {
+    sortedPublishedArticles.forEach((article: any) => {
       const rawIssueId = article.issueId || "__unassigned__";
       const issue = rawIssueId === "__unassigned__" ? null : issueMap.get(rawIssueId);
       const label = issue
@@ -198,7 +271,7 @@ export default function JournalPage() {
     });
 
     return groups;
-  }, [publishedArticles, issues, t.issuesGroupUnassigned]);
+  }, [sortedPublishedArticles, issues, t.issuesGroupUnassigned]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -244,6 +317,18 @@ export default function JournalPage() {
                     {lang === "ar" ? "مقالاتي المرسلة" : "My Submissions"}
                   </Link>
                 </Button>
+                {canAccessJournalDashboard && (
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="border-accent text-accent bg-background hover:bg-accent/10"
+                  >
+                    <Link href="/admin/journal">
+                      {lang === "ar" ? "لوحة المجلة" : "Journal Dashboard"}
+                    </Link>
+                  </Button>
+                )}
               </div>
             )}
           </header>
@@ -342,7 +427,16 @@ export default function JournalPage() {
                 {t.issuesBody}
               </p>
               <div className="space-y-3">
-                {isArticlesLoading ? (
+                {publishedArticlesError ? (
+                  <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                    {canAccessJournalDashboard
+                      ? ((publishedArticlesError as any)?.message ||
+                        "Failed to load published articles.")
+                      : (lang === "ar"
+                          ? "تعذّر تحميل المقالات المنشورة حالياً."
+                          : "Failed to load published articles right now.")}
+                  </div>
+                ) : isArticlesLoading ? (
                   <p className="text-sm text-muted-foreground">
                     {t.issuesLoading}
                   </p>

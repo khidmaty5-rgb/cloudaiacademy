@@ -6,12 +6,14 @@
     "dev": "next dev --turbopack",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "cross-env NODE_ENV=production next build",
+    "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && cross-env NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.955.0",
+    "@aws-sdk/s3-request-presigner": "3.955.0",
     "@genkit-ai/google-genai": "^1.20.0",
     "@genkit-ai/next": "^1.20.0",
     "@hookform/resolvers": "^3.9.0",

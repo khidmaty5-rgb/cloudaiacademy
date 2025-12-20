@@ -69,8 +69,20 @@ export async function POST(req: NextRequest) {
 
     const db = getFirestore(app);
     const { userId, role } = await req.json();
-    if (!userId || !role || !['student', 'teacher', 'admin'].includes(role)) {
+    if (!userId || !role || !['student', 'teacher', 'editor', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    }
+
+    // Self-sync: allow a signed-in user to refresh their own role claim to match
+    // the role stored in their Firestore profile document. This avoids requiring
+    // an already-admin claim just to get the correct claims after a role update.
+    if (requesterUid === userId) {
+      const userSnap = await db.doc(`users/${userId}`).get();
+      const desiredRole = userSnap.exists ? ((userSnap.data() as any)?.role as string | undefined) : undefined;
+      if (desiredRole && desiredRole === role) {
+        await getAuth(app).setCustomUserClaims(userId, { role: desiredRole });
+        return NextResponse.json({ ok: true, selfSync: true }, { status: 200 });
+      }
     }
 
     const allowBootstrap = process.env.ALLOW_BOOTSTRAP_ADMIN === 'true';

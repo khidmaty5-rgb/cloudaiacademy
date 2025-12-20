@@ -31,6 +31,8 @@ export default function LoginPage() {
       const role = (tr.claims as any)?.role;
       if (role === 'admin') {
         router.push('/admin/dashboard');
+      } else if (role === 'editor') {
+        router.push('/admin/journal');
       } else if (role === 'teacher') {
         router.push('/teacher/dashboard');
       } else {

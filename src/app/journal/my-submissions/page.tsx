@@ -20,16 +20,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import type { WithId } from "@/firebase/firestore/use-collection";
 import type { JournalArticleStatus } from "@/lib/journal";
+import { getAuth } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 type Article = WithId<{
   title: string;
   status: JournalArticleStatus;
   createdAt?: any;
   issueId?: string | null;
+  license?: string;
+  acceptedAt?: any;
+  publishedAt?: any;
 }>;
 
 function toDateValue(v: any): Date | null {
@@ -49,6 +55,7 @@ export default function JournalMySubmissionsPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
+  const { toast } = useToast();
 
   const t = {
     en: {
@@ -58,6 +65,9 @@ export default function JournalMySubmissionsPage() {
       title: "Title",
       status: "Status",
       submittedAt: "Submitted",
+      acceptedAt: "Accepted",
+      publishedAt: "Published",
+      license: "License",
       issue: "Issue",
       issueUnassigned: "Not yet assigned",
       empty: "You have not submitted any articles yet.",
@@ -70,6 +80,9 @@ export default function JournalMySubmissionsPage() {
       title: "العنوان",
       status: "الحالة",
       submittedAt: "تاريخ الإرسال",
+      acceptedAt: "تاريخ القبول",
+      publishedAt: "تاريخ النشر",
+      license: "الترخيص",
       issue: "العدد",
       issueUnassigned: "لم يُحدَّد عدد بعد",
       empty: "لم تقم بإرسال أي مقالات بعد.",
@@ -109,6 +122,29 @@ export default function JournalMySubmissionsPage() {
     [submissions],
   );
 
+  const handleOpenPdf = async (articleId: string) => {
+    try {
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error("Unauthorized");
+
+      const resp = await fetch(`/api/journal/articles/${articleId}/download?mode=json`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(j?.error || "Failed to get PDF URL");
+      }
+      if (!j?.url) throw new Error("Missing PDF URL");
+      window.open(j.url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to open PDF",
+        description: err?.message || String(err),
+      });
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -135,9 +171,13 @@ export default function JournalMySubmissionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t.title}</TableHead>
+                      <TableHead>PDF</TableHead>
                       <TableHead>{t.status}</TableHead>
                       <TableHead>{t.issue}</TableHead>
                       <TableHead>{t.submittedAt}</TableHead>
+                      <TableHead>{t.acceptedAt}</TableHead>
+                      <TableHead>{t.publishedAt}</TableHead>
+                      <TableHead>{t.license}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -164,7 +204,7 @@ export default function JournalMySubmissionsPage() {
                     {!isLoading && !hasSubmissions && (
                       <TableRow>
                         <TableCell
-                          colSpan={4}
+                          colSpan={8}
                           className="py-10 text-center text-sm text-muted-foreground"
                         >
                           {t.empty}
@@ -177,6 +217,15 @@ export default function JournalMySubmissionsPage() {
                           <TableCell className="font-medium">
                             {article.title}
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenPdf(article.id)}
+                            >
+                              Open
+                            </Button>
+                          </TableCell>
                           <TableCell>{article.status}</TableCell>
                           <TableCell>
                             {article.issueId
@@ -187,6 +236,15 @@ export default function JournalMySubmissionsPage() {
                             {article.createdAtDate
                               ? article.createdAtDate.toLocaleDateString()
                               : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {toDateValue((article as any).acceptedAt)?.toLocaleDateString?.() || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {toDateValue((article as any).publishedAt)?.toLocaleDateString?.() || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {(article as any).license || "—"}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -201,4 +259,3 @@ export default function JournalMySubmissionsPage() {
     </div>
   );
 }
-

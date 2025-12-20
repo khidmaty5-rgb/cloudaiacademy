@@ -64,7 +64,7 @@ export default function Courses() {
     () => query(collection(firestore, 'courses'), limit(6)),
     [firestore]
   );
-  const { data: courses, isLoading } = useCollection(coursesQuery);
+  const { data: courses, isLoading, error } = useCollection(coursesQuery);
 
   return (
     <section id="courses" className="py-20 md:py-28 bg-muted/50">
@@ -78,13 +78,23 @@ export default function Courses() {
           </p>
         </div>
         <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {isLoading
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-96 w-full" />
-              ))
-            : courses?.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
+          {isLoading &&
+            Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-96 w-full" />
+            ))}
+          {!isLoading && error && (
+            <div className="col-span-3 text-center rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+              {lang === 'ar' ? 'تعذر تحميل الدورات الآن. الرجاء المحاولة لاحقًا.' : 'Failed to load courses. Please try again later.'}
+            </div>
+          )}
+          {!isLoading && !error && (courses || []).length === 0 && (
+            <div className="col-span-3 text-center text-muted-foreground">
+              {lang === 'ar' ? 'لا توجد دورات حالياً.' : 'No courses available yet.'}
+            </div>
+          )}
+          {!isLoading && !error && (courses || []).map((course) => (
+            <CourseCard key={course.id} course={course} />
+          ))}
         </div>
         <div className="text-center mt-12">
             <Link href="/courses" className="text-accent hover:underline font-semibold">

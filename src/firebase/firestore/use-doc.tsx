@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   DocumentReference,
   onSnapshot,
+  getDoc,
   DocumentData,
   FirestoreError,
   DocumentSnapshot,
@@ -58,6 +59,41 @@ export function useDoc<T = any>(
     setIsLoading(true);
     setError(null);
     // Optional: setData(null); // Clear previous data instantly
+    let cancelled = false;
+
+    const handleError = (err: FirestoreError) => {
+      if (err.code === 'permission-denied' || err.code === 'unauthenticated') {
+        const contextualError = new FirestorePermissionError({
+          operation: 'get',
+          path: memoizedDocRef.path,
+        });
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
+        // trigger global error propagation
+        errorEmitter.emit('permission-error', contextualError);
+      } else {
+        setError(err);
+        setIsLoading(false);
+      }
+    };
+
+    // One-shot fetch to avoid hanging when streaming listeners can’t connect.
+    getDoc(memoizedDocRef)
+      .then((snapshot) => {
+        if (cancelled) return;
+        if (snapshot.exists()) {
+          setData({ ...(snapshot.data() as T), id: snapshot.id });
+        } else {
+          setData(null);
+        }
+        setError(null);
+        setIsLoading(false);
+      })
+      .catch((err: FirestoreError) => {
+        if (cancelled) return;
+        handleError(err);
+      });
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -72,21 +108,14 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        handleError(error);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
   return { data, isLoading, error };

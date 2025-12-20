@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { submitJournalArticle } from '@/lib/journal';
+import { getAuth } from 'firebase/auth';
 
 export default function JournalSubmitPage() {
   const { lang, dir } = useLang();
@@ -109,9 +109,12 @@ export default function JournalSubmitPage() {
     abstract: '',
     authors: '',
     language: lang === 'ar' ? 'ar' : 'en',
-    pdfUrl: '',
+    affiliations: '',
+    keywords: '',
+    license: 'CC BY 4.0',
     codeUrl: '',
   });
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   const handleChange =
     (field: keyof typeof form) =>
@@ -124,17 +127,92 @@ export default function JournalSubmitPage() {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      await submitJournalArticle(
-        {
-          title: form.title.trim(),
-          abstract: form.abstract.trim(),
-          authors: form.authors.trim(),
-          language: form.language as 'en' | 'ar' | 'both',
-          pdfUrl: form.pdfUrl.trim(),
-          codeUrl: form.codeUrl.trim() || undefined,
+      // Validation
+      const title = form.title.trim();
+      const abstract = form.abstract.trim();
+      const authors = form.authors.trim();
+      const language = (form.language as 'en' | 'ar' | 'both');
+      const codeUrl = form.codeUrl.trim() || undefined;
+      const affiliationsArr = form.affiliations
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const keywordsArr = form.keywords
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const license = form.license || 'CC BY 4.0';
+
+      if (!title || !abstract || !authors) {
+        throw new Error('Title, abstract, and authors are required.');
+      }
+      if (!(language === 'en' || language === 'ar' || language === 'both')) {
+        throw new Error('Language must be en, ar, or both.');
+      }
+      if (!pdfFile) {
+        throw new Error('Please attach a PDF file.');
+      }
+      const maxBytes = 20 * 1024 * 1024;
+      if (pdfFile.size > maxBytes) {
+        throw new Error('PDF is too large. Max size is 20 MB.');
+      }
+      const isPdf = (pdfFile.type === 'application/pdf') || pdfFile.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) {
+        throw new Error('File must be a PDF (application/pdf).');
+      }
+
+      // Prepare articleId and upload to MinIO via presigned PUT
+      const articleId = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      const s3Key = `journal/articles/${user.uid}/${articleId}/manuscript.pdf`;
+      const token = await getAuth().currentUser?.getIdToken(true);
+      if (!token) throw new Error('Unauthorized');
+
+      const presignResp = await fetch('/api/s3/presign-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        user.uid,
-      );
+        body: JSON.stringify({ key: s3Key, contentType: 'application/pdf' }),
+      });
+      if (!presignResp.ok) {
+        const errJ = await presignResp.json().catch(() => undefined);
+        throw new Error(errJ?.error || 'Failed to create upload URL');
+      }
+      const { url: uploadUrl } = await presignResp.json();
+      const putResp = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: pdfFile,
+      });
+      if (!putResp.ok) {
+        throw new Error(`Upload failed with status ${putResp.status}`);
+      }
+
+      // Server-side validated creation
+      const resp = await fetch('/api/journal/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          articleId,
+          title,
+          abstract,
+          authors,
+          affiliations: affiliationsArr,
+          keywords: keywordsArr,
+          license,
+          language: language === 'both' ? 'en' : language, // restrict to en|ar server side
+          codeUrl,
+          pdfPath: s3Key,
+        }),
+      });
+      const j = await resp.json();
+      if (!resp.ok) {
+        throw new Error(j?.error || 'Submission failed');
+      }
       toast({
         title: t.toastSuccessTitle,
         description: t.toastSuccessDesc,
@@ -236,16 +314,44 @@ export default function JournalSubmitPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      {t.fieldPdfUrl}
-                    </label>
+                    <label className="text-sm font-medium">PDF (max 20 MB)</label>
                     <Input
-                      value={form.pdfUrl}
-                      onChange={handleChange('pdfUrl')}
-                      placeholder={t.fieldPdfUrlPlaceholder}
-                      type="url"
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
                       required
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Affiliations (one per line, align order with authors)</label>
+                    <Textarea
+                      value={form.affiliations}
+                      onChange={handleChange('affiliations')}
+                      placeholder={lang==='ar' ? 'جامعة طرابلس\nجامعة بنغازي' : 'University of Tripoli\nUniversity of Benghazi'}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Keywords (comma separated)</label>
+                    <Input
+                      value={form.keywords}
+                      onChange={handleChange('keywords')}
+                      placeholder={lang==='ar' ? 'ذكاء اصطناعي، بيانات، سحابة' : 'AI, data, cloud'}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">License</label>
+                    <select
+                      className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                      value={form.license}
+                      onChange={(e) => setForm((p) => ({ ...p, license: e.target.value }))}
+                    >
+                      <option value="CC BY 4.0">CC BY 4.0</option>
+                      <option value="All rights reserved">All rights reserved</option>
+                    </select>
                   </div>
 
                   <div className="space-y-2">
@@ -277,4 +383,3 @@ export default function JournalSubmitPage() {
     </div>
   );
 }
-

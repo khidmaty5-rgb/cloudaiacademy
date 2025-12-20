@@ -14,7 +14,7 @@ type UserProfileData = {
 };
 
 // This function creates a user from the admin panel, not the public sign-up
-export async function createUserWithRole(email: string, password: string, fullName: string, role: 'student' | 'teacher' | 'admin') {
+export async function createUserWithRole(email: string, password: string, fullName: string, role: 'student' | 'teacher' | 'editor' | 'admin') {
     // Try callable function first (prod with Functions). If unavailable (no Blaze), fallback to Next API route.
     try {
         const functions = getFunctions();
@@ -83,7 +83,7 @@ export async function saveLearningPath(userId: string, path: PersonalizedLearnin
     });
 }
 
-export async function updateUserRole(userId: string, role: 'student' | 'teacher' | 'admin') {
+export async function updateUserRole(userId: string, role: 'student' | 'teacher' | 'editor' | 'admin') {
   if (!userId) {
     throw new Error('User ID is required.');
   }

@@ -3,7 +3,8 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, initializeFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -32,11 +33,32 @@ export function initializeFirebase() {
   return getSdks(getApp());
 }
 
+function initFirestore(firebaseApp: FirebaseApp) {
+  try {
+    // Improves reliability on networks/proxies that block Firestore streaming.
+    // Default to long-polling in dev; allow explicit override via env.
+    const forceLongPolling =
+      process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === '1' ||
+      process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === 'true' ||
+      process.env.NODE_ENV !== 'production';
+
+    return initializeFirestore(
+      firebaseApp,
+      forceLongPolling
+        ? { experimentalForceLongPolling: true }
+        : { experimentalAutoDetectLongPolling: true },
+    );
+  } catch {
+    return getFirestore(firebaseApp);
+  }
+}
+
 export function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
+    firestore: initFirestore(firebaseApp),
+    storage: getStorage(firebaseApp)
   };
 }
 

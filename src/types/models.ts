@@ -1,7 +1,7 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type FirestoreTimestamp = Timestamp | FieldValue | null;
-export type UserRole = 'student' | 'teacher' | 'admin';
+export type UserRole = 'student' | 'teacher' | 'editor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
 
@@ -82,21 +82,29 @@ export interface Announcement {
   createdBy: string;
 }
 
-export type JournalArticleStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'PUBLISHED';
+export type JournalArticleStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'PUBLISHED';
 
 export interface JournalArticle {
   id?: string;
   title: string;
   abstract: string;
   authors: string;
+  affiliations?: string[];
   language: 'en' | 'ar' | 'both';
-  pdfUrl: string;
+  pdfUrl?: string;
+  pdfPath?: string;
   codeUrl?: string;
+  keywords?: string[];
+  license?: string;
   status: JournalArticleStatus;
   createdBy: string;
+  createdByEmail?: string | null;
+  createdByName?: string | null;
   issueId: string | null;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
+  acceptedAt?: FirestoreTimestamp | null;
+  publishedAt?: FirestoreTimestamp | null;
 }
 
 export interface JournalIssue {

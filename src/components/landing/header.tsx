@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   UserCog,
   Shield,
+  FileText,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ const navLinks = [
   { href: '/journal', id: 'journal' as const },
 ];
 
-type Role = 'student' | 'teacher' | 'admin' | null;
+type Role = 'student' | 'teacher' | 'editor' | 'admin' | null;
 
 type UserProfileMenuProps = {
   role: Role;
@@ -73,7 +74,24 @@ function UserProfileMenu({
 
   const handleLogout = async () => {
     await signOutUser();
-    router.push('/');
+    try {
+      if (typeof window !== 'undefined') {
+        const keys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('firebase:')) keys.push(k);
+        }
+        keys.forEach((k) => {
+          try { localStorage.removeItem(k); } catch {}
+        });
+        try { indexedDB.deleteDatabase('firebaseLocalStorageDb'); } catch {}
+      }
+    } catch {}
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    } else {
+      router.push('/login');
+    }
   };
 
   const getInitials = (name?: string | null) => {
@@ -110,7 +128,7 @@ function UserProfileMenu({
   }
 
   const effectiveAdminLabel =
-    role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : null;
+    role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : role === 'editor' ? 'Editor' : null;
 
   return (
     <DropdownMenu>
@@ -149,11 +167,19 @@ function UserProfileMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={role === 'admin' ? '/admin/dashboard' : role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}>
+          <Link href={role === 'admin' ? '/admin/dashboard' : role === 'editor' ? '/admin/journal' : role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
           </Link>
         </DropdownMenuItem>
+        {(role === 'admin' || role === 'editor') && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin/journal">
+              <FileText className="mr-2 h-4 w-4" />
+              Journal Dashboard
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/profile">
             <UserCog className="mr-2 h-4 w-4" />
@@ -200,7 +226,7 @@ export default function Header() {
   const router = useRouter();
   const { lang } = useLang();
   const firestore = getFirestore();
-  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
+  const { isAdmin, isTeacher, isEditor, loading: roleLoading } = useCurrentRole();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -211,9 +237,9 @@ export default function Header() {
 
   // Prefer claims for gating; fall back to profile when claims are unavailable
   const effectiveRole: Role = user
-    ? (isAdmin ? 'admin' : isTeacher ? 'teacher' : ((userProfile?.role as Role) ?? 'student'))
+    ? (isAdmin ? 'admin' : isEditor ? 'editor' : isTeacher ? 'teacher' : ((userProfile?.role as Role) ?? 'student'))
     : null;
-  const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'teacher';
+  const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'editor' || effectiveRole === 'teacher';
   const isAdminRoute = !!pathname && pathname.startsWith('/admin');
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
@@ -316,11 +342,11 @@ export default function Header() {
   };
 
   // Stable dashboard target to avoid flicker while role claims load
-  const preferredDashboardHref = (isAdminRoute || effectiveRole === 'admin')
-    ? '/admin/dashboard'
-    : (effectiveRole === 'teacher'
-      ? '/teacher/dashboard'
-      : '/dashboard');
+  const preferredDashboardHref =
+    effectiveRole === 'admin' ? '/admin/dashboard'
+    : effectiveRole === 'editor' ? '/admin/journal'
+    : effectiveRole === 'teacher' ? '/teacher/dashboard'
+    : '/dashboard';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
@@ -525,4 +551,3 @@ export default function Header() {
     </header>
   );
 }
-

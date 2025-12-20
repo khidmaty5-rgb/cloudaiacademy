@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Query,
   onSnapshot,
+  getDocs,
   DocumentData,
   FirestoreError,
   QuerySnapshot,
@@ -71,6 +72,60 @@ export function useCollection<T = any>(
 
     setIsLoading(true);
     setError(null);
+    let cancelled = false;
+    const TIMEOUT_MS = 8000;
+    let didSettle = false;
+    const timeoutId = setTimeout(() => {
+      if (!didSettle && !cancelled) {
+        setIsLoading(false);
+        setError(new Error('Timed out connecting to Firestore.'));
+      }
+    }, TIMEOUT_MS);
+
+    const path: string =
+      memoizedTargetRefOrQuery.type === 'collection'
+        ? (memoizedTargetRefOrQuery as CollectionReference).path
+        : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+
+    const handleError = (err: FirestoreError) => {
+      // Only treat real permission failures as "permission errors".
+      if (err.code === 'permission-denied' || err.code === 'unauthenticated') {
+        const contextualError = new FirestorePermissionError({
+          operation: 'list',
+          path,
+        });
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
+        // trigger global error propagation
+        errorEmitter.emit('permission-error', contextualError);
+      } else {
+        setError(err);
+        setIsLoading(false);
+      }
+    };
+
+    // One-shot fetch to avoid hanging when Firestore streaming is blocked.
+    // This also makes list pages usable even if realtime listeners can’t connect.
+    getDocs(memoizedTargetRefOrQuery)
+      .then((snapshot) => {
+        if (cancelled) return;
+        const results: ResultItemType[] = [];
+        for (const doc of snapshot.docs) {
+          results.push({ ...(doc.data() as T), id: doc.id });
+        }
+        setData(results);
+        setError(null);
+        setIsLoading(false);
+        didSettle = true;
+        clearTimeout(timeoutId);
+      })
+      .catch((err: FirestoreError) => {
+        if (cancelled) return;
+        didSettle = true;
+        clearTimeout(timeoutId);
+        handleError(err);
+      });
 
     // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
@@ -83,29 +138,21 @@ export function useCollection<T = any>(
         setData(results);
         setError(null);
         setIsLoading(false);
+        didSettle = true;
+        clearTimeout(timeoutId);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        didSettle = true;
+        clearTimeout(timeoutId);
+        handleError(error);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');

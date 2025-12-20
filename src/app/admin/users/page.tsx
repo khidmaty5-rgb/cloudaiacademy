@@ -38,6 +38,7 @@ const usersText = {
     noPermission: 'You do not have permission to view this page.',
     student: 'Student',
     teacher: 'Teacher',
+    editor: 'Editor',
     admin: 'Admin',
     selectRolePlaceholder: 'Select role',
     roleUpdatedTitle: 'Role Updated',
@@ -58,6 +59,7 @@ const usersText = {
     noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     student: 'طالب',
     teacher: 'معلم',
+    editor: 'محرر',
     admin: 'مشرف',
     selectRolePlaceholder: 'اختر الدور',
     roleUpdatedTitle: 'تم تحديث الدور',
@@ -85,13 +87,13 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
     const { lang } = useLang();
     const t = usersText[lang];
 
-    const handleRoleChange = async (newRole: 'student' | 'teacher' | 'admin') => {
+    const handleRoleChange = async (newRole: 'student' | 'teacher' | 'editor' | 'admin') => {
         try {
             await updateUserRole(userId, newRole);
             toast({
                 title: t.roleUpdatedTitle,
                 description: t.roleUpdatedDesc(
-                  newRole === 'student' ? t.student : newRole === 'teacher' ? t.teacher : t.admin,
+                  newRole === 'student' ? t.student : newRole === 'teacher' ? t.teacher : newRole === 'editor' ? t.editor : t.admin,
                 ),
             });
         } catch (error: any) {
@@ -111,6 +113,7 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
             <SelectContent>
                 <SelectItem value="student">{t.student}</SelectItem>
                 <SelectItem value="teacher">{t.teacher}</SelectItem>
+                <SelectItem value="editor">{t.editor}</SelectItem>
                 <SelectItem value="admin">{t.admin}</SelectItem>
             </SelectContent>
         </Select>
@@ -131,13 +134,14 @@ function UserList() {
     const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
 
     const grouped = useMemo(() => {
-      const g: Record<'admin' | 'teacher' | 'student', any[]> = {
+      const g: Record<'admin' | 'teacher' | 'editor' | 'student', any[]> = {
         admin: [],
         teacher: [],
+        editor: [],
         student: [],
       };
       for (const u of users || []) {
-        const r = (u.role as 'admin' | 'teacher' | 'student') || 'student';
+        const r = (u.role as 'admin' | 'teacher' | 'editor' | 'student') || 'student';
         if (g[r]) g[r].push(u);
       }
       return g;
@@ -165,7 +169,7 @@ function UserList() {
       );
     }
 
-    const roleStyles: Record<'admin' | 'teacher' | 'student', {
+    const roleStyles: Record<'admin' | 'teacher' | 'editor' | 'student', {
       border: string;
       bg: string;
       Icon: (props: any) => JSX.Element;
@@ -174,10 +178,11 @@ function UserList() {
     }> = {
       admin: { border: 'border-red-500', bg: 'bg-red-500/10', Icon: Shield as any, iconColor: 'text-red-500', title: t.admin },
       teacher: { border: 'border-blue-500', bg: 'bg-blue-500/10', Icon: BookOpen as any, iconColor: 'text-blue-500', title: t.teacher },
+      editor: { border: 'border-purple-500', bg: 'bg-purple-500/10', Icon: Shield as any, iconColor: 'text-purple-500', title: t.editor },
       student: { border: 'border-green-500', bg: 'bg-green-500/10', Icon: GraduationCap as any, iconColor: 'text-green-500', title: t.student },
     };
 
-    const renderCard = (role: 'admin' | 'teacher' | 'student', title: string) => {
+    const renderCard = (role: 'admin' | 'teacher' | 'editor' | 'student', title: string) => {
       const S = roleStyles[role];
       const Icon = S.Icon;
       return (
@@ -210,9 +215,10 @@ function UserList() {
     };
 
     return (
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         {renderCard('admin', t.admin)}
         {renderCard('teacher', t.teacher)}
+        {renderCard('editor', t.editor)}
         {renderCard('student', t.student)}
       </div>
     );

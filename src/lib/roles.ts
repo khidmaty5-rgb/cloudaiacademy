@@ -5,12 +5,13 @@ export type Role = UserRole | null;
 
 export function roleFromClaims(claims: any): UserRole {
   const r = (claims?.role as string) || 'student';
-  if (r === 'admin' || r === 'teacher') return r;
+  if (r === 'admin' || r === 'teacher' || r === 'editor') return r as UserRole;
   return 'student';
 }
 
 export const isAdmin = (role: Role) => role === 'admin';
 export const isTeacher = (role: Role) => role === 'teacher';
+export const isEditor = (role: Role) => role === 'editor' || role === 'admin';
 export const isStudent = (role: Role) => role === 'student';
 
 export function canTeachCourse(course: Partial<Course> | undefined | null, uid?: string | null): boolean {

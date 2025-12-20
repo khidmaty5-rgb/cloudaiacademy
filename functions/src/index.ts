@@ -45,7 +45,7 @@ export const adminCreateUser = functions.https.onCall(async (data, context) => {
   const email: string = (data && data.email) || '';
   const password: string = (data && data.password) || '';
   const fullName: string = (data && data.fullName) || '';
-  const userRole: 'student' | 'teacher' | 'admin' = (data && data.role) || 'student';
+  const userRole: 'student' | 'teacher' | 'editor' | 'admin' = (data && data.role) || 'student';
 
   if (!email || !password || !fullName) {
     throw new functions.https.HttpsError('invalid-argument', 'email, password, and fullName are required.');
