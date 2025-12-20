@@ -274,9 +274,9 @@ export default function JournalPage() {
   }, [sortedPublishedArticles, issues, t.issuesGroupUnassigned]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-muted">
       <Header />
-      <main className="flex-1 bg-background text-foreground">
+      <main className="flex-1 bg-muted text-foreground">
         <section
           dir={dir}
           className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-10"
@@ -334,7 +334,7 @@ export default function JournalPage() {
           </header>
 
           {/* Aims & Types */}
-          <section className="grid gap-6 rounded-2xl bg-card text-card-foreground p-6 shadow-sm lg:grid-cols-2">
+          <section className="grid gap-6 rounded-2xl bg-card text-card-foreground p-6 shadow-lg border border-border ring-1 ring-black/5 dark:ring-white/10 lg:grid-cols-2">
             <div>
               <h2 className="mb-2 text-lg font-semibold">{t.aimsTitle}</h2>
               <ul
@@ -359,11 +359,11 @@ export default function JournalPage() {
 
           {/* Open access & Review */}
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-sm">
+            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-lg border border-border ring-1 ring-black/5 dark:ring-white/10">
               <h2 className="mb-2 text-lg font-semibold">{t.oaTitle}</h2>
               <p className={`text-foreground ${bodyTextClass}`}>{t.oaBody}</p>
             </div>
-            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-sm">
+            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-lg border border-border ring-1 ring-black/5 dark:ring-white/10">
               <h2 className="mb-2 text-lg font-semibold">{t.reviewTitle}</h2>
               <ol
                 className={`list-decimal space-y-1 ps-5 text-foreground ${listTextClass}`}
@@ -413,7 +413,7 @@ export default function JournalPage() {
 
           {/* Editorial board & Issues */}
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-sm">
+            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-lg border border-border ring-1 ring-black/5 dark:ring-white/10">
               <h2 className="mb-2 text-lg font-semibold">{t.boardTitle}</h2>
               <ul className="space-y-1 text-sm text-foreground">
                 {t.board.map((line, i) => (
@@ -421,7 +421,7 @@ export default function JournalPage() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-sm">
+            <div className="rounded-2xl bg-card text-card-foreground p-6 shadow-lg border border-border ring-1 ring-black/5 dark:ring-white/10">
               <h2 className="mb-2 text-lg font-semibold">{t.issuesTitle}</h2>
               <p className="mb-4 text-sm leading-relaxed text-foreground">
                 {t.issuesBody}

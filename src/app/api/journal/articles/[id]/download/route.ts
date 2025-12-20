@@ -83,7 +83,9 @@ export async function GET(
       const role = caller.role as string | undefined;
       const isStaff = role === 'admin' || role === 'editor';
       const isOwner = !!(uid && article.createdBy && uid === article.createdBy);
-      if (!isStaff && !isOwner) {
+      const reviewerIds: string[] = Array.isArray(article?.reviewerIds) ? article.reviewerIds : [];
+      const isReviewer = !!(uid && reviewerIds.includes(uid));
+      if (!isStaff && !isOwner && !isReviewer) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

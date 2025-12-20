@@ -186,6 +186,13 @@ export default function AdminJournalPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsArticle, setDetailsArticle] = useState<WithId<any> | null>(null);
 
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerSaving, setReviewerSaving] = useState(false);
+
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<any[] | null>(null);
+
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewArticleId, setPdfPreviewArticleId] = useState<string | null>(null);
@@ -331,6 +338,71 @@ export default function AdminJournalPage() {
   const openDetailsDialog = (article: WithId<any>) => {
     setDetailsArticle(article);
     setDetailsOpen(true);
+    setReviewerEmail('');
+    setReviews(null);
+    setReviewsError(null);
+    setReviewsLoading(false);
+  };
+
+  const updateReviewers = async (action: 'add' | 'remove', email: string) => {
+    if (!detailsArticle?.id) return;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedEmail) return;
+
+    setReviewerSaving(true);
+    try {
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const resp = await fetch(`/api/journal/articles/${detailsArticle.id}/reviewers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action, email: normalizedEmail }),
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(j?.error || 'Failed to update reviewers');
+      }
+      setDetailsArticle((prev) =>
+        prev && prev.id === detailsArticle.id
+          ? ({ ...prev, reviewerIds: j.reviewerIds, reviewerEmails: j.reviewerEmails } as any)
+          : prev,
+      );
+      if (action === 'add') setReviewerEmail('');
+      toast({ title: action === 'add' ? 'Reviewer assigned.' : 'Reviewer removed.' });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Reviewer update failed',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setReviewerSaving(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    if (!detailsArticle?.id) return;
+    setReviewsLoading(true);
+    setReviewsError(null);
+    try {
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+      const resp = await fetch(`/api/journal/articles/${detailsArticle.id}/reviews`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || 'Failed to load reviews');
+      setReviews(Array.isArray(j?.reviews) ? j.reviews : []);
+    } catch (err: any) {
+      setReviewsError(err?.message || String(err));
+      setReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
   };
 
   const openDeleteConfirm = (articleId: string, title: string) => {
@@ -896,11 +968,17 @@ export default function AdminJournalPage() {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog
+                  <Dialog
                   open={detailsOpen}
                   onOpenChange={(open) => {
                     setDetailsOpen(open);
-                    if (!open) setDetailsArticle(null);
+                    if (!open) {
+                      setDetailsArticle(null);
+                      setReviewerEmail('');
+                      setReviews(null);
+                      setReviewsError(null);
+                      setReviewsLoading(false);
+                    }
                   }}
                 >
                   <DialogContent className="max-w-2xl">
@@ -1025,6 +1103,152 @@ export default function AdminJournalPage() {
                             </div>
                           </div>
                         ) : null}
+
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">
+                            {lang === 'ar' ? 'المحكّمون' : 'Reviewers'}
+                          </div>
+                          {Array.isArray((detailsArticle as any).reviewerEmails) &&
+                          (detailsArticle as any).reviewerEmails.filter(Boolean).length ? (
+                            <div className="flex flex-wrap gap-2">
+                              {(detailsArticle as any).reviewerEmails
+                                .filter(Boolean)
+                                .map((em: string) => (
+                                  <div
+                                    key={em}
+                                    className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs"
+                                  >
+                                    <span className="max-w-[220px] truncate">{em}</span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => void updateReviewers('remove', em)}
+                                      disabled={reviewerSaving}
+                                    >
+                                      {lang === 'ar' ? 'إزالة' : 'Remove'}
+                                    </Button>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              {lang === 'ar' ? 'لا يوجد محكّمون بعد.' : 'No reviewers assigned yet.'}
+                            </div>
+                          )}
+
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input
+                              type="email"
+                              value={reviewerEmail}
+                              onChange={(e) => setReviewerEmail(e.target.value)}
+                              placeholder="reviewer@example.com"
+                            />
+                            <Button
+                              onClick={() => void updateReviewers('add', reviewerEmail)}
+                              disabled={reviewerSaving || !reviewerEmail.trim()}
+                            >
+                              {reviewerSaving
+                                ? lang === 'ar'
+                                  ? 'جارٍ الحفظ…'
+                                  : 'Saving…'
+                                : lang === 'ar'
+                                  ? 'إضافة محكّم'
+                                  : 'Add reviewer'}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {lang === 'ar'
+                              ? 'يجب أن يمتلك المحكّم حسابًا ويمكنه مراجعة الأبحاث من صفحة /reviewer.'
+                              : 'Reviewer must have an account and can access assigned papers at /reviewer.'}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-medium">
+                              {lang === 'ar' ? 'التقييمات' : 'Reviews'}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void loadReviews()}
+                              disabled={reviewsLoading || !detailsArticle}
+                            >
+                              {reviewsLoading
+                                ? lang === 'ar'
+                                  ? 'جارٍ التحميل…'
+                                  : 'Loading…'
+                                : lang === 'ar'
+                                  ? 'تحميل التقييمات'
+                                  : 'Load reviews'}
+                            </Button>
+                          </div>
+
+                          {reviewsError ? (
+                            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                              {reviewsError}
+                            </div>
+                          ) : reviewsLoading ? (
+                            <div className="text-sm text-muted-foreground">
+                              {lang === 'ar' ? 'جارٍ جلب التقييمات…' : 'Fetching reviews…'}
+                            </div>
+                          ) : reviews == null ? (
+                            <div className="text-sm text-muted-foreground">
+                              {lang === 'ar'
+                                ? 'اضغط "تحميل التقييمات" لعرض ملاحظات المحكّمين.'
+                                : 'Click “Load reviews” to see reviewer feedback.'}
+                            </div>
+                          ) : reviews.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">
+                              {lang === 'ar' ? 'لم يتم إرسال أي تقييم بعد.' : 'No reviews submitted yet.'}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {reviews.map((r: any) => {
+                                const submitted =
+                                  r?.submittedAt?.toDate?.() ?? r?.submittedAt ?? null;
+                                return (
+                                  <div
+                                    key={r.id}
+                                    className="rounded-md border border-border bg-background p-3"
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="text-xs text-muted-foreground break-all">
+                                        {r?.reviewerEmail || r?.reviewerId || '—'}
+                                      </div>
+                                      <div className="text-xs font-semibold uppercase">
+                                        {r?.recommendation || '—'}
+                                      </div>
+                                    </div>
+                                    {submitted ? (
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {format(new Date(submitted), 'PPP')}
+                                      </div>
+                                    ) : null}
+                                    <div className="mt-3 space-y-1">
+                                      <div className="text-xs font-medium">
+                                        {lang === 'ar' ? 'ملاحظات للمؤلف' : 'To author'}
+                                      </div>
+                                      <div className="whitespace-pre-line text-sm text-muted-foreground">
+                                        {r?.commentsToAuthor || '—'}
+                                      </div>
+                                    </div>
+                                    {r?.commentsToEditor ? (
+                                      <div className="mt-3 space-y-1">
+                                        <div className="text-xs font-medium">
+                                          {lang === 'ar' ? 'ملاحظات للمحرر' : 'To editor'}
+                                        </div>
+                                        <div className="whitespace-pre-line text-sm text-muted-foreground">
+                                          {r?.commentsToEditor}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
 
                         <div className="space-y-1">
                           <div className="text-sm font-medium">

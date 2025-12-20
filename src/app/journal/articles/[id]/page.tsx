@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
+import PdfSandbox from '@/components/journal/pdf-sandbox';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getApps, initializeApp, cert, applicationDefault } from 'firebase-admin/app';
@@ -40,6 +41,13 @@ function resolvePdfLinks(
   id: string,
   article: any,
 ): { viewHref: string; downloadHref: string } | null {
+  const withDisposition = (href: string, disposition: 'inline' | 'attachment') => {
+    if (!href) return href;
+    if (href.includes('disposition=')) return href;
+    const sep = href.includes('?') ? '&' : '?';
+    return `${href}${sep}disposition=${disposition}`;
+  };
+
   const hasPdfPath = typeof article?.pdfPath === 'string' && article.pdfPath.length > 0;
   const hasPdfUrl = typeof article?.pdfUrl === 'string' && article.pdfUrl.length > 0;
 
@@ -51,7 +59,11 @@ function resolvePdfLinks(
   }
 
   if (hasPdfUrl) {
-    return { viewHref: article.pdfUrl, downloadHref: article.pdfUrl };
+    const href = String(article.pdfUrl);
+    return {
+      viewHref: withDisposition(href, 'inline'),
+      downloadHref: withDisposition(href, 'attachment'),
+    };
   }
 
   return null;
@@ -164,18 +176,11 @@ export default async function JournalArticlePage(context: {
 
               <div className="flex flex-wrap gap-3">
                 {pdfLinks ? (
-                  <>
-                    <Button asChild className="bg-accent text-accent-foreground">
-                      <a href={pdfLinks.viewHref} target="_blank" rel="noopener noreferrer">
-                        View PDF
-                      </a>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <a href={pdfLinks.downloadHref} target="_blank" rel="noopener noreferrer">
-                        Download PDF
-                      </a>
-                    </Button>
-                  </>
+                  <PdfSandbox
+                    title={String(article.title || 'PDF')}
+                    viewHref={pdfLinks.viewHref}
+                    downloadHref={pdfLinks.downloadHref}
+                  />
                 ) : (
                   <span className="text-xs text-muted-foreground">PDF not available</span>
                 )}

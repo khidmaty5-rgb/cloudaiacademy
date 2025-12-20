@@ -84,6 +84,24 @@ export interface Announcement {
 
 export type JournalArticleStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'PUBLISHED';
 
+export type JournalReviewRecommendation =
+  | 'ACCEPT'
+  | 'MINOR_REVISION'
+  | 'MAJOR_REVISION'
+  | 'REJECT';
+
+export interface JournalReview {
+  id?: string;
+  reviewerId: string;
+  reviewerEmail?: string | null;
+  recommendation: JournalReviewRecommendation;
+  commentsToAuthor: string;
+  commentsToEditor?: string;
+  createdAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+  submittedAt?: FirestoreTimestamp;
+}
+
 export interface JournalArticle {
   id?: string;
   title: string;
@@ -100,6 +118,8 @@ export interface JournalArticle {
   createdBy: string;
   createdByEmail?: string | null;
   createdByName?: string | null;
+  reviewerIds?: string[];
+  reviewerEmails?: string[];
   issueId: string | null;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
