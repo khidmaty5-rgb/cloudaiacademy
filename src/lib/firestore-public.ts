@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { firebaseConfig } from '@/firebase/config';
+
 type FirestoreValue =
   | { nullValue: null }
   | { booleanValue: boolean }
@@ -40,8 +42,12 @@ function fieldsToJson(fields: Record<string, FirestoreValue> | undefined) {
 }
 
 export async function fetchPublicFirestoreDoc(path: string): Promise<{ id: string; data: any } | null> {
-  const projectId = (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
-  const apiKey = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim();
+  const projectId = (
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    firebaseConfig.projectId ||
+    ''
+  ).trim();
+  const apiKey = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || firebaseConfig.apiKey || '').trim();
   if (!projectId || !apiKey) return null;
 
   const safePath = String(path || '').replace(/^\/+/, '');
@@ -49,7 +55,21 @@ export async function fetchPublicFirestoreDoc(path: string): Promise<{ id: strin
     projectId,
   )}/databases/(default)/documents/${safePath}?key=${encodeURIComponent(apiKey)}`;
 
-  const resp = await fetch(url, { cache: 'no-store' });
+  let resp: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    resp = await fetch(url, { cache: 'no-store', signal: controller.signal });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[FirestorePublic] fetch failed', {
+      path: safePath,
+      error: String((err as any)?.message || err),
+    });
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!resp.ok) {
     // Avoid logging the full URL (contains API key).
     if (resp.status !== 404) {

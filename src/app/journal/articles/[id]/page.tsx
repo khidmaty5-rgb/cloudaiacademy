@@ -55,7 +55,7 @@ export async function generateMetadata(context: {
     return { title: 'Article not found - CloudAI Journal' };
   }
 
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   const url = `${site}/journal/articles/${id}`;
   const title = article.title || 'CloudAI Journal Article';
   const description = (article.abstract || '').slice(0, 300);
@@ -125,7 +125,7 @@ export default async function JournalArticlePage(context: {
   const year = (publishedAt ? new Date(publishedAt) : (acceptedAt ? new Date(acceptedAt) : null))?.getFullYear() || '';
 
   const cite = `${authors} (${year}). ${article.title}. CloudAI Journal.`;
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   const canonicalUrl = site ? `${site}/journal/articles/${id}` : `/journal/articles/${id}`;
   const pdfContentUrl = site
     ? `${site}/api/journal/articles/${id}/download?disposition=inline`
@@ -158,7 +158,7 @@ export default async function JournalArticlePage(context: {
               type="application/ld+json"
               dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
             />
-            <a href="/journal" className="text-sm text-muted-foreground hover:text-primary">← Back to journal</a>
+            <a href="/journal" className="text-sm text-muted-foreground hover:text-primary">Back to Journal</a>
 
             <article className="space-y-6">
               <header className="space-y-2">

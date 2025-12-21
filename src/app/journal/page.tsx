@@ -75,7 +75,7 @@ const content = {
     issuesLoading: "Loading published articles...",
     issuesEmpty: "No published articles yet.",
     ctaPrimary: "Contact the Editor‑in‑Chief",
-    ctaSecondary: "Download Author Guidelines (PDF)",
+    ctaSecondary: "Author Guidelines",
   },
   ar: {
     dir: "rtl" as const,
@@ -145,7 +145,7 @@ export default function JournalPage() {
   const { isAdmin, isEditor } = useCurrentRole();
   const guidelinesUrl =
     process.env.NEXT_PUBLIC_JOURNAL_GUIDELINES_URL ||
-    "/templates/cloudai-journal-author-guidelines.pdf";
+    "/journal/guidelines";
 
   const bodyTextClass = isArabic
     ? "text-base leading-relaxed"
@@ -317,6 +317,20 @@ export default function JournalPage() {
                     {lang === "ar" ? "مقالاتي المرسلة" : "My Submissions"}
                   </Link>
                 </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="border-accent text-accent bg-background hover:bg-accent/10"
+                >
+                  <Link
+                    href={guidelinesUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {lang === "ar" ? "دليل المؤلف (PDF)" : "Author Guidelines (PDF)"}
+                  </Link>
+                </Button>
                 {canAccessJournalDashboard && (
                   <Button
                     asChild
@@ -375,41 +389,73 @@ export default function JournalPage() {
             </div>
           </section>
 
-          {/* Submission instructions */}
-          <section className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-sm">
-            <h2 className="mb-2 text-lg font-semibold">{t.submitTitle}</h2>
-            <p className={`${bodyTextClass} mb-3`}>{t.submitBody}</p>
-            <p className={`mb-3 font-semibold ${bodyTextClass}`}>
-              Email:{" "}
-              <a
-                href={`mailto:${t.email}`}
-                className="underline underline-offset-2"
-              >
-                {t.email}
-              </a>
-            </p>
-            <ul className="list-disc space-y-1 ps-5 text-xs">
-              {t.submitList.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={`mailto:${t.email}`}
-                className="rounded-full bg-primary-foreground px-4 py-2 text-xs font-semibold text-primary shadow-sm hover:bg-primary-foreground/90"
-              >
-                {t.ctaPrimary}
-              </a>
-              <Link
-                href={guidelinesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-primary-foreground/30 px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/80"
-              >
-                {t.ctaSecondary}
-              </Link>
-            </div>
-          </section>
+          {/* Submission instructions (public) */}
+          {!user && (
+            <section className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-sm">
+              <h2 className="mb-2 text-lg font-semibold">
+                {lang === "ar" ? "طريقة الإرسال" : "How to Submit"}
+              </h2>
+              <p className={`${bodyTextClass} mb-3`}>
+                {lang === "ar"
+                  ? "أرسل عبر المنصة باستخدام نموذج الإرسال. ارفع ملف PDF وأدخل بيانات المقالة، ويمكنك متابعة الحالة والتعديلات من لوحة التحكم."
+                  : "Submit online using our portal. Upload a PDF and provide the article details. You can track status and revisions from your dashboard."}
+              </p>
+
+              <ul className={`list-disc space-y-1 ps-5 ${isArabic ? "text-sm" : "text-xs"}`}>
+                {lang === "ar" ? (
+                  <>
+                    <li>ملف PDF فقط (بحد أقصى 20 ميغابايت).</li>
+                    <li>أدخل العنوان، المؤلفين، الانتماءات، الملخص، والكلمات المفتاحية.</li>
+                    <li>أرفق روابط الشفرة/البيانات إن وُجدت.</li>
+                    <li>اذكر أي استخدام لأدوات الذكاء الاصطناعي وتعارض المصالح.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>PDF only (max 20 MB).</li>
+                    <li>Include title, authors, affiliations, abstract, and keywords.</li>
+                    <li>Add code/data links when available.</li>
+                    <li>Disclose any use of AI tools and conflicts of interest.</li>
+                  </>
+                )}
+              </ul>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                >
+                  <Link href="/journal/submit">
+                    {lang === "ar" ? "إرسال مقالة" : "Submit an Article"}
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="border-primary-foreground/30 text-primary-foreground hover:bg-primary/80"
+                >
+                  <Link
+                    href={guidelinesUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {lang === "ar" ? "دليل المؤلف (PDF)" : "Author Guidelines (PDF)"}
+                  </Link>
+                </Button>
+              </div>
+
+              <p className="mt-4 text-xs text-primary-foreground/80">
+                {lang === "ar" ? "للاستفسار:" : "Questions:"}{" "}
+                <a
+                  href={`mailto:${t.email}`}
+                  className="underline underline-offset-2"
+                >
+                  {t.email}
+                </a>
+              </p>
+            </section>
+          )}
 
           {/* Editorial board & Issues */}
           <section className="grid gap-6 lg:grid-cols-2">

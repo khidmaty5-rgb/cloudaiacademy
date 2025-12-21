@@ -883,6 +883,17 @@ export default function AdminJournalPage() {
                                   Replace
                                 </Button>
                                 {article.status === 'PUBLISHED' ? (
+                                  <Button size="sm" variant="outline" asChild>
+                                    <a
+                                      href={`/journal/articles/${article.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      View page
+                                    </a>
+                                  </Button>
+                                ) : null}
+                                {article.status === 'PUBLISHED' ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
