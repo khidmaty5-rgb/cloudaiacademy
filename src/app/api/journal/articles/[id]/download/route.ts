@@ -6,6 +6,7 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
+import { fetchPublicFirestoreDoc } from '@/lib/firestore-public';
 
 export const runtime = 'nodejs';
 
@@ -54,21 +55,52 @@ export async function GET(
     const { id } = await context.params;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-    const app = getAdminApp();
-
     const mode = req.nextUrl.searchParams.get('mode');
     const dispositionRaw = req.nextUrl.searchParams.get('disposition');
     const disposition = dispositionRaw === 'attachment' ? 'attachment' : 'inline';
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     const idToken =
       authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-    let caller: any = null;
-    if (idToken) {
-      try {
-        caller = await verifyIdTokenOrDecode(app, idToken);
-      } catch {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Public published access (no Firebase Admin credentials required)
+    if (!idToken) {
+      const pub = await fetchPublicFirestoreDoc(`journalArticles/${id}`);
+      if (!pub) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const article = pub.data as any;
+      if (article?.status !== 'PUBLISHED') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
+
+      const key = article.pdfPath as string | undefined;
+      if (!key || typeof key !== 'string') {
+        return NextResponse.json({ error: 'PDF not available' }, { status: 404 });
+      }
+
+      const bucket = (process.env.S3_BUCKET_JOURNAL || '').trim();
+      if (!bucket) return NextResponse.json({ error: 'S3 bucket not configured' }, { status: 500 });
+
+      const s3 = getS3Client();
+      const cmd = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ResponseContentType: 'application/pdf',
+        ResponseContentDisposition: `${disposition}; filename="${id}.pdf"`,
+      });
+      const signed = await getSignedUrl(s3, cmd, { expiresIn: 60 * 10 });
+
+      if (mode === 'json') {
+        return NextResponse.json({ ok: true, url: signed }, { status: 200 });
+      }
+      return NextResponse.redirect(signed, 302);
+    }
+
+    const app = getAdminApp();
+
+    let caller: any = null;
+    try {
+      caller = await verifyIdTokenOrDecode(app, idToken);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const db = getFirestore(app);
@@ -78,7 +110,6 @@ export async function GET(
 
     const isPublished = article.status === 'PUBLISHED';
     if (!isPublished) {
-      if (!caller) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const uid = caller.uid || caller.user_id || caller.sub;
       const role = caller.role as string | undefined;
       const isStaff = role === 'admin' || role === 'editor';

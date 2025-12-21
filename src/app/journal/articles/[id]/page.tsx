@@ -6,35 +6,12 @@ import { Button } from '@/components/ui/button';
 import PdfSandbox from '@/components/journal/pdf-sandbox';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getApps, initializeApp, cert, applicationDefault } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { firebaseConfig } from '@/firebase/config';
-
-function getAdminApp() {
-  const name = 'adminAppJournalPage';
-  const existing = getApps().find((a) => a.name === name);
-  if (existing) return existing;
-  const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-  if (!process.env.GOOGLE_CLOUD_PROJECT) process.env.GOOGLE_CLOUD_PROJECT = projectId;
-  if (!process.env.GCLOUD_PROJECT) process.env.GCLOUD_PROJECT = projectId;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
-  const privateKey = rawKey
-    ? rawKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '').replace(/^'|'$/g, '')
-    : undefined;
-  if (projectId && clientEmail && privateKey) {
-    return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }, name);
-  }
-  return initializeApp({ credential: applicationDefault(), projectId }, name);
-}
+import { fetchPublicFirestoreDoc } from '@/lib/firestore-public';
 
 async function fetchArticle(id: string) {
-  const app = getAdminApp();
-  const db = getFirestore(app);
-  const snap = await db.doc(`journalArticles/${id}`).get();
-  if (!snap.exists) return null as any;
-  const data = snap.data() as any;
-  return { id, ...data } as any;
+  const doc = await fetchPublicFirestoreDoc(`journalArticles/${id}`);
+  if (!doc) return null as any;
+  return { id: doc.id, ...doc.data } as any;
 }
 
 function resolvePdfLinks(
@@ -77,10 +54,41 @@ export async function generateMetadata(context: {
   if (!article || article.status !== 'PUBLISHED') {
     return { title: 'Article not found - CloudAI Journal' };
   }
-  const site = process.env.NEXT_PUBLIC_SITE_URL || '';
+
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
   const url = `${site}/journal/articles/${id}`;
   const title = article.title || 'CloudAI Journal Article';
   const description = (article.abstract || '').slice(0, 300);
+
+  const toDate = (v: any): Date | null => {
+    if (!v) return null;
+    if (typeof v?.toDate === 'function') return v.toDate();
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const authors = String(article.authors || '');
+  const authorList = authors.split(/\s*,\s*/).filter(Boolean);
+  const keywords: string[] = Array.isArray(article.keywords) ? article.keywords : [];
+  const acceptedAt = toDate(article.acceptedAt);
+  const publishedAt = toDate(article.publishedAt);
+  const d: Date | null = publishedAt || acceptedAt;
+  const pubDate =
+    d ? `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` : '';
+  const language = (article.language === 'both' ? 'en' : article.language) || 'en';
+  const pdfUrl = site ? `${site}/api/journal/articles/${id}/download?disposition=inline` : undefined;
+
+  const other: Record<string, string | string[]> = {
+    citation_title: String(article.title || ''),
+    citation_publication_date: pubDate,
+    citation_journal_title: 'CloudAI Journal',
+    citation_language: String(language),
+  };
+  if (authorList.length) other.citation_author = authorList;
+  if (keywords.length) other.citation_keywords = keywords.join(', ');
+  if (article.abstract) other.citation_abstract = String(article.abstract);
+  if (pdfUrl) other.citation_pdf_url = pdfUrl;
+
   return {
     title,
     description,
@@ -96,6 +104,7 @@ export async function generateMetadata(context: {
       title,
       description,
     },
+    other,
   };
 }
 
@@ -116,6 +125,28 @@ export default async function JournalArticlePage(context: {
   const year = (publishedAt ? new Date(publishedAt) : (acceptedAt ? new Date(acceptedAt) : null))?.getFullYear() || '';
 
   const cite = `${authors} (${year}). ${article.title}. CloudAI Journal.`;
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  const canonicalUrl = site ? `${site}/journal/articles/${id}` : `/journal/articles/${id}`;
+  const pdfContentUrl = site
+    ? `${site}/api/journal/articles/${id}/download?disposition=inline`
+    : `/api/journal/articles/${id}/download?disposition=inline`;
+
+  const schema: any = {
+    '@context': 'https://schema.org',
+    '@type': 'ScholarlyArticle',
+    headline: article.title,
+    name: article.title,
+    description: article.abstract,
+    author: authorList.map((a) => ({ '@type': 'Person', name: a })),
+    datePublished:
+      publishedAt && !Number.isNaN(new Date(publishedAt).getTime())
+        ? new Date(publishedAt).toISOString()
+        : undefined,
+    inLanguage: (article.language === 'both' ? 'en' : article.language) || 'en',
+    isPartOf: { '@type': 'Periodical', name: 'CloudAI Journal' },
+    url: canonicalUrl,
+    encoding: pdfLinks ? [{ '@type': 'MediaObject', contentUrl: pdfContentUrl }] : undefined,
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -123,6 +154,10 @@ export default async function JournalArticlePage(context: {
       <main className="flex-1 py-10 md:py-16 bg-background">
         <div className="container max-w-3xl">
           <section className="space-y-6">
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+            />
             <a href="/journal" className="text-sm text-muted-foreground hover:text-primary">← Back to journal</a>
 
             <article className="space-y-6">
