@@ -1,6 +1,6 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
-export type FirestoreTimestamp = Timestamp | FieldValue | null;
+export type FirestoreTimestamp = Timestamp | FieldValue | Date | null;
 export type UserRole = 'student' | 'teacher' | 'editor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
@@ -18,11 +18,15 @@ export interface UserProfile {
 export interface Course {
   id: string;
   slug: string;
+  /** Short, human-friendly code used for certificates (e.g. AWSFND, PY101). */
+  courseCode?: string;
   title: string;
   description: string;
   category: string;
   price: string;
   duration: string;
+  /** Optional nominal duration in hours used for certificates. */
+  totalHours?: number;
   level: CourseLevel;
   imageId: string;
   // Optional teacher association
@@ -82,6 +86,35 @@ export interface Announcement {
   body: string;
   createdAt?: FirestoreTimestamp;
   createdBy: string;
+}
+
+export type CertificateStatus = 'ACTIVE' | 'REVOKED';
+
+export interface Certificate {
+  /** Certificate ID, also used as the Firestore document ID. */
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail?: string | null;
+  courseId: string;
+  courseTitle: string;
+  courseCode: string;
+  totalHours: number;
+  completedAt: FirestoreTimestamp;
+  issuedAt?: FirestoreTimestamp;
+  issuedBy: string;
+  instructorName: string;
+  instructorTitle?: string;
+  authorizedByName: string;
+  authorizedByTitle?: string;
+  status: CertificateStatus;
+  revokedAt?: FirestoreTimestamp;
+  /** Optional generated certificate PDF key in S3/MinIO (e.g. certificates/{uid}/{id}.pdf). */
+  pdfPath?: string | null;
+  /** Optional app download URL for the generated PDF (e.g. /api/certificates/{id}/download). */
+  pdfUrl?: string | null;
+  createdAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
 }
 
 export type JournalArticleStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'PUBLISHED';

@@ -71,20 +71,24 @@ function slugify(v: string) {
 // Seed dataset
 const seedCourses: Array<{
   title: string;
+  courseCode?: string;
   description: string;
   category: string;
   price: string;
   duration: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
+  totalHours?: number;
   imageId: string;
   lessons: Array<{ title: string; content: string; title_ar?: string; content_ar?: string; embedUrl?: string }>;
 }> = [
   {
     title: 'AWS Solutions Architect',
+    courseCode: 'AWS-SAA',
     description: 'Design and deploy secure, scalable systems on AWS.',
     category: 'Cloud',
     price: '$199',
     duration: '8 weeks',
+    totalHours: 40,
     level: 'Intermediate',
     imageId: 'course-aws',
     lessons: [
@@ -97,10 +101,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Machine Learning Engineering',
+    courseCode: 'ML-ENG',
     description: 'Build, train, deploy, and monitor ML systems end to end.',
     category: 'AI/ML',
     price: '$249',
     duration: '10 weeks',
+    totalHours: 50,
     level: 'Intermediate',
     imageId: 'course-ml',
     lessons: [
@@ -113,10 +119,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Azure AI Engineer',
+    courseCode: 'AZ-AIENG',
     description: 'Leverage Azure AI services for CV, NLP, and search workloads.',
     category: 'Cloud/AI',
     price: '$229',
     duration: '8 weeks',
+    totalHours: 40,
     level: 'Intermediate',
     imageId: 'course-azure',
     lessons: [
@@ -129,10 +137,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Full Stack Development',
+    courseCode: 'FS-DEV',
     description: 'Build modern web apps with Node, React, and SQL.',
     category: 'Web Dev',
     price: '$149',
     duration: '6 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-full-stack',
     lessons: [
@@ -145,10 +155,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Python Programming',
+    courseCode: 'PY101',
     description: 'Start coding in Python from fundamentals to packaging.',
     category: 'Programming',
     price: 'Free',
     duration: '4 weeks',
+    totalHours: 20,
     level: 'Beginner',
     imageId: 'course-python',
     lessons: [
@@ -186,10 +198,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Business Intelligence',
+    courseCode: 'BI101',
     description: 'Turn raw data into insights with modeling and dashboards.',
     category: 'Data',
     price: '$129',
     duration: '5 weeks',
+    totalHours: 15,
     level: 'Beginner',
     imageId: 'course-bi',
     lessons: [
@@ -202,10 +216,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Digital Skills for Work (Libya) — Essentials',
+    courseCode: 'DS-WORK',
     description: 'Practical computer, cloud storage, and communication skills for office work in Libya.',
     category: 'Office & Productivity',
     price: 'Free',
     duration: '24 hours over 4 weeks',
+    totalHours: 24,
     level: 'Beginner',
     imageId: 'course-digital-skills',
     lessons: [
@@ -223,10 +239,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Business Communication (Arabic/English) for the Workplace',
+    courseCode: 'BIZ-COMM',
     description: 'Clear bilingual (AR/EN) communication for email, meetings, and reports.',
     category: 'Communication',
     price: 'Free',
     duration: '18 hours over 3 weeks',
+    totalHours: 18,
     level: 'Beginner',
     imageId: 'course-business-comm',
     lessons: [
@@ -242,10 +260,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Customer Service & Call Center Skills: From Zero to Job-Ready',
+    courseCode: 'CS-CC',
     description: 'Call handling, ticketing, and KPI basics for call centers and service desks.',
     category: 'Customer Service',
     price: 'Free',
     duration: '20 hours over 3–4 weeks',
+    totalHours: 20,
     level: 'Beginner',
     imageId: 'course-customer-service',
     lessons: [
@@ -261,10 +281,12 @@ const seedCourses: Array<{
   },
   {
     title: 'IT Support Technician (Helpdesk) — Practical Troubleshooting',
+    courseCode: 'IT-HELP',
     description: 'Hands-on support skills for Windows, networks, printers, and user accounts.',
     category: 'IT Support',
     price: 'Free',
     duration: '30 hours over 5 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-it-support',
     lessons: [
@@ -280,10 +302,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Computer & Mobile Maintenance (Hands-On)',
+    courseCode: 'CM-MAINT',
     description: 'Practical maintenance for PCs and Android devices common in Libya.',
     category: 'Hardware',
     price: 'Free',
     duration: '28 hours over 4–5 weeks',
+    totalHours: 28,
     level: 'Beginner',
     imageId: 'course-computer-mobile-maint',
     lessons: [
@@ -299,10 +323,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Networking Fundamentals (Beginner to CCNA-Ready Basics)',
+    courseCode: 'NET-FND',
     description: 'Core networking skills for small offices, ISPs, and NGOs.',
     category: 'Networking',
     price: 'Free',
     duration: '30 hours over 5 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-networking',
     lessons: [
@@ -320,10 +346,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Cybersecurity Fundamentals for Offices & Small Businesses',
+    courseCode: 'CYBER-FND',
     description: 'Low-cost security controls to protect Libyan offices from common threats.',
     category: 'Security',
     price: 'Free',
     duration: '24 hours over 4 weeks',
+    totalHours: 24,
     level: 'Beginner',
     imageId: 'course-security-fundamentals',
     lessons: [
@@ -339,10 +367,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Linux Fundamentals for IT & Cloud',
+    courseCode: 'LINUX-FND',
     description: 'Essential Linux skills for servers, cloud, and DevOps tooling.',
     category: 'Linux',
     price: 'Free',
     duration: '30 hours over 5 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-linux-fundamentals',
     lessons: [
@@ -360,10 +390,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Data Analyst Track 1: Excel Analytics for Real Work',
+    courseCode: 'DA-EXCEL',
     description: 'Clean data, build pivot tables, and design clear dashboards for decisions.',
     category: 'Data',
     price: 'Free',
     duration: '24 hours over 4 weeks',
+    totalHours: 24,
     level: 'Beginner',
     imageId: 'course-excel-analytics',
     lessons: [
@@ -379,10 +411,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Data Analyst Track 2: SQL for Data Analysis',
+    courseCode: 'DA-SQL',
     description: 'Practical SQL to query, join, and summarize data for real business questions.',
     category: 'Data',
     price: 'Free',
     duration: '28 hours over 4–5 weeks',
+    totalHours: 28,
     level: 'Beginner',
     imageId: 'course-sql-analysis',
     lessons: [
@@ -400,10 +434,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Power BI Dashboard Builder: Reports That Decision-Makers Use',
+    courseCode: 'PBI-DASH',
     description: 'Build practical dashboards with Power BI Desktop and free alternatives.',
     category: 'Data Visualization',
     price: 'Free',
     duration: '24 hours over 4 weeks',
+    totalHours: 24,
     level: 'Beginner',
     imageId: 'course-powerbi',
     lessons: [
@@ -419,10 +455,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Python for Data Analysis (Beginner)',
+    courseCode: 'PY-DATA',
     description: 'Use Python, pandas, and notebooks to clean, analyze, and visualize data.',
     category: 'Data',
     price: 'Free',
     duration: '30 hours over 5 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-python-data',
     lessons: [
@@ -438,10 +476,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Cloud Fundamentals (AWS/Azure/GCP) — The Practical Start',
+    courseCode: 'CLOUD-FND',
     description: 'Vendor-neutral cloud basics with hands-on labs and cloud shells.',
     category: 'Cloud',
     price: 'Free',
     duration: '24 hours over 4 weeks',
+    totalHours: 24,
     level: 'Beginner',
     imageId: 'course-cloud-fundamentals',
     lessons: [
@@ -457,10 +497,12 @@ const seedCourses: Array<{
   },
   {
     title: 'DevOps Fundamentals: Git, CI/CD & Containers',
+    courseCode: 'DEVOPS-FND',
     description: 'Essential workflow with Git, Docker, and CI/CD to ship safely.',
     category: 'DevOps',
     price: 'Free',
     duration: '30 hours over 5 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-devops-fundamentals',
     lessons: [
@@ -476,10 +518,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Agile & Scrum for Real Projects',
+    courseCode: 'AGILE-SCR',
     description: 'Practical Scrum methods for offices, NGOs, and small software teams.',
     category: 'Agile',
     price: 'Free',
     duration: '16 hours over 2–3 weeks',
+    totalHours: 16,
     level: 'Beginner',
     imageId: 'course-agile-scrum',
     lessons: [
@@ -542,16 +586,26 @@ export async function POST(req: NextRequest) {
       const slug = slugify(course.title);
       const courseRef = db.doc(`courses/${slug}`);
       const batch = db.batch();
+      const courseCode =
+        typeof course.courseCode === 'string' && course.courseCode.trim()
+          ? course.courseCode.trim().toUpperCase().replace(/\s+/g, '')
+          : undefined;
+      const totalHours =
+        typeof course.totalHours === 'number' && Number.isFinite(course.totalHours) && course.totalHours > 0
+          ? Math.round(course.totalHours)
+          : undefined;
       batch.set(
         courseRef,
         {
           id: slug,
           slug,
+          ...(courseCode ? { courseCode } : {}),
           title: course.title,
           description: course.description,
           category: course.category,
           price: course.price,
           duration: course.duration,
+          ...(typeof totalHours === 'number' ? { totalHours } : {}),
           level: course.level,
           imageId: course.imageId,
           updatedAt: FieldValue.serverTimestamp(),

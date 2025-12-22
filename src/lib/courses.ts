@@ -31,6 +31,8 @@ const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
 };
 
 type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
+  courseCode?: Course['courseCode'];
+  totalHours?: Course['totalHours'];
   level: CourseLevel;
   livePlatform?: Course['livePlatform'];
   liveJitsiRoom?: Course['liveJitsiRoom'];
@@ -41,6 +43,11 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
   const slug = createSlug(data.title);
   const imageId = generateImageId(data.title);
   const uid = getAuth().currentUser?.uid;
+  const courseCode = data.courseCode ? data.courseCode.trim().toUpperCase() : undefined;
+  const totalHours =
+    typeof data.totalHours === 'number' && Number.isFinite(data.totalHours)
+      ? data.totalHours
+      : undefined;
   
   // Use the slug as the document ID for predictability
   const courseDocRef = doc(firestore, 'courses', slug);
@@ -50,6 +57,8 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
     slug,
     id: slug,
     imageId,
+    ...(courseCode ? { courseCode } : {}),
+    ...(typeof totalHours === 'number' ? { totalHours } : {}),
     livePlatform: data.livePlatform ?? 'none',
     liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom ?? null) : null,
     liveMeetUrl: data.livePlatform === 'google-meet' ? (data.liveMeetUrl ?? null) : null,
@@ -73,7 +82,16 @@ export async function updateCourse(courseId: string, data: Partial<CourseData & 
   }
 
   const courseDocRef = doc(firestore, 'courses', courseId);
-  const sanitized = removeUndefined(data as Record<string, any>);
+  const totalHours =
+    typeof (data as any).totalHours === 'number' && Number.isFinite((data as any).totalHours)
+      ? (data as any).totalHours
+      : undefined;
+  const normalized = {
+    ...data,
+    ...(data.courseCode ? { courseCode: data.courseCode.trim().toUpperCase() } : {}),
+    ...(typeof totalHours === 'number' ? { totalHours } : {}),
+  } as Record<string, any>;
+  const sanitized = removeUndefined(normalized);
   await updateDoc(courseDocRef, {
     ...sanitized,
     updatedAt: serverTimestamp(),

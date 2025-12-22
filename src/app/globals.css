@@ -75,3 +75,9 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .font-signature {
+    font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
+  }
+}

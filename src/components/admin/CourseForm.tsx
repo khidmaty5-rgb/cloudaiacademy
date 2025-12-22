@@ -34,10 +34,21 @@ const livePlatformSchema = z.enum(['none', 'jitsi', 'google-meet']);
 
 const courseSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),
+  courseCode: z
+    .string()
+    .trim()
+    .min(2, 'Course code must be at least 2 characters')
+    .max(12, 'Course code must be 12 characters or less')
+    .regex(/^[A-Za-z0-9-]+$/, 'Use only letters, numbers, and hyphens')
+    .transform((v) => v.toUpperCase()),
   description: z.string().min(10, 'Description is too short'),
   category: z.string().min(1, 'Category is required'),
   price: z.string().min(1, 'Price is required'),
   duration: z.string().min(1, 'Duration is required'),
+  totalHours: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number().int().positive().optional(),
+  ),
   level: z.enum(['Beginner', 'Intermediate', 'Advanced']),
   livePlatform: livePlatformSchema.default('none'),
   liveJitsiRoom: z.string().optional(),
@@ -63,10 +74,12 @@ export default function CourseForm({ course }: CourseFormProps) {
     resolver: zodResolver(courseSchema),
     defaultValues: {
       title: (course as any)?.title ?? '',
+      courseCode: (course as any)?.courseCode ?? '',
       description: (course as any)?.description ?? '',
       category: (course as any)?.category ?? '',
       price: (course as any)?.price ?? '',
       duration: (course as any)?.duration ?? '',
+      totalHours: (course as any)?.totalHours ?? undefined,
       level: ((course as any)?.level as any) ?? 'Beginner',
       livePlatform: ((course as any)?.livePlatform as any) ?? 'none',
       liveJitsiRoom: ((course as any)?.liveJitsiRoom as any) ?? '',
@@ -157,6 +170,25 @@ export default function CourseForm({ course }: CourseFormProps) {
         />
         <FormField
           control={form.control}
+          name="courseCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Course Code</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="e.g., AWSFND, PY101, AI-BASICS"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  {...field}
+                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
@@ -199,6 +231,26 @@ export default function CourseForm({ course }: CourseFormProps) {
             )}
             />
         </div>
+        <FormField
+          control={form.control}
+          name="totalHours"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Total Hours (for certificate)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  placeholder="e.g., 15"
+                  value={(field.value ?? '') as any}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {isAdmin && (
           <div className="space-y-4 border-t pt-6">

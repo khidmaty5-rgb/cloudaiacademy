@@ -3,10 +3,8 @@
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Recommendations from '@/components/dashboard/recommendations';
@@ -14,7 +12,7 @@ import { collection, getFirestore, query, where, getDocs } from 'firebase/firest
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Signal, BookOpen } from 'lucide-react';
+import { Clock, Signal } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import AnnouncementsFeed from '@/components/dashboard/announcements-feed';
 import type { Course, Enrollment, LearningPath } from '@/types/models';
@@ -69,6 +67,7 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
 
   const [largeSetCourses, setLargeSetCourses] = useState<Course[] | null>(null);
   const [largeSetLoading, setLargeSetLoading] = useState(false);
+  const [largeSetError, setLargeSetError] = useState<Error | null>(null);
 
   const useRealtime = enrolledCourseIds.length > 0 && enrolledCourseIds.length <= 10;
 
@@ -87,26 +86,36 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
       if (useRealtime || enrolledCourseIds.length === 0) {
         setLargeSetCourses(null);
         setLargeSetLoading(false);
+        setLargeSetError(null);
         return;
       }
       setLargeSetLoading(true);
+      setLargeSetError(null);
       const chunks: string[][] = [];
       for (let i = 0; i < enrolledCourseIds.length; i += 10) {
         chunks.push(enrolledCourseIds.slice(i, i + 10));
       }
-      const results: Course[] = [];
-      for (const c of chunks) {
-        const q = query(collection(firestore, 'courses'), where('id', 'in', c));
-        const snap = await getDocs(q);
-        snap.forEach(d => {
-          const data = d.data() as Course;
-          const { id: _ignored, ...rest } = (data as any) || {};
-          results.push({ ...rest, id: d.id });
-        });
-      }
-      if (!cancelled) {
-        setLargeSetCourses(results);
-        setLargeSetLoading(false);
+      try {
+        const results: Course[] = [];
+        for (const c of chunks) {
+          const q = query(collection(firestore, 'courses'), where('id', 'in', c));
+          const snap = await getDocs(q);
+          snap.forEach(d => {
+            const data = d.data() as Course;
+            const { id: _ignored, ...rest } = (data as any) || {};
+            results.push({ ...rest, id: d.id });
+          });
+        }
+        if (!cancelled) {
+          setLargeSetCourses(results);
+          setLargeSetLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLargeSetError(err instanceof Error ? err : new Error('Failed to load your courses.'));
+          setLargeSetCourses([]);
+          setLargeSetLoading(false);
+        }
       }
     }
     fetchLarge();
@@ -120,21 +129,22 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
 
   const enrolledCourses = useMemo(() => {
     if (!enrollments || !allCourses) return [];
+    const enrollmentByCourseId = new Map(enrollments.map(enrollment => [enrollment.id, enrollment]));
     return allCourses
-      .map(course => {
-        const enrollment = enrollments.find(e => e.id === course.id);
-        if (enrollment) {
-          return { ...course, progress: enrollment.progress || 0 };
-        }
-        return null;
+      .map((course) => {
+        const enrollment = enrollmentByCourseId.get(course.id);
+        if (!enrollment) return null;
+        const progressRaw = Number(enrollment.progress ?? 0);
+        const progress = Number.isFinite(progressRaw) ? Math.min(100, Math.max(0, progressRaw)) : 0;
+        return { ...course, progress };
       })
-      .filter(Boolean);
+      .filter((course): course is Course & { progress: number } => !!course);
   }, [enrollments, allCourses]);
 
-  if (enrollmentsError || coursesError) {
+  if (enrollmentsError || coursesError || largeSetError) {
     return (
       <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-        {enrollmentsError?.message || coursesError?.message || 'Failed to load your courses.'}
+        {enrollmentsError?.message || coursesError?.message || largeSetError?.message || 'Failed to load your courses.'}
       </div>
     );
   }
@@ -164,7 +174,6 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {enrolledCourses.map(course => {
-            if (!course) return null;
              const image = getPlaceholderImage(course.imageId);
             return (
             <Link href={`/learn/${course.slug}`} key={course.id}>
@@ -280,10 +289,20 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const tr = await user.getIdTokenResult(true);
+        const tr = await user.getIdTokenResult();
         const role = (tr.claims as any)?.role;
-        if (!cancelled && (role === 'admin' || role === 'teacher')) {
+        if (cancelled) return;
+        if (role === 'admin') {
           router.replace('/admin/dashboard');
+          return;
+        }
+        if (role === 'teacher') {
+          router.replace('/teacher/dashboard');
+          return;
+        }
+        if (role === 'editor') {
+          router.replace('/admin/journal');
+          return;
         }
       } catch {}
     })();
@@ -292,27 +311,21 @@ export default function DashboardPage() {
 
   if (isUserLoading || !user) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <main className="flex-1">
-          <div className="container py-10">
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-1/2" />
-              <div className="grid gap-8 md:grid-cols-2">
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-64 w-full" />
-              </div>
-            </div>
+      <div className="w-full max-w-6xl px-4 py-10 md:px-6">
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/2" />
+          <div className="grid gap-8 md:grid-cols-2">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
           </div>
-        </main>
-        <Footer />
+        </div>
       </div>
     );
   }
 
   return (
     
-        <div className="container py-10">
+        <div className="w-full max-w-6xl px-4 py-10 md:px-6">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">
             {t.welcome(user.displayName || t.defaultName)}
           </h1>

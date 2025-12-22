@@ -54,50 +54,52 @@ function slugify(v: string) {
 
 const seedCourses: Array<{
   title: string;
+  courseCode?: string;
   description: string;
   category: string;
   price: string;
   duration: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
+  totalHours?: number;
   imageId: string;
   lessons: Array<{ title: string; content: string; embedUrl?: string }>;
 }> = [
-  { title: 'AWS Solutions Architect', description: 'Design and deploy secure, scalable systems on AWS.', category: 'Cloud', price: '$199', duration: '8 weeks', level: 'Intermediate', imageId: 'course-aws', lessons: [
+  { title: 'AWS Solutions Architect', courseCode: 'AWS-SAA', description: 'Design and deploy secure, scalable systems on AWS.', category: 'Cloud', price: '$199', duration: '8 weeks', totalHours: 40, level: 'Intermediate', imageId: 'course-aws', lessons: [
     { title: 'Introduction to AWS Cloud', content: 'Overview of AWS global infrastructure, regions, and core services.' },
     { title: 'IAM and Security Basics', content: 'Understand users, roles, policies, and best practices.' },
     { title: 'VPC Networking Fundamentals', content: 'Subnets, route tables, NAT, gateways, and security groups.' },
     { title: 'Compute with EC2 and Auto Scaling', content: 'EC2 instance types, AMIs, Auto Scaling Groups, and Load Balancers.' },
     { title: 'Storage with S3 and EBS', content: 'S3 buckets, lifecycle rules, and EBS volumes & snapshots.' },
   ]},
-  { title: 'Machine Learning Engineering', description: 'Build, train, deploy, and monitor ML systems end to end.', category: 'AI/ML', price: '$249', duration: '10 weeks', level: 'Intermediate', imageId: 'course-ml', lessons: [
+  { title: 'Machine Learning Engineering', courseCode: 'ML-ENG', description: 'Build, train, deploy, and monitor ML systems end to end.', category: 'AI/ML', price: '$249', duration: '10 weeks', totalHours: 50, level: 'Intermediate', imageId: 'course-ml', lessons: [
     { title: 'ML Workflows Overview', content: 'Data collection, labeling, training, evaluation, and deployment.' },
     { title: 'Data Preprocessing', content: 'Feature engineering, scaling, splitting, and validation strategies.' },
     { title: 'Model Training & Evaluation', content: 'Cross-validation, metrics, and hyperparameter tuning.' },
     { title: 'Serving with FastAPI', content: 'Package and serve models via REST APIs with FastAPI.' },
     { title: 'Monitoring & Drift', content: 'Detect data drift and performance degradation in production.' },
   ]},
-  { title: 'Azure AI Engineer', description: 'Leverage Azure AI services for CV, NLP, and search workloads.', category: 'Cloud/AI', price: '$229', duration: '8 weeks', level: 'Intermediate', imageId: 'course-azure', lessons: [
+  { title: 'Azure AI Engineer', courseCode: 'AZ-AIENG', description: 'Leverage Azure AI services for CV, NLP, and search workloads.', category: 'Cloud/AI', price: '$229', duration: '8 weeks', totalHours: 40, level: 'Intermediate', imageId: 'course-azure', lessons: [
     { title: 'Intro to Azure AI', content: 'Overview of Azure Cognitive Services and Azure OpenAI.' },
     { title: 'Computer Vision on Azure', content: 'Image analysis and OCR pipelines.' },
     { title: 'Language & Chat', content: 'Prompting and grounding with Azure OpenAI & Language Studio.' },
     { title: 'Cognitive Search', content: 'Indexing and semantic search across enterprise data.' },
     { title: 'MLOps with Azure ML', content: 'Pipelines, endpoints, and model registries.' },
   ]},
-  { title: 'Full Stack Development', description: 'Build modern web apps with Node, React, and SQL.', category: 'Web Dev', price: '$149', duration: '6 weeks', level: 'Beginner', imageId: 'course-full-stack', lessons: [
+  { title: 'Full Stack Development', courseCode: 'FS-DEV', description: 'Build modern web apps with Node, React, and SQL.', category: 'Web Dev', price: '$149', duration: '6 weeks', totalHours: 30, level: 'Beginner', imageId: 'course-full-stack', lessons: [
     { title: 'Web Fundamentals', content: 'HTTP, HTML/CSS/JS, and the clientâ€“server model.' },
     { title: 'REST APIs with Express', content: 'Routing, middleware, and CRUD patterns.' },
     { title: 'React Basics', content: 'Components, state, and effects.' },
     { title: 'Persistence with PostgreSQL', content: 'Schemas, queries, and migrations.' },
     { title: 'AuthN/Z', content: 'Session vs JWT, authorization patterns and best practices.' },
   ]},
-  { title: 'Python Programming', description: 'Start coding in Python from fundamentals to packaging.', category: 'Programming', price: 'Free', duration: '4 weeks', level: 'Beginner', imageId: 'course-python', lessons: [
+  { title: 'Python Programming', courseCode: 'PY101', description: 'Start coding in Python from fundamentals to packaging.', category: 'Programming', price: 'Free', duration: '4 weeks', totalHours: 20, level: 'Beginner', imageId: 'course-python', lessons: [
     { title: 'Getting Started', content: 'Syntax, variables, types, and control flow.' },
     { title: 'Data Structures', content: 'Lists, dicts, sets, tuples, and common operations.' },
     { title: 'Functions & Modules', content: 'Functions, modules, and imports.' },
     { title: 'File I/O & Errors', content: 'Read/write files, exceptions, and context managers.' },
     { title: 'Environments & Packaging', content: 'venv, pip, and dependency management.' },
   ]},
-  { title: 'Business Intelligence', description: 'Turn raw data into insights with modeling and dashboards.', category: 'Data', price: '$129', duration: '5 weeks', level: 'Beginner', imageId: 'course-bi', lessons: [
+  { title: 'Business Intelligence', courseCode: 'BI101', description: 'Turn raw data into insights with modeling and dashboards.', category: 'Data', price: '$129', duration: '5 weeks', totalHours: 15, level: 'Beginner', imageId: 'course-bi', lessons: [
     { title: 'BI Concepts', content: 'Dimensions, facts, star schemas, and data marts.' },
     { title: 'Data Modeling', content: 'Modeling principles for analytics.' },
     { title: 'SQL for Analytics', content: 'Joins, aggregations, and windows.' },
@@ -144,14 +146,24 @@ async function seedAll(db: FirebaseFirestore.Firestore) {
     const slug = slugify(course.title);
     const courseRef = db.doc(`courses/${slug}`);
     const batch = db.batch();
+    const courseCode =
+      typeof course.courseCode === 'string' && course.courseCode.trim()
+        ? course.courseCode.trim().toUpperCase().replace(/\s+/g, '')
+        : undefined;
+    const totalHours =
+      typeof course.totalHours === 'number' && Number.isFinite(course.totalHours) && course.totalHours > 0
+        ? Math.round(course.totalHours)
+        : undefined;
     batch.set(courseRef, {
       id: slug,
       slug,
+      ...(courseCode ? { courseCode } : {}),
       title: course.title,
       description: course.description,
       category: course.category,
       price: course.price,
       duration: course.duration,
+      ...(typeof totalHours === 'number' ? { totalHours } : {}),
       level: course.level,
       imageId: course.imageId,
       updatedAt: FieldValue.serverTimestamp(),
@@ -167,6 +179,7 @@ async function seedAll(db: FirebaseFirestore.Firestore) {
         title: l.title,
         content: l.content,
         embedUrl: l.embedUrl || null,
+        order: i,
         createdAt: Timestamp.fromMillis(base + i * 1000),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });

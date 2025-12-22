@@ -188,6 +188,25 @@ service cloud.firestore {
     }
 
     /**
+     * @description Rules for certificates.
+     * @path /certificates/{certificateId} and /users/{userId}/certificates/{certificateId}
+     * @allow (get) Anyone can verify a certificate by ID.
+     * @allow (list) Disallowed on top-level certificates to prevent enumeration.
+     * @allow (create, update, delete) Admins and Teachers can manage certificates.
+     * @principle Public verification + controlled issuance.
+     */
+    match /certificates/{certificateId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdminOrTeacher();
+    }
+
+    match /users/{userId}/certificates/{certificateId} {
+      allow get, list: if isOwner(userId) || isAdminOrTeacher();
+      allow create, update, delete: if isAdminOrTeacher();
+    }
+
+    /**
      * @description Rules for announcements.
      * @path /announcements/{announcementId}
      * @allow (get, list) Any user can read announcements.

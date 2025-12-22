@@ -44,6 +44,11 @@ const navLinks = [
 
 type Role = 'student' | 'teacher' | 'editor' | 'admin' | null;
 
+type HeaderVariant = 'public' | 'app';
+type HeaderProps = {
+  variant?: HeaderVariant;
+};
+
 type UserProfileMenuProps = {
   role: Role;
   canAccessAdmin: boolean;
@@ -225,7 +230,7 @@ function UserProfileMenu({
   );
 }
 
-export default function Header() {
+export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, isUserLoading } = useUser();
   const pathname = usePathname();
@@ -233,6 +238,7 @@ export default function Header() {
   const { lang } = useLang();
   const firestore = getFirestore();
   const { isAdmin, isTeacher, isEditor, loading: roleLoading } = useCurrentRole();
+  const isAppVariant = variant === 'app';
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -328,20 +334,40 @@ export default function Header() {
     },
   ] as const;
 
+  const adminNavItemsWithCertificates = [
+    ...adminNavItems,
+    ...(isAdmin || isTeacher
+      ? [
+          {
+            href: '/admin/certificates',
+            label: lang === 'ar' ? 'الشهادات' : 'Certificates',
+          },
+        ]
+      : []),
+  ] as const;
+
   const teachingNavItems = [
     { href: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة المعلم' : 'Teaching' },
     { href: '/teacher/courses', label: lang === 'ar' ? 'دوراتي' : 'My Courses' },
   ] as const;
 
+  const teachingNavItemsWithCertificates = [
+    ...teachingNavItems,
+    {
+      href: '/admin/certificates',
+      label: lang === 'ar' ? 'الشهادات' : 'Certificates',
+    },
+  ] as const;
+
   const filteredAdminNavItems = isTeacher
-    ? adminNavItems.filter(
+    ? adminNavItemsWithCertificates.filter(
         (i) =>
           i.href !== '/admin/users' &&
           i.href !== '/admin/seed' &&
           i.href !== '/admin/journal' &&
           i.href !== '/admin/access',
       )
-    : adminNavItems;
+    : adminNavItemsWithCertificates;
 
   const handleLogoClick = () => {
     router.push('/');
@@ -356,15 +382,16 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
-      <div className="container flex h-20 items-center justify-between">
+      <div className={`${isAppVariant ? 'w-full px-4' : 'container'} flex ${isAppVariant ? 'h-16' : 'h-20'} items-center justify-between`}>
         <button
           type="button"
           onClick={handleLogoClick}
           className="flex items-center gap-3"
         >
-          <Logo size={64} textClassName="text-primary-foreground" />
+          <Logo size={isAppVariant ? 44 : 64} textClassName="text-primary-foreground" />
         </button>
 
+        {!isAppVariant && (
         <nav className="hidden items-center gap-8 md:flex">
           {/* Always show public nav */}
           {visibleLinks.map((link) => (
@@ -405,7 +432,7 @@ export default function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {(isTeacher ? teachingNavItems : adminNavItems).map((item) => (
+                {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
                   <DropdownMenuItem asChild key={item.href}>
                     <Link href={item.href}>{item.label}</Link>
                   </DropdownMenuItem>
@@ -414,6 +441,7 @@ export default function Header() {
             </DropdownMenu>
           )}
         </nav>
+        )}
 
         <div className="flex items-center gap-2">
           <LangToggle className="hidden md:flex" />
@@ -456,7 +484,7 @@ export default function Header() {
                 <nav className="grid gap-4 p-4">
                   <LangToggle className="mb-2" />
                   <ThemeToggle className="mb-2" />
-                  {!isAdminRoute && (
+                  {!isAdminRoute && !isAppVariant && (
                     <>
                       {visibleLinks.map((link) => (
                         <Link
@@ -493,7 +521,7 @@ export default function Header() {
                           <p className="px-2 text-xs text-primary-foreground/60">
                             {isTeacher ? (lang==='ar' ? 'التدريس' : 'Teaching') : (lang==='ar' ? 'الإدارة' : 'Admin')}
                           </p>
-                          {(isTeacher ? teachingNavItems : adminNavItems).map((item) => (
+                          {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
                             <Link
                               key={item.href}
                               href={item.href}
@@ -531,6 +559,85 @@ export default function Header() {
                         >
                           {t('admin')}
                         </Link>
+                      )}
+                    </>
+                  )}
+                  {!isAdminRoute && isAppVariant && (
+                    <>
+                      {user ? (
+                        <>
+                          <Link
+                            href={preferredDashboardHref}
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            {t('dashboard')}
+                          </Link>
+                          <Link
+                            href="/profile"
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            Profile
+                          </Link>
+                          {!canAccessAdmin && (
+                            <Link
+                              href="/learning-path"
+                              onClick={() => setIsOpen(false)}
+                              className="text-lg font-medium hover:text-accent"
+                            >
+                              {t('learningPath')}
+                            </Link>
+                          )}
+                          <Link
+                            href="/courses"
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            {navLabel('courses')}
+                          </Link>
+                          <Link
+                            href="/certificates"
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            {lang === 'ar' ? 'الشهادات' : 'Certificates'}
+                          </Link>
+                          {canAccessAdmin && (
+                            <div className="mt-2">
+                              <p className="px-2 text-xs text-primary-foreground/60">
+                                {isTeacher ? (lang==='ar' ? '???????' : 'Teaching') : (lang==='ar' ? '???????' : 'Admin')}
+                              </p>
+                              {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
+                                <Link
+                                  key={item.href}
+                                  href={item.href}
+                                  onClick={() => setIsOpen(false)}
+                                  className="text-lg font-medium hover:text-accent block"
+                                >
+                                  {item.label}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href="/login"
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            Login
+                          </Link>
+                          <Link
+                            href="/signup"
+                            onClick={() => setIsOpen(false)}
+                            className="text-lg font-medium hover:text-accent"
+                          >
+                            Sign Up
+                          </Link>
+                        </>
                       )}
                     </>
                   )}

@@ -63,20 +63,24 @@ function slugify(v: string) {
 
 const seedCourses: Array<{
   title: string;
+  courseCode?: string;
   description: string;
   category: string;
   price: string;
   duration: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
+  totalHours?: number;
   imageId: string;
   lessons: Array<{ title: string; content: string; title_ar?: string; content_ar?: string; embedUrl?: string }>; 
 }> = [
   {
     title: 'AWS Solutions Architect',
+    courseCode: 'AWS-SAA',
     description: 'Design and deploy secure, scalable systems on AWS.',
     category: 'Cloud',
     price: '$199',
     duration: '8 weeks',
+    totalHours: 40,
     level: 'Intermediate',
     imageId: 'course-aws',
     lessons: [
@@ -89,10 +93,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Machine Learning Engineering',
+    courseCode: 'ML-ENG',
     description: 'Build, train, deploy, and monitor ML systems end to end.',
     category: 'AI/ML',
     price: '$249',
     duration: '10 weeks',
+    totalHours: 50,
     level: 'Intermediate',
     imageId: 'course-ml',
     lessons: [
@@ -105,10 +111,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Azure AI Engineer',
+    courseCode: 'AZ-AIENG',
     description: 'Leverage Azure AI services for CV, NLP, and search workloads.',
     category: 'Cloud/AI',
     price: '$229',
     duration: '8 weeks',
+    totalHours: 40,
     level: 'Intermediate',
     imageId: 'course-azure',
     lessons: [
@@ -121,10 +129,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Full Stack Development',
+    courseCode: 'FS-DEV',
     description: 'Build modern web apps with Node, React, and SQL.',
     category: 'Web Dev',
     price: '$149',
     duration: '6 weeks',
+    totalHours: 30,
     level: 'Beginner',
     imageId: 'course-full-stack',
     lessons: [
@@ -137,10 +147,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Python Programming',
+    courseCode: 'PY101',
     description: 'Start coding in Python from fundamentals to packaging.',
     category: 'Programming',
     price: 'Free',
     duration: '4 weeks',
+    totalHours: 20,
     level: 'Beginner',
     imageId: 'course-python',
     lessons: [
@@ -178,10 +190,12 @@ const seedCourses: Array<{
   },
   {
     title: 'Business Intelligence',
+    courseCode: 'BI101',
     description: 'Turn raw data into insights with modeling and dashboards.',
     category: 'Data',
     price: '$129',
     duration: '5 weeks',
+    totalHours: 15,
     level: 'Beginner',
     imageId: 'course-bi',
     lessons: [
@@ -230,16 +244,26 @@ export async function POST(req: NextRequest) {
       const slug = slugify(course.title);
       const courseRef = db.doc(`courses/${slug}`);
       const batch = db.batch();
+      const courseCode =
+        typeof course.courseCode === 'string' && course.courseCode.trim()
+          ? course.courseCode.trim().toUpperCase().replace(/\s+/g, '')
+          : undefined;
+      const totalHours =
+        typeof course.totalHours === 'number' && Number.isFinite(course.totalHours) && course.totalHours > 0
+          ? Math.round(course.totalHours)
+          : undefined;
       batch.set(
         courseRef,
         {
           id: slug,
           slug,
+          ...(courseCode ? { courseCode } : {}),
           title: course.title,
           description: course.description,
           category: course.category,
           price: course.price,
           duration: course.duration,
+          ...(typeof totalHours === 'number' ? { totalHours } : {}),
           level: course.level,
           imageId: course.imageId,
           updatedAt: FieldValue.serverTimestamp(),

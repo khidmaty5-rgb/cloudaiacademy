@@ -35,6 +35,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <Script id="theme-init" strategy="beforeInteractive">
           {`(function(){try{var s=localStorage.getItem('theme');var d=s? s==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; if(d) document.documentElement.classList.add('dark');}catch(e){}})();`}
         </Script>
+        <Script id="lang-dir-init" strategy="beforeInteractive">
+          {`(function(){try{var l=localStorage.getItem('appLang'); if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';} else {document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){}})();`}
+        </Script>
       </head>
       <body className="antialiased">
         <FirebaseClientProvider>

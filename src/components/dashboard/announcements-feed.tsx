@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Megaphone } from 'lucide-react';
@@ -16,7 +16,7 @@ export default function AnnouncementsFeed() {
     return query(collection(firestore, 'announcements'), orderBy('createdAt', 'desc'), limit(5));
   }, [firestore]);
 
-  const { data: announcements, isLoading } = useCollection(announcementsQuery);
+  const { data: announcements, isLoading, error } = useCollection(announcementsQuery);
 
   if (isLoading) {
     return (
@@ -29,6 +29,14 @@ export default function AnnouncementsFeed() {
           <Skeleton className="h-16 w-full" />
         </CardContent>
       </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+        {error.message || 'Failed to load announcements.'}
+      </div>
     );
   }
 

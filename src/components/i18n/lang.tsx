@@ -45,6 +45,18 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lang]);
 
+  // Apply language + direction globally so layouts don't need to manually set `dir`.
+  useEffect(() => {
+    try {
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      }
+    } catch {
+      // ignore
+    }
+  }, [lang]);
+
   const value = useMemo<LangContextValue>(
     () => ({ lang, setLang, dir: lang === 'ar' ? 'rtl' : 'ltr' }),
     [lang],
@@ -88,4 +100,3 @@ export function LangToggle({ className = '' }: { className?: string }) {
     </div>
   );
 }
-

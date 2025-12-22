@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, UserCog, BookOpen, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, UserCog, BookOpen, GraduationCap, Award } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -31,6 +31,7 @@ const menuItems = [
     icon: GraduationCap,
   },
   { href: '/courses', label: 'All Courses', icon: BookOpen },
+  { href: '/certificates', label: 'Certificates', icon: Award },
 ];
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -87,7 +88,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <Header variant="app" />
       <div className="flex-1">
         <SidebarProvider>
           <Sidebar>
