@@ -608,7 +608,7 @@ export async function generateCertificatePdfBytes({
         y: height / 2 - h / 2,
         width: w,
         height: h,
-        opacity: 0.13,
+        opacity: 0.15,
       });
     } else {
       const watermarkText = 'CLOUDAI ACADEMY';

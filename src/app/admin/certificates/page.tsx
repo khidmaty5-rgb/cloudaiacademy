@@ -8,6 +8,8 @@ import {
   doc,
   getDoc,
   getFirestore,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   where,
@@ -34,6 +36,19 @@ function asDateInputValue(d: Date) {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+type CertificateListItem = {
+  id: string;
+  userId: string;
+  userName: string;
+  courseId: string;
+  courseTitle: string;
+  courseCode: string;
+  status: string;
+  issuedAtMillis: number;
+  completedAtMillis: number;
+  pdfPath: string | null;
+};
 
 export default function AdminCertificatesPage() {
   const { user, isUserLoading } = useUser();
@@ -74,6 +89,40 @@ export default function AdminCertificatesPage() {
   const [isIssuing, setIsIssuing] = useState(false);
   const [generatePdfAfterIssue, setGeneratePdfAfterIssue] = useState(true);
   const [useTemplatePdf, setUseTemplatePdf] = useState(false);
+  const [deleteCertificateId, setDeleteCertificateId] = useState('');
+  const [deleteStudentUid, setDeleteStudentUid] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [allCertificates, setAllCertificates] = useState<CertificateListItem[] | null>(null);
+  const [allCertificatesLoading, setAllCertificatesLoading] = useState(false);
+  const [allCertificatesError, setAllCertificatesError] = useState<string | null>(null);
+  const [allCertificatesFilter, setAllCertificatesFilter] = useState('');
+  const [allCertificatesCursor, setAllCertificatesCursor] = useState<string | null>(null);
+  const [allCertificatesHasMore, setAllCertificatesHasMore] = useState(false);
+
+  const deleteListQuery = useMemoFirebase(() => {
+    const uid = deleteStudentUid.trim();
+    if (!uid) return null;
+    return query(
+      collection(firestore, 'users', uid, 'certificates'),
+      orderBy('issuedAt', 'desc'),
+      limit(50),
+    );
+  }, [firestore, deleteStudentUid]);
+  const {
+    data: deleteCandidates,
+    isLoading: deleteCandidatesLoading,
+    error: deleteCandidatesError,
+  } = useCollection<Certificate>(deleteListQuery);
+
+  const filteredAllCertificates = useMemo(() => {
+    if (!allCertificates) return null;
+    const q = allCertificatesFilter.trim().toLowerCase();
+    if (!q) return allCertificates;
+    return allCertificates.filter((c) => {
+      const hay = `${c.id} ${c.userName} ${c.courseTitle} ${c.courseCode}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [allCertificates, allCertificatesFilter]);
 
   useEffect(() => {
     // Keep totalHours in sync when switching courses (if course has a value).
@@ -159,6 +208,55 @@ export default function AdminCertificatesPage() {
     setStudentUid(u.id);
     setStudentName(`${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || studentName);
     setStudentEmail(u.email || studentEmail);
+  };
+
+  const ALL_CERTS_PAGE_SIZE = 200;
+
+  const loadAllCertificates = async (options?: { append?: boolean }) => {
+    if (!user) return;
+    const append = options?.append === true;
+    const cursor = append ? allCertificatesCursor : null;
+    if (append && !cursor) return;
+
+    setAllCertificatesLoading(true);
+    setAllCertificatesError(null);
+    try {
+      const token = await user.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const url = cursor
+        ? `/api/certificates/list?limit=${ALL_CERTS_PAGE_SIZE}&startAfter=${encodeURIComponent(cursor)}`
+        : `/api/certificates/list?limit=${ALL_CERTS_PAGE_SIZE}`;
+
+      const resp = await fetch(url, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(json?.error || 'Failed to load certificates.');
+
+      const items = Array.isArray(json?.certificates) ? (json.certificates as CertificateListItem[]) : [];
+      const nextCursor = typeof json?.nextCursor === 'string' ? (json.nextCursor as string) : null;
+      const hasMore = items.length === ALL_CERTS_PAGE_SIZE && !!nextCursor;
+
+      setAllCertificates((prev) => {
+        if (!append || !prev) return items;
+        const existingIds = new Set(prev.map((c) => c.id));
+        const merged = [...prev];
+        for (const item of items) {
+          if (existingIds.has(item.id)) continue;
+          merged.push(item);
+          existingIds.add(item.id);
+        }
+        return merged;
+      });
+      setAllCertificatesCursor(nextCursor);
+      setAllCertificatesHasMore(hasMore);
+    } catch (err: any) {
+      setAllCertificatesError(err?.message || String(err));
+    } finally {
+      setAllCertificatesLoading(false);
+    }
   };
 
   const issueCertificate = async () => {
@@ -291,6 +389,101 @@ export default function AdminCertificatesPage() {
     }
   };
 
+  const deleteCertificate = async () => {
+    const id = deleteCertificateId.trim();
+    if (!id) {
+      toast({
+        variant: 'destructive',
+        title: 'Certificate ID required',
+        description: 'Enter the certificate ID you want to delete.',
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      if (!user) throw new Error('Unauthorized');
+
+      const certRef = doc(firestore, 'certificates', id);
+      const snap = await getDoc(certRef);
+      if (!snap.exists()) {
+        toast({
+          variant: 'destructive',
+          title: 'Not found',
+          description: `No certificate found with ID: ${id}`,
+        });
+        return;
+      }
+
+      const data = snap.data() as any;
+      const studentUid = typeof data?.userId === 'string' ? data.userId : '';
+      const userName = typeof data?.userName === 'string' ? data.userName : '';
+      const courseTitle = typeof data?.courseTitle === 'string' ? data.courseTitle : '';
+      const pdfPath = typeof data?.pdfPath === 'string' ? data.pdfPath : '';
+
+      const ok = window.confirm(
+        `Delete certificate?\n\nID: ${id}` +
+          (userName ? `\nStudent: ${userName}` : '') +
+          (courseTitle ? `\nCourse: ${courseTitle}` : '') +
+          (pdfPath ? `\n\nStorage PDF: ${pdfPath}` : '') +
+          `\n\nThis cannot be undone.`,
+      );
+      if (!ok) return;
+
+      // Best-effort: delete the PDF from storage first (to avoid orphaned objects).
+      if (studentUid || pdfPath) {
+        try {
+          const token = await user.getIdToken();
+          const resp = await fetch('/api/certificates/delete-pdf', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              certificateId: id,
+              studentUid,
+              pdfPath: pdfPath || null,
+            }),
+          });
+          const json = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            const proceed = window.confirm(
+              `Could not delete the PDF from storage.\n\n${json?.error || resp.statusText}\n\nDelete Firestore records anyway?`,
+            );
+            if (!proceed) return;
+          }
+        } catch (err: any) {
+          const proceed = window.confirm(
+            `Could not delete the PDF from storage.\n\n${err?.message || String(err)}\n\nDelete Firestore records anyway?`,
+          );
+          if (!proceed) return;
+        }
+      }
+
+      const batch = writeBatch(firestore);
+      batch.delete(certRef);
+      if (studentUid) {
+        batch.delete(doc(firestore, 'users', studentUid, 'certificates', id));
+      }
+      await batch.commit();
+
+      toast({
+        title: 'Certificate deleted',
+        description: id,
+      });
+      setDeleteCertificateId('');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Delete failed',
+        description: err?.message || 'Failed to delete certificate.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isUserLoading || roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -326,7 +519,8 @@ export default function AdminCertificatesPage() {
             <div className="text-center py-16 text-muted-foreground">No permission.</div>
           ) : (
             <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
+              <div className="space-y-6">
+                <Card>
                 <CardHeader>
                   <CardTitle>Certificate Details</CardTitle>
                   <CardDescription>
@@ -525,7 +719,156 @@ export default function AdminCertificatesPage() {
                     </span>
                   )}
                 </CardFooter>
-              </Card>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Delete Test Certificates</CardTitle>
+                    <CardDescription>
+                      Delete a certificate by ID (removes both `certificates/{'{id}'}` and the student copy).
+                    </CardDescription>
+                </CardHeader>
+                  <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="deleteFromAll">All certificates (recent)</Label>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => loadAllCertificates()}
+                        disabled={allCertificatesLoading}
+                      >
+                        {allCertificatesLoading ? 'Loading...' : allCertificates ? 'Refresh' : 'Load'}
+                      </Button>
+                    </div>
+
+                    {allCertificatesError ? (
+                      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                        {allCertificatesError}
+                      </div>
+                    ) : null}
+
+                    {allCertificates ? (
+                      <>
+                        <Input
+                          id="allCertificatesFilter"
+                          placeholder="Filter by ID / student / course..."
+                          value={allCertificatesFilter}
+                          onChange={(e) => setAllCertificatesFilter(e.target.value)}
+                        />
+                        <select
+                          id="deleteFromAll"
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          value={deleteCertificateId}
+                          onChange={(e) => setDeleteCertificateId(e.target.value)}
+                        >
+                          <option value="">Select a certificate</option>
+                          {(filteredAllCertificates || []).map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.id} — {c.userName || c.userId} — {c.courseTitle || c.courseCode || ''}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            Showing {(filteredAllCertificates || []).length} of {allCertificates.length} loaded.
+                          </p>
+                          {allCertificatesHasMore ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => loadAllCertificates({ append: true })}
+                              disabled={allCertificatesLoading}
+                            >
+                              Load more
+                            </Button>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Click “Load” to fetch the latest issued certificates.</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="deleteStudentUid">Student UID (load list)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="deleteStudentUid"
+                        placeholder="Firebase uid"
+                        value={deleteStudentUid}
+                        onChange={(e) => setDeleteStudentUid(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!studentUid.trim()}
+                        onClick={() => setDeleteStudentUid(studentUid.trim())}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Enter a student UID to load their issued certificates, then pick one to delete.
+                    </p>
+                  </div>
+
+                  {deleteStudentUid.trim() ? (
+                    deleteCandidatesLoading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : deleteCandidatesError ? (
+                      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                        {deleteCandidatesError.message || 'Failed to load certificates for this student.'}
+                      </div>
+                    ) : deleteCandidates && deleteCandidates.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="deleteFromList">Choose from list</Label>
+                        <select
+                          id="deleteFromList"
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          value={deleteCertificateId}
+                          onChange={(e) => setDeleteCertificateId(e.target.value)}
+                        >
+                          <option value="">Select a certificate</option>
+                          {deleteCandidates.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.id} — {c.courseTitle || c.courseCode || ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No certificates found for this student.</p>
+                    )
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="deleteCertificateId">Certificate ID</Label>
+                    <Input
+                      id="deleteCertificateId"
+                        placeholder="e.g., CA-2025-AWSFND-000127"
+                        value={deleteCertificateId}
+                        onChange={(e) => setDeleteCertificateId(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Tip: open the verify page URL and copy the ID from the address bar.
+                      </p>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={deleteCertificate}
+                      disabled={isDeleting || !deleteCertificateId.trim()}
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete Certificate'}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
 
               <div className="space-y-4">
                 <div>
