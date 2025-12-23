@@ -103,7 +103,7 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
             This certificate is proudly presented to
           </p>
 
-          <div className="mt-6 w-full rounded-2xl bg-background/70 px-6 py-6 shadow-inner">
+          <div className="mt-6 w-full px-6 py-6">
             <p
               className={recipientNameClassName}
               style={recipientNameStyle === 'SERIF' || recipientNameStyle === 'SANS' ? undefined : { fontFamily: recipientNameScriptFontFamily }}
@@ -116,7 +116,7 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
             for successfully completing the course:
           </p>
 
-          <div className="mt-4 w-full rounded-md bg-accent/15 px-4 py-3">
+          <div className="mt-4 w-full px-4 py-3">
             <p className="font-headline text-2xl font-semibold text-primary md:text-3xl">
               {certificate.courseTitle}
             </p>

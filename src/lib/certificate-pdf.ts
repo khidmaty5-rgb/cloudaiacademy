@@ -753,15 +753,6 @@ export async function generateCertificatePdfBytes({
     // Recipient name box
     const nameBoxH = 60;
     const nameBoxY = 330;
-    page.drawRectangle({
-      x: safeLeft,
-      y: nameBoxY,
-      width: safeWidth,
-      height: nameBoxH,
-      color: rgb(1, 1, 1),
-      borderColor: rgb(0.88, 0.90, 0.93),
-      borderWidth: 1,
-    });
 
     const nameText = String(certificate.userName || '—');
     const nameFont = recipientNameStyle === 'SERIF' ? serifBold : sansBold;
@@ -806,16 +797,6 @@ export async function generateCertificatePdfBytes({
     // Course box
     const courseBoxH = 64;
     const courseBoxY = 244;
-    page.drawRectangle({
-      x: safeLeft + 20,
-      y: courseBoxY,
-      width: safeWidth - 40,
-      height: courseBoxH,
-      color: accentColor,
-      opacity: 0.18,
-      borderColor: rgb(0.93, 0.90, 0.86),
-      borderWidth: 0.5,
-    });
 
     const coursePaddingX = 26;
     const courseMaxWidth = safeWidth - 40 - coursePaddingX * 2;
