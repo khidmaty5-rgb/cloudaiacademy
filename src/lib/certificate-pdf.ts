@@ -197,6 +197,24 @@ export async function generateCertificatePdfBytes({
   const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const sigFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
+  const recipientNameStyle:
+    | 'CALLIGRAPHY'
+    | 'GABRIOLA'
+    | 'EDWARDIAN'
+    | 'FRENCH_SCRIPT'
+    | 'SERIF'
+    | 'SANS' = (() => {
+    const raw = (certificate as any)?.recipientNameStyle as string | undefined;
+    return raw === 'SERIF' ||
+      raw === 'SANS' ||
+      raw === 'CALLIGRAPHY' ||
+      raw === 'GABRIOLA' ||
+      raw === 'EDWARDIAN' ||
+      raw === 'FRENCH_SCRIPT'
+      ? raw
+      : 'CALLIGRAPHY';
+  })();
+
   const borderColor = rgb(0.08, 0.18, 0.30);
   const accentColor = rgb(0.85, 0.65, 0.10);
 
@@ -249,7 +267,7 @@ export async function generateCertificatePdfBytes({
   ]);
 
   const signatureTextFontFamily =
-    '"Segoe Script","Brush Script MT","Lucida Handwriting","Apple Chancery",cursive';
+    '"Monotype Corsiva","Segoe Script","Brush Script MT","Lucida Handwriting","Apple Chancery",cursive';
 
   const renderSignatureTextImage = async (text: string) => {
     try {
@@ -268,6 +286,49 @@ export async function generateCertificatePdfBytes({
       return null;
     }
   };
+
+  const recipientNameTextFontFamily = (() => {
+    switch (recipientNameStyle) {
+      case 'GABRIOLA':
+        return '"Gabriola","Monotype Corsiva","Segoe Script","Lucida Handwriting","Apple Chancery",cursive';
+      case 'EDWARDIAN':
+        return '"Edwardian Script ITC","Kunstler Script","French Script MT","Segoe Script","Apple Chancery",cursive';
+      case 'FRENCH_SCRIPT':
+        return '"French Script MT","Kunstler Script","Edwardian Script ITC","Segoe Script","Apple Chancery",cursive';
+      default:
+        return '"Monotype Corsiva","Edwardian Script ITC","Segoe Script","Brush Script MT","Lucida Handwriting","Apple Chancery",cursive';
+    }
+  })();
+
+  const renderRecipientNameTextImage = async (text: string) => {
+    try {
+      const safe = String(text || '').trim();
+      if (!safe) return null;
+      const dataUrl = renderTextToPngDataUrl(safe, {
+        fontFamily: recipientNameTextFontFamily,
+        fontSize: 96,
+        paddingX: 14,
+        paddingY: 12,
+        scale: 4,
+        color: '#142E4D',
+      });
+      if (!dataUrl) return null;
+      const bytes = dataUrlToBytes(dataUrl);
+      return await pdfDoc.embedPng(bytes);
+    } catch {
+      return null;
+    }
+  };
+
+  const isRecipientNameScript =
+    recipientNameStyle === 'CALLIGRAPHY' ||
+    recipientNameStyle === 'GABRIOLA' ||
+    recipientNameStyle === 'EDWARDIAN' ||
+    recipientNameStyle === 'FRENCH_SCRIPT';
+
+  const recipientNameTextImage = isRecipientNameScript
+    ? await renderRecipientNameTextImage(String(certificate.userName || ''))
+    : null;
 
   const instructorSignatureTextImage = instructorSignatureImage
     ? null
@@ -291,19 +352,36 @@ export async function generateCertificatePdfBytes({
     const toY = (y: number) => y * scaleY;
 
     const nameMaxWidth = width - toX(2 * (36 + 40));
+    const nameY = isCloudAiTemplate ? toY(585) : toY(340);
+    const nameText = String(certificate.userName || '—');
+    const nameFont = recipientNameStyle === 'SANS' ? sansBold : serifBold;
     const nameSize = fitFontSizeToWidth({
-      text: certificate.userName,
-      font: serifBold,
+      text: nameText,
+      font: nameFont,
       maxWidth: nameMaxWidth,
       startSize: Math.round(42 * scaleY),
       minSize: Math.round(24 * scaleY),
     });
 
-    drawCentered(String(certificate.userName || '—'), isCloudAiTemplate ? toY(585) : toY(340), {
-      font: serifBold,
-      size: nameSize,
-      color: borderColor,
-    });
+    if (isRecipientNameScript && recipientNameTextImage) {
+      const maxH = Math.max(Math.round(64 * scaleY), Math.round(nameSize * 1.8));
+      const centerY = nameY + nameSize * 0.35;
+      const scale = Math.min(nameMaxWidth / recipientNameTextImage.width, maxH / recipientNameTextImage.height, 1);
+      const w = Math.max(1, recipientNameTextImage.width * scale);
+      const h = Math.max(1, recipientNameTextImage.height * scale);
+      page.drawImage(recipientNameTextImage, {
+        x: width / 2 - w / 2,
+        y: centerY - h / 2,
+        width: w,
+        height: h,
+      });
+    } else {
+      drawCentered(nameText, nameY, {
+        font: nameFont,
+        size: nameSize,
+        color: borderColor,
+      });
+    }
 
     // Course title (wrap to 2 lines)
     const courseBoxWidth = width - toX(2 * (36 + 60));
@@ -684,18 +762,40 @@ export async function generateCertificatePdfBytes({
       borderColor: rgb(0.88, 0.90, 0.93),
       borderWidth: 1,
     });
-    const fittedNameSize = fitFontSizeToWidth({
-      text: certificate.userName,
-      font: sansBold,
-      maxWidth: safeWidth - 72,
-      startSize: 38,
-      minSize: 20,
-    });
-    drawCenteredAtX(String(certificate.userName || '—'), centerX, nameBoxY + nameBoxH / 2 - fittedNameSize * 0.35, {
-      font: sansBold,
-      size: fittedNameSize,
-      color: borderColor,
-    });
+
+    const nameText = String(certificate.userName || '—');
+    const nameFont = recipientNameStyle === 'SERIF' ? serifBold : sansBold;
+
+    if (isRecipientNameScript && recipientNameTextImage) {
+      const nameMaxW = safeWidth - 72;
+      const nameMaxH = nameBoxH - 14;
+      const scale = Math.min(
+        nameMaxW / recipientNameTextImage.width,
+        nameMaxH / recipientNameTextImage.height,
+        1,
+      );
+      const w = Math.max(1, recipientNameTextImage.width * scale);
+      const h = Math.max(1, recipientNameTextImage.height * scale);
+      page.drawImage(recipientNameTextImage, {
+        x: centerX - w / 2,
+        y: nameBoxY + (nameBoxH - h) / 2,
+        width: w,
+        height: h,
+      });
+    } else {
+      const fittedNameSize = fitFontSizeToWidth({
+        text: nameText,
+        font: nameFont,
+        maxWidth: safeWidth - 72,
+        startSize: 38,
+        minSize: 20,
+      });
+      drawCenteredAtX(nameText, centerX, nameBoxY + nameBoxH / 2 - fittedNameSize * 0.35, {
+        font: nameFont,
+        size: fittedNameSize,
+        color: borderColor,
+      });
+    }
 
     drawCenteredAtX('for successfully completing the course:', centerX, 318, {
       font: sans,

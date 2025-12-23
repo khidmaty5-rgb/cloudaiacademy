@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   collection,
   doc,
+  endAt,
   getDoc,
+  getDocs,
   getFirestore,
   limit,
   orderBy,
   query,
+  startAt,
   serverTimestamp,
   where,
   writeBatch,
@@ -28,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import CertificateView from '@/components/certificates/certificate-view';
 import { generateCertificatePdfBytes } from '@/lib/certificate-pdf';
 import { formatCertificateId, normalizeCourseCode } from '@/lib/certificates';
-import type { Certificate, Course, UserProfile } from '@/types/models';
+import type { Certificate, CertificateRecipientNameStyle, Course, UserProfile } from '@/types/models';
 
 function asDateInputValue(d: Date) {
   const y = d.getFullYear();
@@ -72,6 +75,13 @@ export default function AdminCertificatesPage() {
   const [studentUid, setStudentUid] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
+  const [recipientNameStyle, setRecipientNameStyle] =
+    useState<CertificateRecipientNameStyle>('CALLIGRAPHY');
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentSearchResults, setStudentSearchResults] = useState<UserProfile[]>([]);
+  const [studentSearchLoading, setStudentSearchLoading] = useState(false);
+  const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
+  const studentSearchRequestIdRef = useRef(0);
 
   // Admin-only: lookup student profile by email.
   const userLookupQuery = useMemoFirebase(() => {
@@ -86,6 +96,9 @@ export default function AdminCertificatesPage() {
   const [instructorName, setInstructorName] = useState('');
   const [authorizedByName, setAuthorizedByName] = useState('');
   const [sequence, setSequence] = useState<string>('');
+  const [sequenceAutoKey, setSequenceAutoKey] = useState<string>('');
+  const [sequenceAutoLoading, setSequenceAutoLoading] = useState(false);
+  const [sequenceAutoError, setSequenceAutoError] = useState<string | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const [generatePdfAfterIssue, setGeneratePdfAfterIssue] = useState(true);
   const [useTemplatePdf, setUseTemplatePdf] = useState(false);
@@ -142,9 +155,103 @@ export default function AdminCertificatesPage() {
     return Number.isFinite(d.getTime()) ? d.getFullYear() : new Date().getFullYear();
   }, [completionDate]);
 
+  const sequenceScopeKey = courseCode ? `${year}|${courseCode}` : '';
+  const sequenceScopeKeyRef = useRef<string>('');
+  sequenceScopeKeyRef.current = sequenceScopeKey;
+  const nextSequenceRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!user || !canView) return;
+    if (!sequenceScopeKey) return;
+    if (sequence && sequenceAutoKey === sequenceScopeKey) return;
+
+    const requestId = ++nextSequenceRequestIdRef.current;
+    const requestedKey = sequenceScopeKey;
+
+    setSequenceAutoLoading(true);
+    setSequenceAutoError(null);
+
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        if (!token) throw new Error('Unauthorized');
+
+        const resp = await fetch('/api/certificates/next-sequence', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ year, courseCode }),
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(json?.error || 'Failed to allocate a sequence number.');
+
+        const seq = json?.sequence;
+        if (!Number.isInteger(seq) || seq < 0) throw new Error('Invalid sequence response.');
+
+        if (nextSequenceRequestIdRef.current !== requestId) return;
+        if (sequenceScopeKeyRef.current !== requestedKey) return;
+
+        setSequence(String(seq));
+        setSequenceAutoKey(requestedKey);
+      } catch (err: any) {
+        if (nextSequenceRequestIdRef.current !== requestId) return;
+        setSequenceAutoError(err?.message || String(err));
+      } finally {
+        if (nextSequenceRequestIdRef.current !== requestId) return;
+        setSequenceAutoLoading(false);
+      }
+    })();
+  }, [user, canView, courseCode, year, sequence, sequenceAutoKey, sequenceScopeKey]);
+
+  const refreshSequence = async () => {
+    if (!user || !canView) return;
+    if (!sequenceScopeKey) return;
+    if (sequenceAutoLoading) return;
+
+    const requestId = ++nextSequenceRequestIdRef.current;
+    const requestedKey = sequenceScopeKey;
+
+    setSequenceAutoLoading(true);
+    setSequenceAutoError(null);
+    try {
+      const token = await user.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const resp = await fetch('/api/certificates/next-sequence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ year, courseCode }),
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(json?.error || 'Failed to allocate a sequence number.');
+
+      const seq = json?.sequence;
+      if (!Number.isInteger(seq) || seq < 0) throw new Error('Invalid sequence response.');
+
+      if (nextSequenceRequestIdRef.current !== requestId) return;
+      if (sequenceScopeKeyRef.current !== requestedKey) return;
+
+      setSequence(String(seq));
+      setSequenceAutoKey(requestedKey);
+    } catch (err: any) {
+      if (nextSequenceRequestIdRef.current !== requestId) return;
+      setSequenceAutoError(err?.message || String(err));
+    } finally {
+      if (nextSequenceRequestIdRef.current !== requestId) return;
+      setSequenceAutoLoading(false);
+    }
+  };
+
   const certificateIdPreview = useMemo(() => {
-    const seq = Number(sequence);
-    if (!courseCode || !Number.isInteger(seq) || seq < 0) return '';
+    const raw = sequence.trim();
+    if (!courseCode || !raw || !/^\d+$/.test(raw)) return '';
+    const seq = Number.parseInt(raw, 10);
+    if (!Number.isInteger(seq) || seq < 1) return '';
     try {
       return formatCertificateId({ prefix: 'CA', year, courseCode, sequence: seq, sequenceWidth: 6 });
     } catch {
@@ -169,11 +276,11 @@ export default function AdminCertificatesPage() {
     if (!authorizedByName.trim()) return null;
     if (!instructorName.trim()) return null;
 
-    return {
-      id: certificateIdPreview,
-      userId: studentUid.trim(),
-      userName: studentName.trim(),
-      userEmail: studentEmail.trim() || null,
+      return {
+        id: certificateIdPreview,
+        userId: studentUid.trim(),
+        userName: studentName.trim(),
+        userEmail: studentEmail.trim() || null,
       courseId: selectedCourse.id,
       courseTitle: selectedCourse.title,
       courseCode,
@@ -182,33 +289,139 @@ export default function AdminCertificatesPage() {
       issuedAt: null,
       issuedBy: 'CloudAI Academy',
       instructorName: instructorName.trim(),
-      instructorTitle: 'Instructor / Director',
-      authorizedByName: authorizedByName.trim(),
-      authorizedByTitle: 'Authorized Signature',
-      status: 'ACTIVE',
-      createdAt: null,
-      updatedAt: null,
-    };
-  }, [
-    authorizedByName,
-    certificateIdPreview,
-    completionDate,
-    courseCode,
-    instructorName,
-    selectedCourse,
-    studentEmail,
-    studentName,
-    studentUid,
-    totalHours,
+        instructorTitle: 'Instructor / Director',
+        authorizedByName: authorizedByName.trim(),
+        authorizedByTitle: 'Authorized Signature',
+        recipientNameStyle,
+        status: 'ACTIVE',
+        createdAt: null,
+        updatedAt: null,
+      };
+    }, [
+      authorizedByName,
+      certificateIdPreview,
+      completionDate,
+      courseCode,
+      instructorName,
+      recipientNameStyle,
+      selectedCourse,
+      studentEmail,
+      studentName,
+      studentUid,
+      totalHours,
   ]);
+
+  const applySelectedUser = (u: Partial<UserProfile> & { id?: string } | null | undefined) => {
+    if (!u || !u.id) return;
+    const fullName = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim();
+    setStudentUid(u.id);
+    if (fullName) setStudentName(fullName);
+    if (u.email) setStudentEmail(u.email);
+  };
 
   const handleUseMatchedUser = () => {
     const u = (matchedUsers || [])[0] as any;
-    if (!u) return;
-    setStudentUid(u.id);
-    setStudentName(`${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || studentName);
-    setStudentEmail(u.email || studentEmail);
+    applySelectedUser(u);
   };
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const termRaw = studentSearch.trim();
+    if (termRaw.length < 2) {
+      setStudentSearchResults([]);
+      setStudentSearchError(null);
+      setStudentSearchLoading(false);
+      return;
+    }
+
+    const requestId = ++studentSearchRequestIdRef.current;
+    const debounce = setTimeout(async () => {
+      setStudentSearchLoading(true);
+      setStudentSearchError(null);
+      try {
+        const usersCol = collection(firestore, 'users');
+        const maxPerQuery = 8;
+        const term = termRaw.replace(/\s+/g, ' ').trim();
+        const termLower = term.toLowerCase();
+        const parts = termLower.split(' ').filter(Boolean);
+
+        const toTitle = (input: string) =>
+          input
+            .split(' ')
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+
+        const firstPart = parts[0] || '';
+        const secondPart = parts.length > 1 ? parts[parts.length - 1] : '';
+
+        const fetchPrefix = async (field: 'email' | 'firstName' | 'lastName', prefix: string) => {
+          const safe = prefix.trim();
+          if (!safe) return [] as UserProfile[];
+          const snap = await getDocs(
+            query(
+              usersCol,
+              orderBy(field),
+              startAt(safe),
+              endAt(`${safe}\uf8ff`),
+              limit(maxPerQuery),
+            ),
+          );
+          return snap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as any) }) as UserProfile)
+            .filter((u) => u.role === 'student');
+        };
+
+        const emailHits = await fetchPrefix('email', termLower);
+
+        let hits: UserProfile[] = [];
+        if (term.includes('@') || term.includes('.')) {
+          hits = emailHits;
+        } else {
+          const firstKey = toTitle(firstPart);
+          const lastKey = toTitle(secondPart || firstPart);
+
+          const [firstHits, lastHits] = await Promise.all([
+            fetchPrefix('firstName', firstKey),
+            fetchPrefix('lastName', lastKey),
+          ]);
+
+          const merged = new Map<string, UserProfile>();
+          const pushAll = (arr: UserProfile[]) => arr.forEach((u) => merged.set(u.id, u));
+
+          if (secondPart) {
+            const firstIds = new Set(firstHits.map((u) => u.id));
+            const lastIds = new Set(lastHits.map((u) => u.id));
+            pushAll(firstHits.filter((u) => lastIds.has(u.id)));
+            pushAll(lastHits.filter((u) => firstIds.has(u.id)));
+            pushAll(emailHits);
+            if (merged.size === 0) {
+              pushAll(firstHits);
+              pushAll(lastHits);
+            }
+          } else {
+            pushAll(firstHits);
+            pushAll(lastHits);
+            pushAll(emailHits);
+          }
+
+          hits = Array.from(merged.values()).slice(0, 12);
+        }
+
+        if (studentSearchRequestIdRef.current !== requestId) return;
+        setStudentSearchResults(hits);
+      } catch (err: any) {
+        if (studentSearchRequestIdRef.current !== requestId) return;
+        setStudentSearchError(err?.message || String(err));
+        setStudentSearchResults([]);
+      } finally {
+        if (studentSearchRequestIdRef.current !== requestId) return;
+        setStudentSearchLoading(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(debounce);
+  }, [firestore, isAdmin, studentSearch]);
 
   const ALL_CERTS_PAGE_SIZE = 200;
 
@@ -586,23 +799,80 @@ export default function AdminCertificatesPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sequence">Sequential number</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="sequence">Sequential number</Label>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={refreshSequence}
+                        disabled={sequenceAutoLoading || !courseCode}
+                      >
+                        {sequenceAutoLoading ? 'Loading...' : 'Next'}
+                      </Button>
+                    </div>
                     <Input
                       id="sequence"
                       inputMode="numeric"
-                      placeholder="e.g., 127"
+                      placeholder={courseCode ? 'Auto' : 'Set course code first'}
                       value={sequence}
                       onChange={(e) => setSequence(e.target.value)}
+                      disabled={sequenceAutoLoading || !courseCode}
                     />
                     <p className="text-xs text-muted-foreground">
                       Certificate ID format: <span className="font-mono">CA-YYYY-COURSECODE-000123</span>
                     </p>
+                    {sequenceAutoError ? (
+                      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                        {sequenceAutoError}
+                      </div>
+                    ) : null}
                     {certificateIdPreview && (
                       <p className="text-sm">
                         Preview ID: <span className="font-mono font-semibold">{certificateIdPreview}</span>
                       </p>
                     )}
                   </div>
+
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="studentSearch">Select student (admin)</Label>
+                      <Input
+                        id="studentSearch"
+                        placeholder="Type name or email to search..."
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                      />
+                      {studentSearchLoading ? (
+                        <p className="text-xs text-muted-foreground">Searching...</p>
+                      ) : studentSearchError ? (
+                        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                          {studentSearchError}
+                        </div>
+                      ) : studentSearchResults.length > 0 ? (
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          defaultValue=""
+                          onChange={(e) => {
+                            const uid = e.target.value;
+                            const selected = studentSearchResults.find((u) => u.id === uid);
+                            applySelectedUser(selected);
+                          }}
+                        >
+                          <option value="">Choose a student...</option>
+                          {studentSearchResults.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {(u.firstName || '') + ' ' + (u.lastName || '')} — {u.email || u.id}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Type at least 2 characters to search students.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="studentUid">Student UID</Label>
@@ -622,6 +892,26 @@ export default function AdminCertificatesPage() {
                       value={studentName}
                       onChange={(e) => setStudentName(e.target.value)}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="recipientNameStyle">Name font</Label>
+                    <select
+                      id="recipientNameStyle"
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                      value={recipientNameStyle}
+                      onChange={(e) => setRecipientNameStyle(e.target.value as CertificateRecipientNameStyle)}
+                    >
+                      <option value="CALLIGRAPHY">Calligraphy (default)</option>
+                      <option value="GABRIOLA">Gabriola (elegant)</option>
+                      <option value="EDWARDIAN">Edwardian Script (classic)</option>
+                      <option value="FRENCH_SCRIPT">French Script (bold)</option>
+                      <option value="SANS">Bold (Sans)</option>
+                      <option value="SERIF">Serif</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      These script fonts depend on what’s installed on the device; missing fonts will fall back.
+                    </p>
                   </div>
 
                   <div className="space-y-2">

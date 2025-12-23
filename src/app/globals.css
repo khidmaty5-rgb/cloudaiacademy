@@ -78,6 +78,6 @@ body {
 
 @layer utilities {
   .font-signature {
-    font-family: "Segoe Script", "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
+    font-family: "Monotype Corsiva", "Segoe Script", "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
   }
 }

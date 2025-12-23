@@ -90,6 +90,14 @@ export interface Announcement {
 
 export type CertificateStatus = 'ACTIVE' | 'REVOKED';
 
+export type CertificateRecipientNameStyle =
+  | 'CALLIGRAPHY'
+  | 'GABRIOLA'
+  | 'EDWARDIAN'
+  | 'FRENCH_SCRIPT'
+  | 'SERIF'
+  | 'SANS';
+
 export interface Certificate {
   /** Certificate ID, also used as the Firestore document ID. */
   id: string;
@@ -107,6 +115,11 @@ export interface Certificate {
   instructorTitle?: string;
   authorizedByName: string;
   authorizedByTitle?: string;
+  /**
+   * Controls how the recipient name is rendered on the certificate.
+   * Defaults to `CALLIGRAPHY` when omitted.
+   */
+  recipientNameStyle?: CertificateRecipientNameStyle;
   status: CertificateStatus;
   revokedAt?: FirestoreTimestamp;
   /** Optional generated certificate PDF key in S3/MinIO (e.g. certificates/{uid}/{id}.pdf). */

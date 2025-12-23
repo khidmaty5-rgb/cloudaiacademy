@@ -52,6 +52,28 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
   const completedLabel = completedAt ? format(completedAt, 'MMMM yyyy') : '—';
   const instructorTitle = certificate.instructorTitle || 'Instructor / Director';
   const authorizedTitle = certificate.authorizedByTitle || 'Authorized Signature';
+  const recipientNameStyle = (certificate as any)?.recipientNameStyle as string | undefined;
+
+  const recipientNameScriptFontFamily = (() => {
+    switch (recipientNameStyle) {
+      case 'GABRIOLA':
+        return '"Gabriola","Monotype Corsiva","Segoe Script","Lucida Handwriting","Apple Chancery",cursive';
+      case 'EDWARDIAN':
+        return '"Edwardian Script ITC","Kunstler Script","French Script MT","Segoe Script","Apple Chancery",cursive';
+      case 'FRENCH_SCRIPT':
+        return '"French Script MT","Kunstler Script","Edwardian Script ITC","Segoe Script","Apple Chancery",cursive';
+      case 'CALLIGRAPHY':
+      default:
+        return '"Monotype Corsiva","Edwardian Script ITC","Segoe Script","Brush Script MT","Lucida Handwriting","Apple Chancery",cursive';
+    }
+  })();
+
+  const recipientNameClassName =
+    recipientNameStyle === 'SERIF'
+      ? 'font-serif text-4xl font-bold leading-none text-primary md:text-5xl'
+      : recipientNameStyle === 'SANS'
+        ? 'font-headline text-4xl font-bold leading-none text-primary md:text-5xl'
+        : 'text-5xl leading-none text-primary md:text-6xl';
 
   return (
     <div className="w-full rounded-2xl border-4 border-primary/90 bg-gradient-to-br from-background to-muted/40 p-4 shadow-sm md:p-6">
@@ -82,7 +104,10 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
           </p>
 
           <div className="mt-6 w-full rounded-2xl bg-background/70 px-6 py-6 shadow-inner">
-            <p className="font-headline text-4xl font-bold text-primary md:text-5xl">
+            <p
+              className={recipientNameClassName}
+              style={recipientNameStyle === 'SERIF' || recipientNameStyle === 'SANS' ? undefined : { fontFamily: recipientNameScriptFontFamily }}
+            >
               {certificate.userName}
             </p>
           </div>
