@@ -150,6 +150,18 @@ export default function AdminCertificatesPage() {
     return (viewCertificates || []).find((c) => c.id === id) || null;
   }, [viewCertificateId, viewCertificates]);
 
+  const selectViewCertificateFromAll = (id: string) => {
+    const certId = id.trim();
+    if (!certId) return;
+    const item = (allCertificates || []).find((c) => c.id === certId) || null;
+    if (!item) {
+      setViewCertificateId(certId);
+      return;
+    }
+    if (item.userId) setViewStudentUid(item.userId);
+    setViewCertificateId(item.id);
+  };
+
   const filteredAllCertificates = useMemo(() => {
     if (!allCertificates) return null;
     const q = allCertificatesFilter.trim().toLowerCase();
@@ -1054,6 +1066,71 @@ export default function AdminCertificatesPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="viewFromAll">All certificates (recent)</Label>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => loadAllCertificates()}
+                          disabled={allCertificatesLoading}
+                        >
+                          {allCertificatesLoading ? 'Loading...' : allCertificates ? 'Refresh' : 'Load'}
+                        </Button>
+                      </div>
+
+                      {allCertificatesError ? (
+                        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                          {allCertificatesError}
+                        </div>
+                      ) : null}
+
+                      {allCertificates ? (
+                        <div className="space-y-2">
+                          <Input
+                            id="viewAllCertificatesFilter"
+                            placeholder="Filter by ID / student / course..."
+                            value={allCertificatesFilter}
+                            onChange={(e) => setAllCertificatesFilter(e.target.value)}
+                          />
+                          <select
+                            id="viewFromAll"
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            value={viewCertificateId}
+                            onChange={(e) => selectViewCertificateFromAll(e.target.value)}
+                          >
+                            <option value="">Select a certificate</option>
+                            {(filteredAllCertificates || []).map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.id} — {c.userName || c.userId} — {c.courseTitle || c.courseCode || ''}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              Showing {(filteredAllCertificates || []).length} of {allCertificates.length} loaded.
+                            </p>
+                            {allCertificatesHasMore ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => loadAllCertificates({ append: true })}
+                                disabled={allCertificatesLoading}
+                              >
+                                Load more
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Click “Load” to fetch the latest issued certificates.</p>
+                      )}
+                    </div>
+
+                    <div className="h-px w-full bg-border" />
+
+                    <div className="space-y-2">
                       <Label htmlFor="viewStudentUid">Student UID</Label>
                       <div className="flex gap-2">
                         <Input
@@ -1303,43 +1380,47 @@ export default function AdminCertificatesPage() {
                     This is what the certificate will look like.
                   </p>
                 </div>
-                {viewSelectedCertificate || previewCertificate ? (
+                {viewCertificateId.trim() ? (
+                  viewCertificatesLoading ? (
+                    <Skeleton className="h-[520px] w-full" />
+                  ) : viewCertificatesError ? (
+                    <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+                      {viewCertificatesError.message || 'Failed to load certificate.'}
+                    </div>
+                  ) : viewSelectedCertificate ? (
                   <div className="space-y-3">
-                    {viewSelectedCertificate ? (
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
-                        <span>
-                          Viewing existing certificate:{' '}
-                          <span className="font-mono font-medium text-foreground">{viewSelectedCertificate.id}</span>
-                        </span>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setViewCertificateId('')}
-                          >
-                            Back to issue preview
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                      <span>
+                        Viewing existing certificate:{' '}
+                        <span className="font-mono font-medium text-foreground">{viewSelectedCertificate.id}</span>
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button type="button" variant="secondary" size="sm" onClick={clearViewedCertificate}>
+                          Back to issue preview
+                        </Button>
+                        <Button asChild variant="secondary" size="sm">
+                          <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
+                        </Button>
+                        {viewSelectedCertificate.pdfPath ? (
+                          <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                            <Link
+                              href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
+                            >
+                              Download PDF
+                            </Link>
                           </Button>
-                          <Button asChild variant="secondary" size="sm">
-                            <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
-                          </Button>
-                          {viewSelectedCertificate.pdfPath ? (
-                            <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                              <Link
-                                href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
-                              >
-                                Download PDF
-                              </Link>
-                            </Button>
-                          ) : null}
-                        </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                    <CertificateView
-                      certificate={viewSelectedCertificate || previewCertificate!}
-                      verifyUrl={(viewSelectedCertificate ? viewVerifyUrl : verifyUrlPreview) || ''}
-                    />
+                    </div>
+                    <CertificateView certificate={viewSelectedCertificate} verifyUrl={viewVerifyUrl || ''} />
                   </div>
+                ) : (
+                  <div className="rounded-md border bg-muted/20 p-6 text-center text-muted-foreground">
+                    Select a certificate to preview.
+                  </div>
+                )
+                ) : previewCertificate ? (
+                  <CertificateView certificate={previewCertificate} verifyUrl={verifyUrlPreview || ''} />
                 ) : (
                   <div className="rounded-md border bg-muted/20 p-6 text-center text-muted-foreground">
                     Fill the form to see a preview.
