@@ -82,6 +82,8 @@ export default function AdminCertificatesPage() {
   const [studentSearchLoading, setStudentSearchLoading] = useState(false);
   const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
   const studentSearchRequestIdRef = useRef(0);
+  const [viewStudentUid, setViewStudentUid] = useState('');
+  const [viewCertificateId, setViewCertificateId] = useState('');
 
   // Admin-only: lookup student profile by email.
   const userLookupQuery = useMemoFirebase(() => {
@@ -126,6 +128,27 @@ export default function AdminCertificatesPage() {
     isLoading: deleteCandidatesLoading,
     error: deleteCandidatesError,
   } = useCollection<Certificate>(deleteListQuery);
+
+  const viewListQuery = useMemoFirebase(() => {
+    const uid = viewStudentUid.trim();
+    if (!uid) return null;
+    return query(
+      collection(firestore, 'users', uid, 'certificates'),
+      orderBy('issuedAt', 'desc'),
+      limit(50),
+    );
+  }, [firestore, viewStudentUid]);
+  const {
+    data: viewCertificates,
+    isLoading: viewCertificatesLoading,
+    error: viewCertificatesError,
+  } = useCollection<Certificate>(viewListQuery);
+
+  const viewSelectedCertificate = useMemo(() => {
+    const id = viewCertificateId.trim();
+    if (!id) return null;
+    return (viewCertificates || []).find((c) => c.id === id) || null;
+  }, [viewCertificateId, viewCertificates]);
 
   const filteredAllCertificates = useMemo(() => {
     if (!allCertificates) return null;
@@ -266,6 +289,14 @@ export default function AdminCertificatesPage() {
     return origin ? `${origin}/verify/${encodeURIComponent(certificateIdPreview)}` : '';
   }, [certificateIdPreview]);
 
+  const viewVerifyUrl = useMemo(() => {
+    if (!viewSelectedCertificate) return '';
+    const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
+    const origin = site || (typeof window !== 'undefined' ? window.location.origin : '');
+    const id = viewSelectedCertificate.id || '';
+    return origin && id ? `${origin}/verify/${encodeURIComponent(id)}` : '';
+  }, [viewSelectedCertificate]);
+
   const previewCertificate: Certificate | null = useMemo(() => {
     if (!certificateIdPreview || !selectedCourse) return null;
     const hours = Number(totalHours);
@@ -315,6 +346,7 @@ export default function AdminCertificatesPage() {
     if (!u || !u.id) return;
     const fullName = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim();
     setStudentUid(u.id);
+    setViewStudentUid(u.id);
     if (fullName) setStudentName(fullName);
     if (u.email) setStudentEmail(u.email);
   };
@@ -600,6 +632,10 @@ export default function AdminCertificatesPage() {
     } finally {
       setIsIssuing(false);
     }
+  };
+
+  const clearViewedCertificate = () => {
+    setViewCertificateId('');
   };
 
   const deleteCertificate = async () => {
@@ -1013,6 +1049,106 @@ export default function AdminCertificatesPage() {
 
                 <Card>
                   <CardHeader>
+                    <CardTitle>View Student Certificates</CardTitle>
+                    <CardDescription>Lookup a student, then preview/download any issued certificate.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="viewStudentUid">Student UID</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="viewStudentUid"
+                          placeholder="Firebase uid"
+                          value={viewStudentUid}
+                          onChange={(e) => {
+                            setViewStudentUid(e.target.value);
+                            setViewCertificateId('');
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={!studentUid.trim()}
+                          onClick={() => {
+                            setViewStudentUid(studentUid.trim());
+                            setViewCertificateId('');
+                          }}
+                        >
+                          Use
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Select a certificate to preview it on the right.
+                      </p>
+                    </div>
+
+                    {viewStudentUid.trim() ? (
+                      viewCertificatesLoading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : viewCertificatesError ? (
+                        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                          {viewCertificatesError.message || 'Failed to load certificates for this student.'}
+                        </div>
+                      ) : viewCertificates && viewCertificates.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label htmlFor="viewCertificateId">Certificate</Label>
+                            {viewCertificateId ? (
+                              <Button type="button" variant="secondary" size="sm" onClick={clearViewedCertificate}>
+                                Clear
+                              </Button>
+                            ) : null}
+                          </div>
+                          <select
+                            id="viewCertificateId"
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            value={viewCertificateId}
+                            onChange={(e) => setViewCertificateId(e.target.value)}
+                          >
+                            <option value="">Select a certificate</option>
+                            {viewCertificates.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.id} — {c.courseTitle || c.courseCode || ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No certificates found for this student.</p>
+                      )
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Enter a student UID to load their certificates.</p>
+                    )}
+
+                    {viewSelectedCertificate ? (
+                      <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono font-semibold">{viewSelectedCertificate.id}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button asChild variant="secondary" size="sm">
+                              <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
+                            </Button>
+                            {viewSelectedCertificate.pdfPath ? (
+                              <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                                <Link
+                                  href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
+                                >
+                                  Download PDF
+                                </Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                        {viewVerifyUrl ? (
+                          <p className="mt-2 break-all text-xs text-muted-foreground">{viewVerifyUrl}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
                     <CardTitle>Delete Test Certificates</CardTitle>
                     <CardDescription>
                       Delete a certificate by ID (removes both `certificates/{'{id}'}` and the student copy).
@@ -1167,8 +1303,43 @@ export default function AdminCertificatesPage() {
                     This is what the certificate will look like.
                   </p>
                 </div>
-                {previewCertificate ? (
-                  <CertificateView certificate={previewCertificate} verifyUrl={verifyUrlPreview || ''} />
+                {viewSelectedCertificate || previewCertificate ? (
+                  <div className="space-y-3">
+                    {viewSelectedCertificate ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                        <span>
+                          Viewing existing certificate:{' '}
+                          <span className="font-mono font-medium text-foreground">{viewSelectedCertificate.id}</span>
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setViewCertificateId('')}
+                          >
+                            Back to issue preview
+                          </Button>
+                          <Button asChild variant="secondary" size="sm">
+                            <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
+                          </Button>
+                          {viewSelectedCertificate.pdfPath ? (
+                            <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                              <Link
+                                href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
+                              >
+                                Download PDF
+                              </Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                    <CertificateView
+                      certificate={viewSelectedCertificate || previewCertificate!}
+                      verifyUrl={(viewSelectedCertificate ? viewVerifyUrl : verifyUrlPreview) || ''}
+                    />
+                  </div>
                 ) : (
                   <div className="rounded-md border bg-muted/20 p-6 text-center text-muted-foreground">
                     Fill the form to see a preview.
