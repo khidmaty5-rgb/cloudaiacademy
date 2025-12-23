@@ -77,7 +77,11 @@ export async function POST(req: NextRequest) {
     let decoded: any;
     try {
       decoded = await verifyIdTokenOrDecode(idToken);
-    } catch {
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (msg.includes('Server auth is not configured')) {
+        return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
+      }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -113,4 +117,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-
