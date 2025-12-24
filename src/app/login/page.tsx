@@ -14,14 +14,18 @@ import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const nextParam = searchParams.get('next');
+  const safeNext = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +33,10 @@ export default function LoginPage() {
       const cred = await signIn(email, password);
       const tr = await cred.user.getIdTokenResult(true);
       const role = (tr.claims as any)?.role;
+      if (safeNext) {
+        router.push(safeNext);
+        return;
+      }
       if (role === 'admin') {
         router.push('/admin/dashboard');
       } else if (role === 'editor') {

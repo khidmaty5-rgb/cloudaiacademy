@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
@@ -15,6 +15,8 @@ import { CheckCircle, Circle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import type { Lesson } from '@/lib/lessons';
 import { enrollInCourse } from '@/lib/enrollment';
+import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
+import type { EnrollmentRequest } from '@/types/models';
 
 export default function LearnCoursePage() {
   const params = useParams();
@@ -74,6 +76,14 @@ export default function LearnCoursePage() {
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
   const isEnrolled = !!enrollment;
 
+  const enrollmentRequestDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'enrollmentRequests', course.id);
+  }, [firestore, user, course]);
+  const { data: enrollmentRequest, isLoading: isEnrollmentRequestLoading } = useDoc<EnrollmentRequest>(
+    enrollmentRequestDocRef,
+  );
+
   const lessonsQuery = useMemoFirebase(() => {
     if (!course) return null;
     const uid = user?.uid;
@@ -87,6 +97,9 @@ export default function LearnCoursePage() {
 
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [enrolling, setEnrolling] = useState(false);
+  const isWaitlistPending = enrollmentRequest?.status === 'PENDING';
+  const isWaitlistApproved = enrollmentRequest?.status === 'APPROVED';
+  const isWaitlistRejected = enrollmentRequest?.status === 'REJECTED';
 
   useEffect(() => {
     if (enrollment) {
@@ -104,7 +117,7 @@ export default function LearnCoursePage() {
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
   const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
-  const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
+  const isLoading = isUserLoading || isEnrollmentLoading || isEnrollmentRequestLoading || isCourseLoading || areLessonsLoading;
 
   if (isLoading) {
     return (
@@ -141,7 +154,7 @@ export default function LearnCoursePage() {
                 <CardDescription>Please login to view course content.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/login" className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">Go to Login</Link>
+                <Link href={`/login?next=${encodeURIComponent(`/learn/${slug}`)}`} className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">Go to Login</Link>
               </CardContent>
             </Card>
           </div>
@@ -165,41 +178,46 @@ export default function LearnCoursePage() {
     );
   }
 
-  // enrollment fallback shown before checking lessons
-  const handleEnroll = async () => {
-    if (!user || !course) return;
-    if (studentPaymentRequired) { window.location.assign('/#pricing'); return; }
+  const handleWaitlist = async () => {
+    if (!course) return;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`/learn/${slug}`)}`);
+      return;
+    }
+
     try {
       setEnrolling(true);
-      await enrollInCourse(user.uid, course.id);
+
+      const courseIsFull = (course as any)?.isFull === true;
+      if (!courseIsFull) {
+        if (studentPaymentRequired && !canPreviewCourse) {
+          window.location.assign('/#pricing');
+          return;
+        }
+        await enrollInCourse(user.uid, course.id);
+        await cancelEnrollmentRequest(user.uid, course.id);
+        return;
+      }
+
+      if (isWaitlistApproved) {
+        await enrollInCourse(user.uid, course.id);
+        await cancelEnrollmentRequest(user.uid, course.id);
+        return;
+      }
+
+      await requestEnrollment({
+        userId: user.uid,
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: (course as any)?.courseCode || null,
+      });
     } finally {
       setEnrolling(false);
     }
   };
 
-  if (studentPaymentRequired && !canPreviewCourse) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <main className="flex-1 py-10 md:py-16">
-          <div className="container max-w-3xl mx-auto">
-            <Card className="border-destructive/30 bg-destructive/10">
-              <CardHeader>
-                <CardTitle>Payment required</CardTitle>
-                <CardDescription>Please complete payment to access this course.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/#pricing" className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">View Plans</Link>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!canAccessCourseContent && !studentPaymentRequired) {
+  if (!canAccessCourseContent) {
+    const courseIsFull = (course as any)?.isFull === true;
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -207,13 +225,64 @@ export default function LearnCoursePage() {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
               <CardHeader>
-                <CardTitle>Enroll to access this course</CardTitle>
-                <CardDescription>You need to enroll before viewing lessons.</CardDescription>
+                <CardTitle>{courseIsFull ? 'Join waiting list' : 'Enroll to access this course'}</CardTitle>
+                <CardDescription>
+                  {courseIsFull
+                    ? 'Your request will be reviewed before you can access lessons.'
+                    : 'You need to enroll before viewing lessons.'}
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <button disabled={enrolling} onClick={handleEnroll} className="px-4 py-2 rounded bg-accent text-accent-foreground">
-                  {enrolling ? 'Enrolling…' : 'Enroll Now'}
-                </button>
+              <CardContent className="space-y-3">
+                {studentPaymentRequired && (
+                  <p className="text-sm text-destructive">Payment is required before you can access lessons.</p>
+                )}
+                {courseIsFull && isWaitlistPending && (
+                  <p className="text-sm text-muted-foreground">
+                    Your request is pending approval. You will be able to start once approved.
+                  </p>
+                )}
+                {courseIsFull && isWaitlistRejected && (
+                  <p className="text-sm text-destructive">
+                    Your request was rejected. You can request again if you think this is a mistake.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    disabled={
+                      enrolling ||
+                      (courseIsFull && isWaitlistPending) ||
+                      (!courseIsFull && studentPaymentRequired && !canPreviewCourse)
+                    }
+                    onClick={handleWaitlist}
+                    className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
+                  >
+                    {!user
+                      ? 'Log in'
+                      : !courseIsFull
+                        ? studentPaymentRequired && !canPreviewCourse
+                          ? 'Payment required'
+                          : enrolling
+                            ? 'Enrolling...'
+                            : 'Enroll Now'
+                        : isWaitlistApproved
+                          ? 'Start Course'
+                          : isWaitlistPending
+                            ? 'On Waiting List'
+                            : isWaitlistRejected
+                              ? 'Request Again'
+                              : enrolling
+                                ? 'Saving...'
+                                : 'Join Waiting List'}
+                  </button>
+                  {studentPaymentRequired && (
+                    <Link
+                      href="/#pricing"
+                      className="px-4 py-2 rounded border border-accent text-accent inline-block"
+                    >
+                      View Plans
+                    </Link>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

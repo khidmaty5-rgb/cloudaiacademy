@@ -14,7 +14,7 @@ import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { useState } from 'react';
 import { signUp } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -23,13 +23,17 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const nextParam = searchParams.get('next');
+  const safeNext = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signUp(email, password, fullName);
-      router.push('/dashboard');
+      router.push(safeNext || '/dashboard');
     } catch (error: any) {
       toast({
         variant: 'destructive',

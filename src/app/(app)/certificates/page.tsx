@@ -9,6 +9,7 @@ import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { Certificate } from '@/types/models';
 
 function toDateValue(v: any): Date | null {
@@ -81,12 +82,16 @@ export default function CertificatesPage() {
           <div className="space-y-4">
             {items.map((cert) => {
               const completedAt = toDateValue(cert.completedAt);
-              const completedLabel = completedAt ? format(completedAt, 'PPP') : '—';
+              const completedLabel = completedAt ? format(completedAt, 'PPP') : '-';
               const verifyHref = `/verify/${encodeURIComponent(cert.id)}`;
+              const isRevoked = cert.status === 'REVOKED';
               return (
                 <Card key={cert.id}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="font-headline text-xl">{cert.courseTitle}</CardTitle>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <CardTitle className="font-headline text-xl">{cert.courseTitle}</CardTitle>
+                      {isRevoked ? <Badge variant="destructive">Revoked</Badge> : null}
+                    </div>
                     <CardDescription>
                       Completed {completedLabel} | {cert.totalHours} hours
                     </CardDescription>

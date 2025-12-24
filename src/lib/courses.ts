@@ -32,6 +32,7 @@ const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
 
 type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
   courseCode?: Course['courseCode'];
+  isFull?: Course['isFull'];
   totalHours?: Course['totalHours'];
   level: CourseLevel;
   livePlatform?: Course['livePlatform'];
@@ -58,6 +59,7 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
     id: slug,
     imageId,
     ...(courseCode ? { courseCode } : {}),
+    ...(data.isFull === true ? { isFull: true } : {}),
     ...(typeof totalHours === 'number' ? { totalHours } : {}),
     livePlatform: data.livePlatform ?? 'none',
     liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom ?? null) : null,
@@ -89,6 +91,7 @@ export async function updateCourse(courseId: string, data: Partial<CourseData & 
   const normalized = {
     ...data,
     ...(data.courseCode ? { courseCode: data.courseCode.trim().toUpperCase() } : {}),
+    ...(typeof (data as any).isFull === 'boolean' ? { isFull: (data as any).isFull } : {}),
     ...(typeof totalHours === 'number' ? { totalHours } : {}),
   } as Record<string, any>;
   const sanitized = removeUndefined(normalized);

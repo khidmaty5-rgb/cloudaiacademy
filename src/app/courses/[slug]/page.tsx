@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { enrollInCourse } from '@/lib/enrollment';
+import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal } from 'lucide-react';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import type { Lesson } from '@/lib/lessons';
-import type { Course, Enrollment } from '@/types/models';
+import type { Course, Enrollment, EnrollmentRequest } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
 import LiveSessionButton from '@/components/LiveSessionButton';
@@ -106,8 +107,16 @@ export default function CourseDetailPage() {
 
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc<Enrollment>(enrollmentDocRef);
 
+  const enrollmentRequestDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'enrollmentRequests', course.id);
+  }, [firestore, user, course]);
+  const { data: enrollmentRequest, isLoading: isEnrollmentRequestLoading } = useDoc<EnrollmentRequest>(
+    enrollmentRequestDocRef,
+  );
+
   const isEnrolled = !!enrollment;
-  const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading;
+  const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading || isEnrollmentRequestLoading;
 
   const image = course ? getPlaceholderImage(course.imageId) : undefined;
 
@@ -126,35 +135,76 @@ export default function CourseDetailPage() {
 
   // Do not redirect during render lifecycle; instead show a friendly fallback below if not found
 
+  const isWaitlistPending = enrollmentRequest?.status === 'PENDING';
+  const isWaitlistApproved = enrollmentRequest?.status === 'APPROVED';
+  const isWaitlistRejected = enrollmentRequest?.status === 'REJECTED';
+  const [isWaitlistSaving, setIsWaitlistSaving] = useState(false);
+  const courseIsFull = course?.isFull === true;
+
   const handleEnroll = async () => {
     if (!user) {
-      router.push('/login');
-      return;
-    }
-    if (studentPaymentRequired) {
-      toast({ variant: 'destructive', title: 'Payment required', description: 'Please complete payment to access this course.' });
-      router.push('/pricing');
+      router.push(`/login?next=${encodeURIComponent(`/courses/${slug}`)}`);
       return;
     }
     if (!course) return;
 
     try {
-      await enrollInCourse(user.uid, course.id);
-      toast({
-        title: t.enrollSuccess,
-        description: t.enrollSuccessDesc(course.title),
-      });
-      if (firstLessonId) {
-        router.push(`/learn/${slug}/${firstLessonId}`);
-      } else {
-        router.push(`/learn/${slug}`);
+      setIsWaitlistSaving(true);
+
+      if (!courseIsFull) {
+        if (studentPaymentRequired && !canPreviewCourse) {
+          window.location.assign('/#pricing');
+          return;
+        }
+
+        await enrollInCourse(user.uid, course.id);
+        // If the course was previously full, clean up any old request doc.
+        await cancelEnrollmentRequest(user.uid, course.id);
+        toast({
+          title: t.enrollSuccess,
+          description: t.enrollSuccessDesc(course.title),
+        });
+        if (firstLessonId) {
+          router.push(`/learn/${slug}/${firstLessonId}`);
+        } else {
+          router.push(`/learn/${slug}`);
+        }
+        return;
       }
+
+      if (isWaitlistApproved) {
+        await enrollInCourse(user.uid, course.id);
+        await cancelEnrollmentRequest(user.uid, course.id);
+        toast({
+          title: t.enrollSuccess,
+          description: t.enrollSuccessDesc(course.title),
+        });
+        if (firstLessonId) {
+          router.push(`/learn/${slug}/${firstLessonId}`);
+        } else {
+          router.push(`/learn/${slug}`);
+        }
+        return;
+      }
+
+      await requestEnrollment({
+        userId: user.uid,
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: course.courseCode || null,
+      });
+      toast({
+        title: 'Added to waiting list',
+        description: 'We will review your request and approve your enrollment soon.',
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: t.enrollFailed,
         description: error.message || t.enrollFailedDesc,
       });
+    } finally {
+      setIsWaitlistSaving(false);
     }
   };
 
@@ -236,7 +286,17 @@ export default function CourseDetailPage() {
 
               <div className="mt-8">
                 {studentPaymentRequired && (
-                  <p className="mb-4 text-sm text-destructive">Payment required to enroll or access lessons.</p>
+                  <p className="mb-4 text-sm text-destructive">Payment is required to access lessons.</p>
+                )}
+                {courseIsFull && isWaitlistPending && !canAccessCourseContent && (
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Your request is pending approval. You will be able to start once approved.
+                  </p>
+                )}
+                {courseIsFull && isWaitlistRejected && !canAccessCourseContent && (
+                  <p className="mb-4 text-sm text-destructive">
+                    Your request was rejected. You can request again if you think this is a mistake.
+                  </p>
                 )}
                 {canAccessCourseContent ? (
                     <Button
@@ -253,8 +313,25 @@ export default function CourseDetailPage() {
                       {t.goToCourse}
                     </Button>
                 ) : (
-                    <Button onClick={handleEnroll} size="lg" disabled={studentPaymentRequired} className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60">
-                        {t.enrollNow}
+                    <Button
+                      onClick={handleEnroll}
+                      size="lg"
+                      disabled={isWaitlistSaving || (courseIsFull && isWaitlistPending) || (!courseIsFull && studentPaymentRequired && !canPreviewCourse)}
+                      className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
+                    >
+                        {!courseIsFull
+                          ? studentPaymentRequired && !canPreviewCourse
+                            ? 'Payment required'
+                            : isWaitlistSaving
+                              ? 'Enrolling...'
+                              : t.enrollNow
+                          : isWaitlistApproved
+                            ? 'Start Course'
+                            : isWaitlistPending
+                              ? 'On Waiting List'
+                              : isWaitlistRejected
+                                ? 'Request Again'
+                                : 'Join Waiting List'}
                     </Button>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">

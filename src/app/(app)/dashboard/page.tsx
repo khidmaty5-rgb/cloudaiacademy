@@ -18,6 +18,20 @@ import AnnouncementsFeed from '@/components/dashboard/announcements-feed';
 import type { Course, Enrollment, LearningPath } from '@/types/models';
 import { useLang } from '@/components/i18n/lang';
 
+type DashboardText = {
+  noEnrollments: string;
+  exploreCourses: string;
+  progress: string;
+  noLearningPaths: string;
+  createLearningPath: string;
+  welcome: (name: string) => string;
+  defaultName: string;
+  startLearning: string;
+  myCourses: string;
+  myLearningPaths: string;
+  aiRecommendations: string;
+};
+
 const dashboardCopy = {
   en: {
     noEnrollments: "You haven't enrolled in any courses yet.",
@@ -33,21 +47,19 @@ const dashboardCopy = {
     aiRecommendations: 'AI Recommendations',
   },
   ar: {
-    noEnrollments: "You haven't enrolled in any courses yet.",
-    exploreCourses: 'Explore Courses',
-    progress: 'Progress',
-    noLearningPaths: "You haven't saved any learning paths yet.",
-    createLearningPath: 'Create One Now',
-    welcome: (name: string) => `Welcome, ${name}!`,
-    defaultName: 'User',
-    startLearning: "Let’s start learning.",
-    myCourses: 'My Courses',
-    myLearningPaths: 'My Learning Paths',
-    aiRecommendations: 'AI Recommendations',
+    noEnrollments: 'لم تسجّل في أي دورة بعد.',
+    exploreCourses: 'استكشف الدورات',
+    progress: 'التقدم',
+    noLearningPaths: 'لم تحفظ أي مسارات تعلم بعد.',
+    createLearningPath: 'أنشئ واحدًا الآن',
+    welcome: (name: string) => `مرحبًا، ${name}!`,
+    defaultName: 'مستخدم',
+    startLearning: 'لنبدأ التعلم.',
+    myCourses: 'دوراتي',
+    myLearningPaths: 'مسارات التعلم الخاصة بي',
+    aiRecommendations: 'توصيات الذكاء الاصطناعي',
   },
-} as const;
-
-type DashboardText = typeof dashboardCopy.en;
+} satisfies Record<'en' | 'ar', DashboardText>;
 
 function EnrolledCourses({ t }: { t: DashboardText }) {
   const { user, isUserLoading } = useUser();

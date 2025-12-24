@@ -49,10 +49,11 @@ function SignatureMark(props: {
 
 export default function CertificateView({ certificate, verifyUrl }: CertificateViewProps) {
   const completedAt = toDateValue(certificate.completedAt);
-  const completedLabel = completedAt ? format(completedAt, 'MMMM yyyy') : '—';
+  const completedLabel = completedAt ? format(completedAt, 'MMMM yyyy') : '-';
   const instructorTitle = certificate.instructorTitle || 'Instructor / Director';
   const authorizedTitle = certificate.authorizedByTitle || 'Authorized Signature';
   const recipientNameStyle = (certificate as any)?.recipientNameStyle as string | undefined;
+  const isRevoked = certificate.status === 'REVOKED';
 
   const recipientNameScriptFontFamily = (() => {
     switch (recipientNameStyle) {
@@ -148,8 +149,15 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
 
         <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 place-items-center rounded-full border-4 border-accent/70 bg-accent/10">
-              <span className="text-xs font-bold text-accent">VERIFIED</span>
+            <div
+              className={[
+                'grid h-16 w-16 place-items-center rounded-full border-4',
+                isRevoked ? 'border-destructive/70 bg-destructive/10' : 'border-accent/70 bg-accent/10',
+              ].join(' ')}
+            >
+              <span className={['text-xs font-bold', isRevoked ? 'text-destructive' : 'text-accent'].join(' ')}>
+                {isRevoked ? 'REVOKED' : 'VERIFIED'}
+              </span>
             </div>
             <div>
               <SignatureMark

@@ -9,12 +9,13 @@ import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { canTeachCourse } from '@/lib/roles';
 import { updateUserProgress, enrollInCourse } from '@/lib/enrollment';
+import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, ArrowRight, CheckCircle, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, BrainCircuit, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import CodeEmbed from '@/components/learn/CodeEmbed';
 import Quiz from '@/components/learn/Quiz';
@@ -23,6 +24,7 @@ import type { Lesson } from '@/lib/lessons';
 import { useLang } from '@/components/i18n/lang';
 import ToolSandbox from '@/components/learn/tool-sandbox';
 import LessonPdfSandbox from '@/components/learn/lesson-pdf-sandbox';
+import type { EnrollmentRequest, UserProfile } from '@/types/models';
 
 export default function LessonPage() {
   const params = useParams();
@@ -35,6 +37,12 @@ export default function LessonPage() {
   const firestore = getFirestore();
   const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
   const { isAdmin, isTeacher } = useCurrentRole();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,17 +87,29 @@ export default function LessonPage() {
   }, [firestore, user, course]);
 
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
+  const isEnrolled = !!enrollment;
+
+  const enrollmentRequestDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'enrollmentRequests', course.id);
+  }, [firestore, user, course]);
+  const { data: enrollmentRequest, isLoading: isEnrollmentRequestLoading } = useDoc<EnrollmentRequest>(
+    enrollmentRequestDocRef,
+  );
+  const isWaitlistPending = enrollmentRequest?.status === 'PENDING';
+  const isWaitlistApproved = enrollmentRequest?.status === 'APPROVED';
+  const isWaitlistRejected = enrollmentRequest?.status === 'REJECTED';
+  const [isWaitlistSaving, setIsWaitlistSaving] = useState(false);
 
   const lessonsQuery = useMemoFirebase(() => {
     if (!course) return null;
     const uid = user?.uid;
     const isInstructor = !!(uid && course && ((course.ownerId === uid) || ((course.instructorIds || []).includes(uid))));
     const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
-    const isEnrolled = !!enrollment;
     const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
     if (!canAccessCourseContent) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, user, isAdmin, isTeacher, enrollment]);
+  }, [firestore, course, user, isAdmin, isTeacher, isEnrolled]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const sortedLessons = useMemo(() => {
@@ -112,8 +132,17 @@ export default function LessonPage() {
   const nextLesson = (sortedLessons && lessonIndex < sortedLessons.length - 1) ? sortedLessons[lessonIndex + 1] : null;
 
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
-  const isLessonCompleted = completedLessons.includes(lessonId);
-  const [autoEnrolled, setAutoEnrolled] = useState(false);
+  const completedLessonSet = useMemo(() => {
+    const set = new Set<string>();
+    const fromEnrollment = (enrollment as any)?.completedLessons as string[] | undefined;
+    if (Array.isArray(fromEnrollment)) {
+      for (const id of fromEnrollment) set.add(id);
+    }
+    for (const id of completedLessons) set.add(id);
+    return set;
+  }, [completedLessons, enrollment]);
+
+  const isLessonCompleted = completedLessonSet.has(lessonId);
   const { lang } = useLang();
   const toEmbedUrl = (url: string) => {
     try {
@@ -148,71 +177,32 @@ export default function LessonPage() {
     }
   }, [enrollment]);
 
-  useEffect(() => {
-    if (isUserLoading || isEnrollmentLoading || areLessonsLoading) return;
-    
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    const isTeacherOrAdmin = hasAdminOrTeacherClaim === true;
-    // Do not auto-enroll admin/teacher per spec
-    if (!isTeacherOrAdmin && user && enrollment === null && course && !autoEnrolled) {
-      (async () => {
-        try {
-          await enrollInCourse(user.uid, course.id);
-          setAutoEnrolled(true);
-        } catch {}
-      })();
-      return;
-    }
-
-    if (user && enrollment && sortedLessons && sortedLessons.length > 0) {
-      // Check for sequential access
-      const isFirstRun = completedLessons.length === 0;
-      const uid2 = user?.uid;
-      const isInstructor2 = !!(uid2 && course && ((course.ownerId === uid2) || ((course.instructorIds || []).includes(uid2))));
-      const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor2));
-      const isLocked = !isFirstRun && lessonIndex > 0 && !completedLessons.includes(sortedLessons[lessonIndex - 1].id);
-      if (isLocked && !canPreviewCourse) {
-        toast({
-          variant: 'destructive',
-          title: 'Lesson Locked',
-          description: 'Please complete the previous lesson first.',
-        });
-      }
-    }
-  }, [user, isUserLoading, enrollment, isEnrollmentLoading, router, slug, course, sortedLessons, lessonIndex, completedLessons, toast, areLessonsLoading, autoEnrolled, isAdmin]);
-
 
   const handleToggleComplete = async () => {
     if (!user || !course || !sortedLessons) return;
 
+    const currentCompleted = Array.from(completedLessonSet);
     let newCompletedLessons: string[];
     // If the lesson is already completed, we are marking it as incomplete.
     // To maintain sequence, all subsequent lessons must also be marked incomplete.
     if (isLessonCompleted) {
         const lessonStartIndex = sortedLessons.findIndex(l => l.id === lessonId);
         const lessonsToIncomplete = sortedLessons.slice(lessonStartIndex).map(l => l.id);
-        newCompletedLessons = completedLessons.filter(id => !lessonsToIncomplete.includes(id));
+        newCompletedLessons = currentCompleted.filter(id => !lessonsToIncomplete.includes(id));
     } else {
         // Marking as complete, just add it.
-        newCompletedLessons = [...new Set([...completedLessons, lessonId])];
+        newCompletedLessons = [...new Set([...currentCompleted, lessonId])];
     }
       
     const newProgress = Math.round((newCompletedLessons.length / sortedLessons.length) * 100);
 
     try {
       await updateUserProgress(user.uid, course.id, newProgress, newCompletedLessons);
+      setCompletedLessons(newCompletedLessons);
       toast({
         title: isLessonCompleted ? 'Lesson marked incomplete' : 'Lesson Completed!',
         description: 'Your progress has been saved.'
       });
-      // If we just completed the lesson, automatically move to the next one if it exists.
-      if (!isLessonCompleted && nextLesson) {
-        router.push(`/learn/${slug}/${nextLesson.id}`);
-      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -227,9 +217,65 @@ export default function LessonPage() {
   const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
   const canAccessCourseContent = !!(!!enrollment || canPreviewCourse);
   const isStudent = !canPreviewCourse;
-  const isLoading = isUserLoading || isEnrollmentLoading || isCourseLoading || areLessonsLoading;
+  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
+  const isLoading =
+    isUserLoading ||
+    isCourseLoading ||
+    isProfileLoading ||
+    isEnrollmentLoading ||
+    isEnrollmentRequestLoading ||
+    areLessonsLoading;
 
-  if (isLoading || !course || !lesson) {
+  const handleWaitlist = async () => {
+    if (!course) return;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`/learn/${slug}/${lessonId}`)}`);
+      return;
+    }
+
+    try {
+      setIsWaitlistSaving(true);
+
+      const courseIsFull = (course as any)?.isFull === true;
+      if (!courseIsFull) {
+        if (studentPaymentRequired && !canPreviewCourse) {
+          window.location.assign('/#pricing');
+          return;
+        }
+        await enrollInCourse(user.uid, course.id);
+        await cancelEnrollmentRequest(user.uid, course.id);
+        toast({ title: 'Enrolled', description: 'You can now access the course lessons.' });
+        router.push(`/learn/${slug}`);
+        return;
+      }
+
+      if (isWaitlistApproved) {
+        await enrollInCourse(user.uid, course.id);
+        await cancelEnrollmentRequest(user.uid, course.id);
+        toast({ title: 'Enrollment started', description: 'You can now access the course lessons.' });
+        router.push(`/learn/${slug}`);
+        return;
+      }
+
+      await requestEnrollment({
+        userId: user.uid,
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: (course as any)?.courseCode || null,
+      });
+      toast({ title: 'Added to waiting list', description: 'We will review your request soon.' });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Request failed',
+        description: err?.message || 'Could not update your request.',
+      });
+    } finally {
+      setIsWaitlistSaving(false);
+    }
+  };
+
+  if (isLoading) {
      return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -238,6 +284,178 @@ export default function LessonPage() {
             <Skeleton className="h-6 w-1/4 mb-4" />
             <Skeleton className="h-10 w-3/4 mb-8" />
             <Skeleton className="h-40 w-full" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-10 md:py-16">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-muted-foreground">Course not found.</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-10 md:py-16">
+          <div className="max-w-3xl mx-auto">
+            <Card className="border-accent">
+              <CardHeader>
+                <CardTitle>Login required</CardTitle>
+                <CardDescription>Please login to view this lesson.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href={`/login?next=${encodeURIComponent(`/learn/${slug}/${lessonId}`)}`}>Go to Login</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!canAccessCourseContent) {
+    const courseIsFull = (course as any)?.isFull === true;
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-10 md:py-16">
+          <div className="max-w-3xl mx-auto">
+            <Card className="border-accent">
+              <CardHeader>
+                <CardTitle>{courseIsFull ? 'Join waiting list' : 'Enroll to access this course'}</CardTitle>
+                <CardDescription>
+                  {courseIsFull
+                    ? 'Your request will be reviewed before you can access lessons.'
+                    : 'You need to enroll before viewing lessons.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {studentPaymentRequired && (
+                  <p className="text-sm text-destructive">Payment is required before you can access lessons.</p>
+                )}
+                {courseIsFull && isWaitlistPending && (
+                  <p className="text-sm text-muted-foreground">
+                    Your request is pending approval. You will be able to start once approved.
+                  </p>
+                )}
+                {courseIsFull && isWaitlistRejected && (
+                  <p className="text-sm text-destructive">
+                    Your request was rejected. You can request again if you think this is a mistake.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    disabled={
+                      isWaitlistSaving ||
+                      (courseIsFull && isWaitlistPending) ||
+                      (!courseIsFull && studentPaymentRequired && !canPreviewCourse)
+                    }
+                    onClick={handleWaitlist}
+                    className="bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
+                  >
+                    {!courseIsFull
+                      ? studentPaymentRequired && !canPreviewCourse
+                        ? 'Payment required'
+                        : isWaitlistSaving
+                          ? 'Enrolling...'
+                          : 'Enroll Now'
+                      : isWaitlistApproved
+                        ? 'Start Course'
+                        : isWaitlistPending
+                          ? 'On Waiting List'
+                          : isWaitlistRejected
+                            ? 'Request Again'
+                            : isWaitlistSaving
+                              ? 'Saving...'
+                              : 'Join Waiting List'}
+                  </Button>
+                  {studentPaymentRequired && (
+                    <Button asChild variant="outline">
+                      <Link href="/#pricing">View Plans</Link>
+                    </Button>
+                  )}
+                  <Button asChild variant="outline">
+                    <Link href={`/courses/${slug}`}>Back to course</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!lesson) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-10 md:py-16">
+          <div className="max-w-3xl mx-auto">
+            <Card className="border-accent">
+              <CardHeader>
+                <CardTitle>Lesson not found</CardTitle>
+                <CardDescription>This lesson does not exist in this course.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href={`/learn/${slug}`}>Back to course</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isLessonLocked = !!(prevLesson && !completedLessonSet.has(prevLesson.id) && !canPreviewCourse);
+  if (isLessonLocked) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-10 md:py-16">
+          <div className="max-w-3xl mx-auto">
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-destructive" />
+                  Lesson Locked
+                </CardTitle>
+                <CardDescription>Please complete the previous lesson first.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {prevLesson ? (
+                  <Button asChild variant="outline">
+                    <Link href={`/learn/${slug}/${prevLesson.id}`}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Go to previous lesson
+                    </Link>
+                  </Button>
+                ) : null}
+                <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href={`/learn/${slug}`}>Back to course</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </main>
         <Footer />
@@ -289,12 +507,6 @@ export default function LessonPage() {
   })();
   const openInAppLabel = lang === 'ar' ? 'فتح داخل التطبيق' : 'Open in app';
 
-
-  if (isStudent && enrollment === null) {
-      // This can happen briefly while enrollment data is loading or if the user is not enrolled.
-      // The main useEffect hook will handle redirection.
-      return null;
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

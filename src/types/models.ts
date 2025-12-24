@@ -20,6 +20,8 @@ export interface Course {
   slug: string;
   /** Short, human-friendly code used for certificates (e.g. AWSFND, PY101). */
   courseCode?: string;
+  /** If true, students must join a waiting list instead of enrolling directly. */
+  isFull?: boolean;
   title: string;
   description: string;
   category: string;
@@ -68,6 +70,24 @@ export interface Enrollment {
   enrollmentDate?: FirestoreTimestamp;
   progress: number;
   completedLessons: string[];
+}
+
+export type EnrollmentRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface EnrollmentRequest {
+  /** Document ID, typically the courseId (slug). */
+  id?: string;
+  userId: string;
+  userEmail?: string | null;
+  userName?: string | null;
+  courseId: string;
+  courseTitle?: string | null;
+  courseCode?: string | null;
+  status: EnrollmentRequestStatus;
+  createdAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+  approvedAt?: FirestoreTimestamp;
+  rejectedAt?: FirestoreTimestamp;
 }
 
 export interface LearningPath {

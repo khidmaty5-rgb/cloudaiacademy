@@ -309,6 +309,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       label: lang === 'ar' ? 'الدورات' : 'Courses',
     },
     {
+      href: '/admin/waitlist',
+      label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
+    },
+    {
       href: '/admin/analytics',
       label: lang === 'ar' ? 'التحليلات' : 'Analytics',
     },
@@ -331,6 +335,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     {
       href: '/admin/seed',
       label: lang === 'ar' ? 'تهيئة البيانات' : 'Seed',
+    },
+    {
+      href: '/admin/waitlist',
+      label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
     },
   ] as const;
 
@@ -603,10 +611,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                           >
                             {lang === 'ar' ? 'الشهادات' : 'Certificates'}
                           </Link>
-                          {canAccessAdmin && (
+                              {canAccessAdmin && (
                             <div className="mt-2">
                               <p className="px-2 text-xs text-primary-foreground/60">
-                                {isTeacher ? (lang==='ar' ? '???????' : 'Teaching') : (lang==='ar' ? '???????' : 'Admin')}
+                                {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
                               </p>
                               {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
                                 <Link

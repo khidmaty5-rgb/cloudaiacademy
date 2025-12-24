@@ -36,14 +36,14 @@ const coursesCopy = {
     noResults: 'No courses found matching your criteria.',
   },
   ar: {
-    title: 'Explore Our Courses',
-    subtitle: 'Find the perfect course to advance your skills in Cloud and AI.',
-    searchPlaceholder: 'Search for courses...',
-    filterCategory: 'Filter by category',
-    filterLevel: 'Filter by level',
-    allCategories: 'All Categories',
-    allLevels: 'All Levels',
-    noResults: 'No courses found matching your criteria.',
+    title: 'استكشف دوراتنا',
+    subtitle: 'اعثر على الدورة المناسبة لتطوير مهاراتك في الحوسبة السحابية والذكاء الاصطناعي.',
+    searchPlaceholder: 'ابحث عن الدورات...',
+    filterCategory: 'تصفية حسب الفئة',
+    filterLevel: 'تصفية حسب المستوى',
+    allCategories: 'كل الفئات',
+    allLevels: 'كل المستويات',
+    noResults: 'لم يتم العثور على دورات مطابقة لمعايير البحث.',
   },
 } as const;
 

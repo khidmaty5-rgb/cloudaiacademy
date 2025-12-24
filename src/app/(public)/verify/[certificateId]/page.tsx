@@ -28,6 +28,7 @@ export default function VerifyCertificatePage() {
   }, [firestore, certificateId]);
 
   const { data: certificate, isLoading, error } = useDoc<Certificate>(certDocRef);
+  const isRevoked = certificate?.status === 'REVOKED';
 
   const verifyUrl = useMemo(() => {
     if (!certificateId) return '';
@@ -88,11 +89,21 @@ export default function VerifyCertificatePage() {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="flex flex-col gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 md:flex-row md:items-center md:justify-between">
+              <div
+                className={[
+                  'flex flex-col gap-3 rounded-md border p-4 md:flex-row md:items-center md:justify-between',
+                  isRevoked
+                    ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200',
+                ].join(' ')}
+              >
                 <div>
-                  Verified certificate: <span className="font-semibold">{certificate.id}</span>
+                  {isRevoked ? 'Revoked certificate:' : 'Verified certificate:'}{' '}
+                  <span className="font-semibold">{certificate.id}</span>
                 </div>
-                {certificate.pdfPath ? (
+                {isRevoked ? (
+                  <p className="text-sm md:text-base">Download is disabled for revoked certificates.</p>
+                ) : certificate.pdfPath ? (
                   <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                     <Link href={`/api/certificates/${encodeURIComponent(certificate.id)}/download?disposition=attachment`}>
                       Download PDF

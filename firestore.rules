@@ -163,13 +163,60 @@ service cloud.firestore {
       // Owners, admins, or instructors of the course can read enrollments
       allow get: if isOwner(userId) || isAdmin() || isInstructorOfCourse(enrollmentId);
       allow list: if isOwner(userId) || isAdmin() || isInstructorOfCourse(enrollmentId);
-      allow create: if isOwner(userId) && accountActive() && request.resource.data.userId == userId;
+      // Students can enroll directly when the course is open; when full, they must be approved via waitlist.
+      allow create: if (
+        isOwner(userId) &&
+        accountActive() &&
+        request.resource.data.userId == userId &&
+        request.resource.data.courseId == enrollmentId &&
+        (
+          // Staff can enroll themselves without a request (useful for testing).
+          isAdminOrTeacher() ||
+          (
+            // Course open => direct enrollment allowed.
+            (
+              exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
+              get(/databases/$(database)/documents/courses/$(enrollmentId)).data.isFull != true
+            ) ||
+            // Course full => must be approved first.
+            (
+              exists(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)) &&
+              get(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)).data.status == 'APPROVED'
+            )
+          )
+        )
+      );
       allow update: if isExistingOwner(userId) && accountActive() && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     match /{path=**}/enrollments/{enrollmentId} {
       allow get, list: if isAdmin() || isInstructorOfCourse(enrollmentId) || (isSignedIn() && request.auth.uid == resource.data.userId);
+    }
+
+    // Collection group support for enrollmentRequests (waitlist) queries.
+    match /{path=**}/enrollmentRequests/{requestId} {
+      allow get, list: if isAdminOrTeacher() || (isSignedIn() && request.auth.uid == resource.data.userId);
+    }
+
+    /**
+     * @description Enrollment requests (waitlist).
+     * @path /users/{userId}/enrollmentRequests/{courseId}
+     * @allow Students can create/delete their own requests; admins/teachers can view and update status.
+     */
+    match /users/{userId}/enrollmentRequests/{courseId} {
+      allow get, list: if isOwner(userId) || isAdminOrTeacher();
+      allow create: if (
+        isOwner(userId) &&
+        request.resource.data.userId == userId &&
+        request.resource.data.courseId == courseId &&
+        request.resource.data.status == 'PENDING' &&
+        // Only allow waitlist requests when the course is marked full.
+        exists(/databases/$(database)/documents/courses/$(courseId)) &&
+        get(/databases/$(database)/documents/courses/$(courseId)).data.isFull == true
+      );
+      allow update: if isAdminOrTeacher();
+      allow delete: if isOwner(userId) || isAdminOrTeacher();
     }
 
     /**

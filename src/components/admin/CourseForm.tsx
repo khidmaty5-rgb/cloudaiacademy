@@ -45,6 +45,7 @@ const courseSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   price: z.string().min(1, 'Price is required'),
   duration: z.string().min(1, 'Duration is required'),
+  isFull: z.boolean().default(false),
   totalHours: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
     z.number().int().positive().optional(),
@@ -79,6 +80,7 @@ export default function CourseForm({ course }: CourseFormProps) {
       category: (course as any)?.category ?? '',
       price: (course as any)?.price ?? '',
       duration: (course as any)?.duration ?? '',
+      isFull: (course as any)?.isFull ?? false,
       totalHours: (course as any)?.totalHours ?? undefined,
       level: ((course as any)?.level as any) ?? 'Beginner',
       livePlatform: ((course as any)?.livePlatform as any) ?? 'none',
@@ -119,6 +121,8 @@ export default function CourseForm({ course }: CourseFormProps) {
         liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom?.trim() || defaultRoom) : null,
         liveMeetUrl: data.livePlatform === 'google-meet' ? (data.liveMeetUrl?.trim() || null) : null,
       } as CourseFormValues;
+      // Prevent teachers from accidentally toggling admin-only fields.
+      const cleanedForSave: CourseFormValues = isAdmin ? cleaned : ({ ...(cleaned as any), isFull: undefined } as any);
 
       const extra = isAdmin
         ? {
@@ -127,13 +131,13 @@ export default function CourseForm({ course }: CourseFormProps) {
           }
         : undefined;
       if (isEditMode) {
-        await updateCourse(course.id!, { ...cleaned, ...(extra || {}) });
+        await updateCourse(course.id!, { ...cleanedForSave, ...(extra || {}) });
         toast({
           title: 'Course Updated!',
           description: `${cleaned.title} has been successfully updated.`,
         });
       } else {
-        await addCourse(cleaned, extra);
+        await addCourse(cleanedForSave, extra);
         toast({
           title: 'Course Created!',
           description: `${cleaned.title} has been successfully added.`,
@@ -231,6 +235,27 @@ export default function CourseForm({ course }: CourseFormProps) {
             )}
             />
         </div>
+
+        {isAdmin && (
+          <FormField
+            control={form.control}
+            name="isFull"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(!!v)} />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Course is full (use waiting list)</FormLabel>
+                  <p className="text-sm text-muted-foreground">
+                    If enabled, students will see "Join Waiting List" instead of "Enroll Now".
+                  </p>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
+
         <FormField
           control={form.control}
           name="totalHours"
