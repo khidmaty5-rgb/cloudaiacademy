@@ -60,6 +60,8 @@ type UserProfileMenuProps = {
   onToggleStats: () => void;
   showTestimonials: boolean;
   onToggleTestimonials: () => void;
+  showPricing: boolean;
+  onTogglePricing: () => void;
 };
 
 function UserProfileMenu({
@@ -73,6 +75,8 @@ function UserProfileMenu({
   onToggleStats,
   showTestimonials,
   onToggleTestimonials,
+  showPricing,
+  onTogglePricing,
 }: UserProfileMenuProps) {
   const { user } = useUser();
   const router = useRouter();
@@ -220,6 +224,11 @@ function UserProfileMenu({
             {showTestimonials ? 'Hide Testimonials on Home' : 'Show Testimonials on Home'}
           </DropdownMenuItem>
         )}
+        {role === 'admin' && (
+          <DropdownMenuItem onClick={onTogglePricing}>
+            {showPricing ? 'Hide Pricing on Home' : 'Show Pricing on Home'}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
@@ -259,6 +268,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const showJournalNav = uiSettings?.showJournalNav !== false;
   const showStats = uiSettings?.showStats !== false;
   const showTestimonials = uiSettings?.showTestimonials !== false;
+  const showPricing = uiSettings?.showPricing !== false;
 
   const visibleLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
 
@@ -273,6 +283,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const toggleTestimonials = async () => {
     const next = !showTestimonials;
     await setDoc(settingsDocRef as any, { showTestimonials: next }, { merge: true });
+  };
+  const togglePricing = async () => {
+    const next = !showPricing;
+    await setDoc(settingsDocRef as any, { showPricing: next }, { merge: true });
   };
 
   const navLabel = (id: 'home' | 'courses' | 'journal') => {
@@ -348,6 +362,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     {
       href: '/admin/waitlist',
       label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
+    },
+    {
+      href: '/admin/landing',
+      label: lang === 'ar' ? 'إعدادات الصفحة الرئيسية' : 'Landing Page',
     },
   ] as const);
 
@@ -474,6 +492,8 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             onToggleStats={toggleStats}
             showTestimonials={showTestimonials}
             onToggleTestimonials={toggleTestimonials}
+            showPricing={showPricing}
+            onTogglePricing={togglePricing}
           />
 
           <div className="md:hidden">

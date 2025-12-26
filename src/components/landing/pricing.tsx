@@ -12,10 +12,16 @@ import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useLang } from '@/components/i18n/lang';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { doc, getFirestore } from 'firebase/firestore';
+import { DEFAULT_PRICING, sanitizePricingConfig } from '@/lib/landing-pricing';
 
 // plans are derived inside the component based on language
 
 export default function Pricing() {
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui } = useDoc<any>(settingsDocRef);
   const { lang } = useLang();
   const heading = lang === 'ar' ? 'خطط تعلم مرنة' : 'Flexible Learning Plans';
   const sub =
@@ -109,31 +115,42 @@ export default function Pricing() {
             isFeatured: false,
           },
         ];
+  const showPricing = ui?.showPricing !== false; // default: show
+  if (!showPricing) return null;
+
+  const config = sanitizePricingConfig(ui?.pricing?.[lang], DEFAULT_PRICING[lang]);
+  const resolvedHeading = config.heading || heading;
+  const resolvedSub = config.sub || sub;
+  const resolvedPeriod = config.period || period;
+  const resolvedMostPopular = config.mostPopular || mostPopular;
+  const resolvedButtonText = config.buttonText || btnText;
+  const resolvedPlans = config.plans.length > 0 ? config.plans : plans;
+
   return (
     <section id="pricing" className="py-20 md:py-28 bg-background">
       <div className="container">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="font-headline text-3xl md:text-4xl font-bold">
-            {heading}
+            {resolvedHeading}
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            {sub}
+            {resolvedSub}
           </p>
         </div>
         <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
-          {plans.map((plan) => (
+          {resolvedPlans.map((plan) => (
             <Card
-              key={plan.name}
+              key={(plan as any).id ?? plan.name}
               className={cn(
                 'flex flex-col h-full',
-                plan.isFeatured
+                (plan as any).isFeatured
                   ? 'border-2 border-accent shadow-accent/20 shadow-lg relative scale-105'
                   : 'border'
               )}
             >
-              {plan.isFeatured && (
+              {(plan as any).isFeatured && (
                 <Badge className="absolute -top-4 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground">
-                  {mostPopular}
+                  {resolvedMostPopular}
                 </Badge>
               )}
               <CardHeader className="text-center">
@@ -144,14 +161,14 @@ export default function Pricing() {
                   <span className="text-4xl font-bold text-primary">
                     {plan.price}
                   </span>
-                  <span className="text-muted-foreground">{plan.period}</span>
+                  <span className="text-muted-foreground">{resolvedPeriod}</span>
                 </div>
               </CardHeader>
               <CardContent className="flex-1">
                 <ul className="space-y-4">
-                  {plan.features.map((feature) => (
+                  {plan.features.map((feature: any, index: number) => (
                     <li
-                      key={feature.text}
+                      key={`${(plan as any).id ?? plan.name}-feature-${index}`}
                       className="flex items-center gap-3 text-left"
                     >
                       {feature.included ? (
@@ -168,14 +185,14 @@ export default function Pricing() {
               </CardContent>
               <CardFooter>
                 <Button
-                  variant={plan.isFeatured ? 'default' : 'outline'}
+                  variant={(plan as any).isFeatured ? 'default' : 'outline'}
                   className={cn(
                     'w-full',
-                    plan.isFeatured &&
+                    (plan as any).isFeatured &&
                       'bg-accent hover:bg-accent/90 text-accent-foreground'
                   )}
                 >
-                  {btnText}
+                  {resolvedButtonText}
                 </Button>
               </CardFooter>
             </Card>

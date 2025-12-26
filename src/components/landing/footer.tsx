@@ -12,9 +12,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/components/i18n/lang';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { doc, getFirestore } from 'firebase/firestore';
 
 export default function Footer() {
   const { lang } = useLang();
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui } = useDoc<any>(settingsDocRef);
+  const showPricing = ui?.showPricing !== false; // default: show
   const t = {
     en: {
       tagline: 'An online learning platform for Cloud and AI courses.',
@@ -106,14 +112,16 @@ export default function Footer() {
                   {t[lang].courses}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="#pricing"
-                  className="text-primary-foreground/70 hover:text-accent"
-                >
-                  {t[lang].pricing}
-                </Link>
-              </li>
+              {showPricing && (
+                <li>
+                  <Link
+                    href="#pricing"
+                    className="text-primary-foreground/70 hover:text-accent"
+                  >
+                    {t[lang].pricing}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
                   href="#testimonials"
