@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getCourseImage } from '@/lib/course-images';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Input } from '@/components/ui/input';
@@ -157,7 +157,8 @@ export default function CoursesPage() {
           ) : filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredCourses.map((course) => {
-                const image = getPlaceholderImage(course.imageId);
+                const image = getCourseImage(course as any);
+                const isContain = image.fit === 'contain';
                 return (
                   <Link
                     href={`/courses/${course.slug}`}
@@ -166,16 +167,18 @@ export default function CoursesPage() {
                   >
                     <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300 h-full border-accent border-2">
                       <CardHeader className="p-0">
-                        <div className="relative h-60 w-full bg-white">
-                          {image && (
-                            <Image
-                              src={image.imageUrl}
-                              alt={course.title}
-                              fill
-                              className="object-contain bg-white group-hover:scale-105 transition-transform duration-300"
-                              data-ai-hint={image.imageHint}
-                            />
-                          )}
+                        <div className="relative w-full bg-white" style={{ aspectRatio: '3/2' }}>
+                          <div className={`absolute inset-0 ${isContain ? 'p-8' : ''}`}>
+                            <div className="relative h-full w-full">
+                              <Image
+                                src={image.src}
+                                alt={course.title}
+                                fill
+                                className={`${isContain ? 'object-contain' : 'object-cover'} bg-white ${isContain ? '' : 'group-hover:scale-105'} transition-transform duration-300`}
+                                data-ai-hint={image.hint}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">

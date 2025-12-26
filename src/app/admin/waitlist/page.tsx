@@ -18,8 +18,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { setEnrollmentRequestStatus } from '@/lib/enrollment-requests';
+import { cancelEnrollmentRequest, setEnrollmentRequestStatus } from '@/lib/enrollment-requests';
 import type { EnrollmentRequest, EnrollmentRequestStatus } from '@/types/models';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+function isIndexRequiredMessage(message: string): boolean {
+  const m = (message || '').toLowerCase();
+  return (
+    m.includes('requires a') &&
+    m.includes('index') &&
+    (m.includes('collection_group') || m.includes('collection group') || m.includes('collection_group_desc'))
+  );
+}
+
+function isIndexBuildingMessage(message: string): boolean {
+  const m = (message || '').toLowerCase();
+  return m.includes('index is not ready yet') || m.includes('still building') || m.includes('building');
+}
+
+function extractConsoleIndexUrl(message: string): string | null {
+  const match = (message || '').match(/https:\/\/console\.firebase\.google\.com\/\S+/i);
+  if (!match) return null;
+  return match[0].replace(/[).,]+$/, '');
+}
 
 function toDateLabel(v: any): string {
   if (!v) return '-';
@@ -37,6 +67,22 @@ function toDateLabel(v: any): string {
   return d.toLocaleString();
 }
 
+function toTimeMs(v: any): number {
+  if (!v) return 0;
+  const d =
+    typeof v?.toDate === 'function'
+      ? v.toDate()
+      : v instanceof Date
+        ? v
+        : typeof v === 'number'
+          ? new Date(v)
+          : typeof v === 'string'
+            ? new Date(v)
+            : null;
+  if (!d || isNaN(d.getTime())) return 0;
+  return d.getTime();
+}
+
 export default function AdminWaitlistPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -49,22 +95,38 @@ export default function AdminWaitlistPage() {
     if (!isUserLoading && !user) router.push('/admin');
   }, [user, isUserLoading, router]);
 
+  const [useFallbackQuery, setUseFallbackQuery] = useState(false);
   const requestsQuery = useMemoFirebase(() => {
     if (!canView) return null;
-    return query(
-      collectionGroup(firestore, 'enrollmentRequests'),
-      orderBy('createdAt', 'desc'),
-      limit(50),
-    );
-  }, [firestore, canView]);
+    const base = collectionGroup(firestore, 'enrollmentRequests');
+    return useFallbackQuery
+      ? query(base, limit(50))
+      : query(base, orderBy('createdAt', 'desc'), limit(50));
+  }, [firestore, canView, useFallbackQuery]);
   const { data: requests, isLoading: requestsLoading, error: requestsError } =
     useCollection<EnrollmentRequest>(requestsQuery);
 
   const [filter, setFilter] = useState('');
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<EnrollmentRequest | null>(null);
+  const [deleteDeleting, setDeleteDeleting] = useState(false);
+
+  const indexConsoleUrl = requestsError ? extractConsoleIndexUrl(requestsError.message || '') : null;
+  const indexRelatedError = !!(
+    requestsError &&
+    (isIndexRequiredMessage(requestsError.message || '') || isIndexBuildingMessage(requestsError.message || ''))
+  );
+
+  useEffect(() => {
+    if (useFallbackQuery) return;
+    if (!requestsError) return;
+    if (indexRelatedError) setUseFallbackQuery(true);
+  }, [requestsError, indexRelatedError, useFallbackQuery]);
 
   const filteredRequests = useMemo(() => {
-    const list = requests || [];
+    const list = [...(requests || [])];
+    list.sort((a, b) => toTimeMs(b.createdAt) - toTimeMs(a.createdAt));
     const q = filter.trim().toLowerCase();
     if (!q) return list;
     return list.filter((r) => {
@@ -88,6 +150,30 @@ export default function AdminWaitlistPage() {
       });
     } finally {
       setUpdatingKey(null);
+    }
+  };
+
+  const confirmDelete = (r: EnrollmentRequest) => {
+    setDeleteCandidate(r);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteCandidate?.userId || !deleteCandidate?.courseId) return;
+    try {
+      setDeleteDeleting(true);
+      await cancelEnrollmentRequest(deleteCandidate.userId, deleteCandidate.courseId);
+      toast({ title: 'Deleted', description: 'Removed the enrollment request.' });
+      setDeleteConfirmOpen(false);
+      setDeleteCandidate(null);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Delete failed',
+        description: err?.message || 'Could not delete request.',
+      });
+    } finally {
+      setDeleteDeleting(false);
     }
   };
 
@@ -152,13 +238,31 @@ export default function AdminWaitlistPage() {
                 placeholder="Search by student, email, course, code, status..."
               />
 
-              {requestsError ? (
+              {requestsError && !indexRelatedError ? (
                 <div className="text-sm text-destructive">
                   {requestsError.message || 'Failed to load requests.'}
                 </div>
               ) : null}
 
-              {filteredRequests.length === 0 ? (
+              {useFallbackQuery && indexRelatedError ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Firestore index is not ready yet, so this page is using a fallback query. Results may be incomplete until the index finishes building.
+                  {indexConsoleUrl ? (
+                    <div className="mt-2 break-all">
+                      <a className="underline" href={indexConsoleUrl} target="_blank" rel="noreferrer">
+                        Open index status in Firebase Console
+                      </a>
+                    </div>
+                  ) : null}
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={() => setUseFallbackQuery(false)}>
+                      Retry sorted query
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {requestsError ? null : filteredRequests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No requests found.</p>
               ) : (
                 <div className="space-y-3">
@@ -207,6 +311,13 @@ export default function AdminWaitlistPage() {
                           >
                             Reject
                           </Button>
+                          <Button
+                            variant="destructive"
+                            disabled={isUpdating || deleteDeleting || !r.userId || !r.courseId}
+                            onClick={() => confirmDelete(r)}
+                          >
+                            Remove
+                          </Button>
                         </div>
                       </div>
                     );
@@ -218,7 +329,39 @@ export default function AdminWaitlistPage() {
         </div>
       </main>
       <Footer />
+
+      <AlertDialog
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => {
+          setDeleteConfirmOpen(open);
+          if (!open) setDeleteCandidate(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the enrollment request
+              {deleteCandidate
+                ? ` for ${deleteCandidate.userName || deleteCandidate.userEmail || deleteCandidate.userId} — ${deleteCandidate.courseTitle || deleteCandidate.courseId}.`
+                : '.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDelete();
+              }}
+              disabled={!deleteCandidate || deleteDeleting}
+            >
+              {deleteDeleting ? 'Removing…' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-

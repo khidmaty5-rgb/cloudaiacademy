@@ -10,7 +10,7 @@ import Link from 'next/link';
 import Recommendations from '@/components/dashboard/recommendations';
 import { collection, getFirestore, query, where, getDocs } from 'firebase/firestore';
 import Image from 'next/image';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getCourseImage } from '@/lib/course-images';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -186,21 +186,24 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {enrolledCourses.map(course => {
-             const image = getPlaceholderImage(course.imageId);
+             const image = getCourseImage(course as any);
+             const isContain = image.fit === 'contain';
             return (
             <Link href={`/learn/${course.slug}`} key={course.id}>
                 <Card  className="overflow-hidden group hover:shadow-lg transition-shadow duration-300 h-full">
                 <CardHeader className="p-0">
                     <div className="relative h-48 w-full bg-white">
-                    {image && (
+                    <div className={`absolute inset-0 ${isContain ? 'p-6' : ''}`}>
+                      <div className="relative h-full w-full">
                         <Image
-                        src={image.imageUrl}
-                        alt={course.title}
-                        fill
-                        className="object-contain bg-white group-hover:scale-105 transition-transform duration-300"
-                        data-ai-hint={image.imageHint}
+                          src={image.src}
+                          alt={course.title}
+                          fill
+                          className={`${isContain ? 'object-contain' : 'object-cover'} bg-white ${isContain ? '' : 'group-hover:scale-105'} transition-transform duration-300`}
+                          data-ai-hint={image.hint}
                         />
-                    )}
+                      </div>
+                    </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 flex flex-col h-full">

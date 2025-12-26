@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getCourseImage } from '@/lib/course-images';
 import { Pencil } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
  
@@ -338,19 +338,18 @@ export default function AdminCoursesPage() {
                       ))
                     ) : courses && courses.length > 0 ? (
                       courses.map((course: Course) => {
-                        const image = getPlaceholderImage(course.imageId);
+                        const image = getCourseImage(course as any);
                         return (
                           <TableRow key={course.id}>
                             <TableCell>
                               <div className="relative h-12 w-12 bg-white">
-                                {image && (
-                                  <Image
-                                    src={image.imageUrl}
-                                    alt={course.title}
-                                    fill
-                                    className="rounded-md object-contain bg-white"
-                                  />
-                                )}
+                                <Image
+                                  src={image.src}
+                                  alt={course.title}
+                                  fill
+                                  className="rounded-md object-contain bg-white"
+                                  data-ai-hint={image.hint}
+                                />
                               </div>
                             </TableCell>
                             <TableCell className="font-medium">

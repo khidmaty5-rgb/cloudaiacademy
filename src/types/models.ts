@@ -31,6 +31,8 @@ export interface Course {
   totalHours?: number;
   level: CourseLevel;
   imageId: string;
+  /** Optional explicit image URL (e.g. `/images/course.png`). Overrides placeholder images. */
+  imageUrl?: string;
   // Optional teacher association
   ownerId?: string;          // primary instructor/creator uid
   instructorIds?: string[];  // additional instructors if any

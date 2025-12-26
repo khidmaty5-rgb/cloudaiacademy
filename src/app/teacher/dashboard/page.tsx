@@ -9,7 +9,7 @@ import type { Course } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getCourseImage } from '@/lib/course-images';
 import Image from 'next/image';
 import LiveSessionButton from '@/components/LiveSessionButton';
 
@@ -62,18 +62,31 @@ export default function TeacherDashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => {
-            const image = getPlaceholderImage(course.imageId);
+            const image = getCourseImage(course as any);
+            const isContain = image.fit === 'contain';
             return (
               <Card key={course.id} className="overflow-hidden h-full">
                 <CardHeader className="p-0">
-                  <div className="relative h-40 w-full bg-white">
-                    {image && (
+                  <div className="relative w-full bg-white" style={{ aspectRatio: '3/2' }}>
+                    {isContain ? (
+                      <div className="absolute inset-0 p-8">
+                        <div className="relative h-full w-full">
+                          <Image
+                            src={image.src}
+                            alt={course.title}
+                            fill
+                            className="object-contain bg-white"
+                            data-ai-hint={image.hint}
+                          />
+                        </div>
+                      </div>
+                    ) : (
                       <Image
-                        src={image.imageUrl}
+                        src={image.src}
                         alt={course.title}
                         fill
-                        className="object-contain bg-white"
-                        data-ai-hint={image.imageHint}
+                        className="object-cover bg-white"
+                        data-ai-hint={image.hint}
                       />
                     )}
                   </div>

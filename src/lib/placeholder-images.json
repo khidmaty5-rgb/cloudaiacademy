@@ -3,20 +3,20 @@
     {
       "id": "course-aws",
       "description": "AWS Solutions Architect course image",
-      "imageUrl": "/images/hero-browser.png",
-      "imageHint": "lake mountain"
+      "imageUrl": "/images/tt.png",
+      "imageHint": "aws cloud"
     },
     {
       "id": "course-ml",
       "description": "Machine Learning Engineering course image",
-      "imageUrl": "/images/hero-browser.png",
-      "imageHint": "calm lake"
+      "imageUrl": "/images/e.jpg",
+      "imageHint": "ml graph"
     },
     {
       "id": "course-azure",
       "description": "Azure AI Engineer course image",
       "imageUrl": "/images/hero-browser.png",
-      "imageHint": "mountain landscape"
+      "imageHint": "azure ai"
     },
     {
       "id": "course-fcc",
@@ -33,13 +33,13 @@
     {
       "id": "course-bi",
       "description": "Business Intelligence course image",
-      "imageUrl": "/images/course-bi.jpg",
+      "imageUrl": "/images/course-bi.png",
       "imageHint": "data charts"
     },
     {
       "id": "course-python",
       "description": "Python Programming course image",
-      "imageUrl": "/images/hero-browser.png",
+      "imageUrl": "/images/course-pyAna.png",
       "imageHint": "code abstract"
     },
     {
@@ -71,6 +71,102 @@
       "description": "Browser window illustration for hero section",
       "imageUrl": "/images/hero-browser.png",
       "imageHint": "browser window"
+    },
+    {
+      "id": "course-agile",
+      "description": "Agile & Scrum course image",
+      "imageUrl": "/images/tt.png",
+      "imageHint": "kanban board"
+    },
+    {
+      "id": "course-devops",
+      "description": "DevOps Fundamentals course image",
+      "imageUrl": "/images/course-devops.png",
+      "imageHint": "ci/cd pipeline"
+    },
+    {
+      "id": "course-cloud",
+      "description": "Cloud Fundamentals course image",
+      "imageUrl": "/images/course-cloud.png",
+      "imageHint": "cloud icons"
+    },
+    {
+      "id": "course-python-data",
+      "description": "Python for Data Analysis image",
+      "imageUrl": "/images/course-pyAna.png",
+      "imageHint": "python charts"
+    },
+    {
+      "id": "course-linux",
+      "description": "Linux Fundamentals course image",
+      "imageUrl": "/images/d.png",
+      "imageHint": "linux terminal"
+    },
+    {
+      "id": "course-cyber",
+      "description": "Cybersecurity Fundamentals course image",
+      "imageUrl": "/images/hero-browser.png",
+      "imageHint": "lock shield"
+    },
+    {
+      "id": "course-networking",
+      "description": "Networking Fundamentals course image",
+      "imageUrl": "/images/course-networking.png",
+      "imageHint": "network diagram"
+    },
+    {
+      "id": "course-maintenance",
+      "description": "Computer & Mobile Maintenance course image",
+      "imageUrl": "/images/hero-browser.png",
+      "imageHint": "tools gears"
+    },
+    {
+      "id": "course-service-desk",
+      "description": "IT Support / Helpdesk course image",
+      "imageUrl": "/images/tet.jpg",
+      "imageHint": "headset support"
+    },
+    {
+      "id": "course-customer-service",
+      "description": "Customer Service & Call Center course image",
+      "imageUrl": "/images/tt.png",
+      "imageHint": "people talking"
+    },
+    {
+      "id": "course-communication",
+      "description": "Business Communication course image",
+      "imageUrl": "/images/e.jpg",
+      "imageHint": "presentation"
+    },
+    {
+      "id": "course-digital-skills",
+      "description": "Digital Skills course image",
+      "imageUrl": "/images/hero-browser.png",
+      "imageHint": "laptop icons"
+    },
+    {
+      "id": "course-sql",
+      "description": "SQL for Analysts course image",
+      "imageUrl": "/images/course-pbii.png",
+      "imageHint": "database"
+    },
+    {
+      "id": "course-excel",
+      "description": "Excel Analytics course image",
+      "imageUrl": "/images/course-excel-analytics1.png",
+      "imageHint": "spreadsheets"
+    },
+    {
+      "id": "course-power-bi",
+      "description": "Power BI course image",
+      "imageUrl": "/images/course-pbi.png",
+      "imageHint": "dashboards"
+    },
+    {
+      "id": "course-data-analyst",
+      "description": "Data Analyst track course image",
+      "imageUrl": "/images/course-bi.png",
+      "imageHint": "charts"
     }
   ]
 }

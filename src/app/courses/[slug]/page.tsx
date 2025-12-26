@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getCourseImage } from '@/lib/course-images';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
@@ -118,7 +118,7 @@ export default function CourseDetailPage() {
   const isEnrolled = !!enrollment;
   const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading || isEnrollmentRequestLoading;
 
-  const image = course ? getPlaceholderImage(course.imageId) : undefined;
+  const image = course ? getCourseImage(course as any) : undefined;
 
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
@@ -254,16 +254,32 @@ export default function CourseDetailPage() {
         <div className="container py-10 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
             <div>
-              <div className="relative h-96 w-full rounded-lg overflow-hidden shadow-lg">
-                {image && (
-                  <Image
-                    src={image.imageUrl}
-                    alt={course.title}
-                    fill
-                    className="object-contain bg-white"
-                    data-ai-hint={image.imageHint}
-                  />
-                )}
+              <div
+                className="relative w-full rounded-lg overflow-hidden shadow-lg bg-white"
+                style={{ aspectRatio: '3/2' }}
+              >
+                {image &&
+                  (image.fit === 'contain' ? (
+                    <div className="absolute inset-0 p-10">
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={image.src}
+                          alt={course.title}
+                          fill
+                          className="object-contain bg-white"
+                          data-ai-hint={image.hint}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <Image
+                      src={image.src}
+                      alt={course.title}
+                      fill
+                      className="object-cover bg-white"
+                      data-ai-hint={image.hint}
+                    />
+                  ))}
               </div>
             </div>
             <div className="flex flex-col justify-center">

@@ -299,7 +299,16 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     return m[lang][key];
   };
 
-  const adminNavItems = [
+  const dedupeByHref = <T extends { href: string }>(items: readonly T[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.href)) return false;
+      seen.add(item.href);
+      return true;
+    });
+  };
+
+  const adminNavItems = dedupeByHref([
     {
       href: '/admin/dashboard',
       label: lang === 'ar' ? 'لوحة تحكم المشرف' : 'Dashboard',
@@ -340,7 +349,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       href: '/admin/waitlist',
       label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
     },
-  ] as const;
+  ] as const);
 
   const adminNavItemsWithCertificates = [
     ...adminNavItems,

@@ -41,6 +41,20 @@ const courseSchema = z.object({
     .max(12, 'Course code must be 12 characters or less')
     .regex(/^[A-Za-z0-9-]+$/, 'Use only letters, numbers, and hyphens')
     .transform((v) => v.toUpperCase()),
+  imageUrl: z.preprocess(
+    (v) => {
+      if (typeof v !== 'string') return undefined;
+      const trimmed = v.trim();
+      return trimmed ? trimmed : undefined;
+    },
+    z
+      .string()
+      .refine(
+        (v) => v.startsWith('/') || v.startsWith('http://') || v.startsWith('https://'),
+        'Use a full URL or a /images/... path',
+      )
+      .optional(),
+  ),
   description: z.string().min(10, 'Description is too short'),
   category: z.string().min(1, 'Category is required'),
   price: z.string().min(1, 'Price is required'),
@@ -76,6 +90,7 @@ export default function CourseForm({ course }: CourseFormProps) {
     defaultValues: {
       title: (course as any)?.title ?? '',
       courseCode: (course as any)?.courseCode ?? '',
+      imageUrl: (course as any)?.imageUrl ?? '',
       description: (course as any)?.description ?? '',
       category: (course as any)?.category ?? '',
       price: (course as any)?.price ?? '',
@@ -90,10 +105,10 @@ export default function CourseForm({ course }: CourseFormProps) {
   });
 
   // Admin-only teacher list and instructor assignment state
-  const teachersQuery = useMemoFirebase(
-    () => query(collection(firestore, 'users'), where('role', '==', 'teacher')),
-    [firestore]
-  );
+  const teachersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'teacher'));
+  }, [firestore, isAdmin]);
   const { data: teachers } = useCollection<any>(teachersQuery);
   const initialOwnerId = (course as any)?.ownerId as string | undefined;
   const initialInstructorIds = ((course as any)?.instructorIds as string[] | undefined) || [];
@@ -187,6 +202,26 @@ export default function CourseForm({ course }: CourseFormProps) {
                   onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="imageUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Course image URL (optional)</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="e.g., /images/course-aws.png"
+                  spellCheck={false}
+                  {...field}
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Tip: put an image in <span className="font-mono">public/images</span> and use <span className="font-mono">/images/filename.png</span>.
+              </p>
               <FormMessage />
             </FormItem>
           )}

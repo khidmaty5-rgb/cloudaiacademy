@@ -9,16 +9,16 @@ import { doc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import LessonManager from '@/components/admin/LessonManager';
 import { Separator } from '@/components/ui/separator';
-import { useState } from 'react';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
+import { canTeachCourse } from '@/lib/roles';
 
 export default function EditCoursePage() {
   const params = useParams();
   const slug = params.slug as string;
   const firestore = getFirestore();
   const { user } = useUser();
-  const { isAdmin, loading: roleLoading } = useCurrentRole();
+  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = {
     en: {
@@ -41,32 +41,33 @@ export default function EditCoursePage() {
 
   const { data: course, isLoading } = useDoc(courseDocRef);
 
+  const canEditCourse =
+    isAdmin || (isTeacher && !!user?.uid && !!course && canTeachCourse(course as any, user.uid));
+
+  const isPageLoading = roleLoading || isLoading;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-4xl mx-auto">
-          {roleLoading ? (
+          {isPageLoading ? (
             <>
               <Skeleton className="h-8 w-1/2 mb-8" />
               <Skeleton className="h-96 w-full" />
             </>
-          ) : isAdmin ? (
+          ) : !course ? (
+            <p>{t.courseNotFound}</p>
+          ) : canEditCourse ? (
             <>
               <h1 className="font-headline text-3xl md:text-4xl font-bold mb-8">
                 {t.pageTitle}
               </h1>
-              {isLoading ? (
-                <Skeleton className="h-96 w-full" />
-              ) : course ? (
-                <div className="space-y-12">
-                  <CourseForm course={course} />
-                  <Separator />
-                  <LessonManager course={course} />
-                </div>
-              ) : (
-                <p>{t.courseNotFound}</p>
-              )}
+              <div className="space-y-12">
+                <CourseForm course={course as any} />
+                <Separator />
+                <LessonManager course={course as any} />
+              </div>
             </>
           ) : (
             <div className="text-center py-16">
