@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useLang } from '@/components/i18n/lang';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function Hero() {
   const { user, isUserLoading } = useUser();
@@ -23,15 +24,19 @@ export default function Hero() {
         "Join thousands of professionals advancing their careers with our industry-leading courses and hands-on projects.",
       explore: 'Explore Courses',
       dashboard: 'Go to Dashboard',
-      trial: 'Free Trial',
+      trial: 'Create Free Account',
+      badge: 'Cohorts starting soon',
+      highlights: ['Hands-on labs', 'Printable certificates', 'Arabic & English'],
     },
     ar: {
-      title: 'أطلق إمكاناتك في لحوسبة السحابية والذكاء الاصطناعي',
+      title: 'أطلق إمكاناتك في الحوسبة السحابية والذكاء الاصطناعي',
       desc:
         'انضم إلى آلاف المهنيين الذين يطوّرون مسيرتهم عبر دوراتنا الرائدة ومشاريع تطبيقية.',
       explore: 'استكشف الدورات',
       dashboard: 'اذهب إلى لوحة التحكم',
-      trial: 'تجربة مجانية',
+      trial: 'إنشاء حساب مجاني',
+      badge: 'دفعات جديدة قريبًا',
+      highlights: ['مختبرات عملية', 'شهادات قابلة للطباعة', 'باللغتين العربية والإنجليزية'],
     },
   } as const;
 
@@ -42,11 +47,13 @@ export default function Hero() {
           src={heroImage.imageUrl}
           alt={heroImage.description}
           fill
-          className="object-cover -z-20"
+          className="object-cover -z-20 opacity-10 blur-2xl scale-110"
           data-ai-hint={heroImage.imageHint}
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-orange-900/80 -z-10" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--accent)/0.22),transparent_45%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_80%_30%,hsl(var(--chart-3)/0.18),transparent_55%)]" />
 
       <div
         className="absolute inset-0 -z-10 overflow-hidden"
@@ -84,57 +91,91 @@ export default function Hero() {
       </div>
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={`text-center ${textAlign} ${textOrder}`}>
-                 <h1 className="font-headline text-4xl md:text-6xl font-bold tracking-tighter">
-                    {text[lang].title}
-                </h1>
-                <p className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
-                    {text[lang].desc}
-                </p>
-                <div className={`mt-10 flex flex-col sm:flex-row justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}>
-                    <Button
-                        asChild
-                        size="lg"
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                    >
-                        <Link href="/courses">{text[lang].explore}</Link>
-                    </Button>
-                    {isUserLoading ? (
-                        <div className="h-11 w-40 animate-pulse rounded-md bg-white/20" />
-                    ) : user ? (
-                        <Button
-                        asChild
-                        size="lg"
-                        variant="outline"
-                        className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                        >
-                        <Link href="/dashboard">{text[lang].dashboard}</Link>
-                        </Button>
-                    ) : (
-                        <Button
-                        asChild
-                        size="lg"
-                        variant="outline"
-                        className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                        >
-                        <Link href="/signup">{text[lang].trial}</Link>
-                        </Button>
-                    )}
-                </div>
+          <div className={`text-center ${textAlign} ${textOrder}`}>
+            <div
+              className={`mx-auto lg:mx-0 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-sm text-primary-foreground/90 backdrop-blur-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+            >
+              <Sparkles className="h-4 w-4 text-accent" />
+              <span>{text[lang].badge}</span>
             </div>
-           <div className={`relative mx-auto w-full max-w-[260px] sm:max-w-[320px] md:max-w-[360px] lg:max-w-[420px] aspect-square overflow-hidden rounded-xl shadow-2xl bg-white p-3 ${imageOrder}`}>
-  {browserImage && (
-    <Image
-      src={browserImage.imageUrl}
-      alt={browserImage.description}
-      fill
-      sizes="(max-width: 1024px) 70vw, 480px"
-      className="object-contain object-center"
-      priority
-      data-ai-hint={browserImage.imageHint}
-    />
-  )}
-</div>
+
+            <h1 className="mt-5 font-headline text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
+              {text[lang].title}
+            </h1>
+
+            <p className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
+              {text[lang].desc}
+            </p>
+
+            <ul
+              className={`mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-primary-foreground/80 justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'}`}
+            >
+              {text[lang].highlights.map((item) => (
+                <li key={item} className={`inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <CheckCircle2 className="h-4 w-4 text-accent" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div
+              className={`mt-10 flex flex-col sm:flex-row justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}
+            >
+              <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Link href="/courses">{text[lang].explore}</Link>
+              </Button>
+
+              {isUserLoading ? (
+                <div className="h-11 w-44 animate-pulse rounded-md bg-white/20" />
+              ) : user ? (
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-white/25 bg-white/5 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
+                >
+                  <Link href="/dashboard">{text[lang].dashboard}</Link>
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-white/25 bg-white/5 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
+                >
+                  <Link href="/signup">{text[lang].trial}</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div
+            className={`relative mx-auto w-full max-w-[300px] sm:max-w-[360px] md:max-w-[420px] lg:max-w-[480px] ${imageOrder}`}
+          >
+            <div className="absolute -inset-10 rounded-[2.5rem] bg-gradient-to-br from-accent/35 via-chart-3/20 to-chart-1/20 blur-3xl opacity-70" />
+            <div className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0" />
+              <div className="relative h-full w-full rounded-xl bg-white p-6 shadow-lg">
+                {browserImage && (
+                  <Image
+                    src={browserImage.imageUrl}
+                    alt={browserImage.description}
+                    fill
+                    sizes="(max-width: 1024px) 70vw, 520px"
+                    className="object-contain object-center transition-transform duration-300 group-hover:scale-[1.02]"
+                    priority
+                    data-ai-hint={browserImage.imageHint}
+                  />
+                )}
+              </div>
+              <div
+                className={`pointer-events-none absolute top-6 ${isRTL ? 'right-6' : 'left-6'} inline-flex items-center gap-2 rounded-full bg-primary/70 px-3 py-1 text-xs text-primary-foreground ring-1 ring-white/15 backdrop-blur-md ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <span className="h-2 w-2 rounded-full bg-accent" />
+                <span>CloudAI Academy</span>
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
