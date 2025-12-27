@@ -22,13 +22,17 @@ import {
   type PricingPlan,
   type SupportedLang,
 } from '@/lib/landing-pricing';
+import { DEFAULT_FAQ, sanitizeFaqConfig, type FaqConfig } from '@/lib/landing-faq';
 
 type PricingPlanDraft = Omit<PricingPlan, 'features'> & { featuresText: string };
 type PricingConfigDraft = Omit<PricingConfig, 'plans'> & { plans: PricingPlanDraft[] };
+type FaqConfigDraft = FaqConfig;
 
-type PricingSettingsDraft = {
+type LandingSettingsDraft = {
   showPricing: boolean;
+  showFaq: boolean;
   pricing: Record<SupportedLang, PricingConfigDraft>;
+  faq: Record<SupportedLang, FaqConfigDraft>;
 };
 
 function featuresToText(features: PricingFeature[]) {
@@ -73,28 +77,30 @@ function draftToConfig(draft: PricingConfigDraft): PricingConfig {
   };
 }
 
-function newPlanId() {
+function newId(prefix: string) {
   try {
     if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
-      return (crypto as any).randomUUID() as string;
+      return `${prefix}-${(crypto as any).randomUUID() as string}`;
     }
   } catch {}
-  return `plan-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export default function AdminLandingPricingPage() {
+export default function AdminLandingPage() {
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
   const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { toast } = useToast();
   const { lang } = useLang();
+
   const t = useMemo(
     () =>
       ({
         en: {
-          pageTitle: 'Landing Page: Pricing Section',
+          pageTitle: 'Landing Page Settings',
           noPermission: 'You do not have permission to view this page.',
           showPricing: 'Show pricing section',
+          showFaq: 'Show FAQ section',
           save: 'Save changes',
           saving: 'Saving…',
           resetSaved: 'Reset to saved',
@@ -103,7 +109,9 @@ export default function AdminLandingPricingPage() {
           saveFailed: 'Save failed',
           english: 'English',
           arabic: 'Arabic',
-          section: 'Section',
+          sections: 'Sections',
+          pricing: 'Pricing',
+          faq: 'FAQ',
           heading: 'Heading',
           subtitle: 'Subtitle',
           period: 'Billing period label',
@@ -117,11 +125,18 @@ export default function AdminLandingPricingPage() {
           featured: 'Featured',
           features: 'Features',
           featuresHelp: 'One per line. Prefix with + (included) or - (not included).',
+          questions: 'Questions',
+          addQuestion: 'Add question',
+          removeQuestion: 'Remove question',
+          questionLabel: 'Question',
+          answerLabel: 'Answer',
+          loading: 'Loading…',
         },
         ar: {
-          pageTitle: 'الصفحة الرئيسية: قسم الأسعار',
+          pageTitle: 'إعدادات الصفحة الرئيسية',
           noPermission: 'ليست لديك صلاحية لعرض هذه الصفحة.',
           showPricing: 'إظهار قسم الأسعار',
+          showFaq: 'إظهار قسم الأسئلة الشائعة',
           save: 'حفظ التغييرات',
           saving: 'جارٍ الحفظ…',
           resetSaved: 'إعادة إلى المحفوظ',
@@ -130,11 +145,13 @@ export default function AdminLandingPricingPage() {
           saveFailed: 'فشل الحفظ',
           english: 'English',
           arabic: 'العربية',
-          section: 'القسم',
+          sections: 'الأقسام',
+          pricing: 'الأسعار',
+          faq: 'الأسئلة الشائعة',
           heading: 'العنوان',
           subtitle: 'الوصف',
           period: 'نص فترة الفوترة',
-          mostPopular: 'نص “الأكثر شيوعاً”',
+          mostPopular: 'نص «الأكثر شيوعاً»',
           buttonText: 'نص الزر',
           plans: 'الباقات',
           addPlan: 'إضافة باقة',
@@ -144,6 +161,12 @@ export default function AdminLandingPricingPage() {
           featured: 'مميز',
           features: 'المميزات',
           featuresHelp: 'سطر لكل ميزة. ضع + (متاح) أو - (غير متاح).',
+          questions: 'الأسئلة',
+          addQuestion: 'إضافة سؤال',
+          removeQuestion: 'حذف السؤال',
+          questionLabel: 'السؤال',
+          answerLabel: 'الإجابة',
+          loading: 'جارٍ التحميل…',
         },
       } as const)[lang],
     [lang],
@@ -152,22 +175,30 @@ export default function AdminLandingPricingPage() {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: uiSettings, isLoading: isSettingsLoading } = useDoc<any>(settingsDocRef);
 
-  const [draft, setDraft] = useState<PricingSettingsDraft | null>(null);
+  const [draft, setDraft] = useState<LandingSettingsDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const canViewPage = isAdmin === true;
   const isLoading = isUserLoading || roleLoading || isSettingsLoading;
 
   const makeDraftFromSettings = useMemo(
-    () => (settings: any | undefined | null): PricingSettingsDraft => {
+    () => (settings: any | undefined | null): LandingSettingsDraft => {
       const showPricing = settings?.showPricing !== false;
-      const en = configToDraft(
+      const showFaq = settings?.showFaq !== false;
+      const pricingEn = configToDraft(
         sanitizePricingConfig(settings?.pricing?.en, DEFAULT_PRICING.en),
       );
-      const ar = configToDraft(
+      const pricingAr = configToDraft(
         sanitizePricingConfig(settings?.pricing?.ar, DEFAULT_PRICING.ar),
       );
-      return { showPricing, pricing: { en, ar } };
+      const faqEn = sanitizeFaqConfig(settings?.faq?.en, DEFAULT_FAQ.en);
+      const faqAr = sanitizeFaqConfig(settings?.faq?.ar, DEFAULT_FAQ.ar);
+      return {
+        showPricing,
+        showFaq,
+        pricing: { en: pricingEn, ar: pricingAr },
+        faq: { en: faqEn, ar: faqAr },
+      };
     },
     [],
   );
@@ -177,10 +208,17 @@ export default function AdminLandingPricingPage() {
     setDraft(makeDraftFromSettings(uiSettings));
   }, [draft, makeDraftFromSettings, uiSettings]);
 
-  const updateLang = (language: SupportedLang, updater: (current: PricingConfigDraft) => PricingConfigDraft) => {
+  const updatePricingLang = (language: SupportedLang, updater: (current: PricingConfigDraft) => PricingConfigDraft) => {
     setDraft((prev) => {
       if (!prev) return prev;
       return { ...prev, pricing: { ...prev.pricing, [language]: updater(prev.pricing[language]) } };
+    });
+  };
+
+  const updateFaqLang = (language: SupportedLang, updater: (current: FaqConfigDraft) => FaqConfigDraft) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, faq: { ...prev.faq, [language]: updater(prev.faq[language]) } };
     });
   };
 
@@ -192,9 +230,14 @@ export default function AdminLandingPricingPage() {
     try {
       const payload = {
         showPricing: draft.showPricing,
+        showFaq: draft.showFaq,
         pricing: {
           en: draftToConfig(draft.pricing.en),
           ar: draftToConfig(draft.pricing.ar),
+        },
+        faq: {
+          en: draft.faq.en,
+          ar: draft.faq.ar,
         },
       };
       await setDoc(settingsDocRef as any, payload, { merge: true });
@@ -229,7 +272,16 @@ export default function AdminLandingPricingPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setDraft(makeDraftFromSettings({ showPricing: true, pricing: DEFAULT_PRICING }))}
+                onClick={() =>
+                  setDraft(
+                    makeDraftFromSettings({
+                      showPricing: true,
+                      showFaq: true,
+                      pricing: DEFAULT_PRICING,
+                      faq: DEFAULT_FAQ,
+                    }),
+                  )
+                }
                 disabled={!draft || isSaving}
               >
                 {t.resetDefaults}
@@ -241,30 +293,48 @@ export default function AdminLandingPricingPage() {
           </div>
 
           {isLoading ? (
-            <p className="text-muted-foreground">Loading…</p>
+            <p className="text-muted-foreground">{t.loading}</p>
           ) : !canViewPage ? (
             <p className="text-muted-foreground">{t.noPermission}</p>
           ) : !draft ? null : (
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>{t.section}</CardTitle>
+                  <CardTitle>{t.sections}</CardTitle>
                 </CardHeader>
-                <CardContent className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="font-medium">{t.showPricing}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {lang === 'ar'
-                        ? 'يمكنك إخفاء قسم الأسعار بالكامل من الصفحة الرئيسية.'
-                        : 'Hide or show the pricing section on the homepage.'}
-                    </p>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="font-medium">{t.showPricing}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar'
+                          ? 'يمكنك إخفاء أو إظهار قسم الأسعار من الصفحة الرئيسية.'
+                          : 'Hide or show the pricing section on the homepage.'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draft.showPricing}
+                      onCheckedChange={(checked) =>
+                        setDraft((prev) => (prev ? { ...prev, showPricing: !!checked } : prev))
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={draft.showPricing}
-                    onCheckedChange={(checked) =>
-                      setDraft((prev) => (prev ? { ...prev, showPricing: !!checked } : prev))
-                    }
-                  />
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="font-medium">{t.showFaq}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar'
+                          ? 'يمكنك إخفاء أو إظهار قسم الأسئلة الشائعة من الصفحة الرئيسية.'
+                          : 'Hide or show the FAQ section on the homepage.'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draft.showFaq}
+                      onCheckedChange={(checked) =>
+                        setDraft((prev) => (prev ? { ...prev, showFaq: !!checked } : prev))
+                      }
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -275,30 +345,35 @@ export default function AdminLandingPricingPage() {
                 </TabsList>
 
                 {(['en', 'ar'] as const).map((language) => {
-                  const cfg = draft.pricing[language];
+                  const pricingCfg = draft.pricing[language];
+                  const faqCfg = draft.faq[language];
                   return (
                     <TabsContent key={language} value={language} className="space-y-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle>{language === 'ar' ? t.arabic : t.english}</CardTitle>
+                          <CardTitle>
+                            {t.pricing} — {language === 'ar' ? t.arabic : t.english}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-5">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium">{t.heading}</label>
                               <Input
-                                value={cfg.heading}
+                                dir="auto"
+                                value={pricingCfg.heading}
                                 onChange={(e) =>
-                                  updateLang(language, (c) => ({ ...c, heading: e.target.value }))
+                                  updatePricingLang(language, (c) => ({ ...c, heading: e.target.value }))
                                 }
                               />
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">{t.buttonText}</label>
                               <Input
-                                value={cfg.buttonText}
+                                dir="auto"
+                                value={pricingCfg.buttonText}
                                 onChange={(e) =>
-                                  updateLang(language, (c) => ({ ...c, buttonText: e.target.value }))
+                                  updatePricingLang(language, (c) => ({ ...c, buttonText: e.target.value }))
                                 }
                               />
                             </div>
@@ -307,9 +382,10 @@ export default function AdminLandingPricingPage() {
                           <div className="space-y-2">
                             <label className="text-sm font-medium">{t.subtitle}</label>
                             <Textarea
-                              value={cfg.sub}
+                              dir="auto"
+                              value={pricingCfg.sub}
                               onChange={(e) =>
-                                updateLang(language, (c) => ({ ...c, sub: e.target.value }))
+                                updatePricingLang(language, (c) => ({ ...c, sub: e.target.value }))
                               }
                               rows={3}
                             />
@@ -319,18 +395,20 @@ export default function AdminLandingPricingPage() {
                             <div className="space-y-2">
                               <label className="text-sm font-medium">{t.period}</label>
                               <Input
-                                value={cfg.period}
+                                dir="auto"
+                                value={pricingCfg.period}
                                 onChange={(e) =>
-                                  updateLang(language, (c) => ({ ...c, period: e.target.value }))
+                                  updatePricingLang(language, (c) => ({ ...c, period: e.target.value }))
                                 }
                               />
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">{t.mostPopular}</label>
                               <Input
-                                value={cfg.mostPopular}
+                                dir="auto"
+                                value={pricingCfg.mostPopular}
                                 onChange={(e) =>
-                                  updateLang(language, (c) => ({ ...c, mostPopular: e.target.value }))
+                                  updatePricingLang(language, (c) => ({ ...c, mostPopular: e.target.value }))
                                 }
                               />
                             </div>
@@ -345,12 +423,12 @@ export default function AdminLandingPricingPage() {
                             type="button"
                             variant="outline"
                             onClick={() =>
-                              updateLang(language, (c) => ({
+                              updatePricingLang(language, (c) => ({
                                 ...c,
                                 plans: [
                                   ...c.plans,
                                   {
-                                    id: newPlanId(),
+                                    id: newId('plan'),
                                     name: '',
                                     price: '',
                                     isFeatured: false,
@@ -364,7 +442,7 @@ export default function AdminLandingPricingPage() {
                           </Button>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                          {cfg.plans.map((plan, index) => (
+                          {pricingCfg.plans.map((plan, index) => (
                             <div key={plan.id} className="rounded-lg border p-4 space-y-4">
                               <div className="flex items-center justify-between gap-3 flex-wrap">
                                 <div className="text-sm font-medium">
@@ -374,12 +452,12 @@ export default function AdminLandingPricingPage() {
                                   type="button"
                                   variant="destructive"
                                   onClick={() =>
-                                    updateLang(language, (c) => ({
+                                    updatePricingLang(language, (c) => ({
                                       ...c,
                                       plans: c.plans.filter((_, i) => i !== index),
                                     }))
                                   }
-                                  disabled={cfg.plans.length <= 1}
+                                  disabled={pricingCfg.plans.length <= 1}
                                 >
                                   {t.removePlan}
                                 </Button>
@@ -389,9 +467,10 @@ export default function AdminLandingPricingPage() {
                                 <div className="space-y-2 md:col-span-2">
                                   <label className="text-sm font-medium">{t.planName}</label>
                                   <Input
+                                    dir="auto"
                                     value={plan.name}
                                     onChange={(e) =>
-                                      updateLang(language, (c) => ({
+                                      updatePricingLang(language, (c) => ({
                                         ...c,
                                         plans: c.plans.map((p, i) =>
                                           i === index ? { ...p, name: e.target.value } : p,
@@ -403,9 +482,10 @@ export default function AdminLandingPricingPage() {
                                 <div className="space-y-2">
                                   <label className="text-sm font-medium">{t.planPrice}</label>
                                   <Input
+                                    dir="auto"
                                     value={plan.price}
                                     onChange={(e) =>
-                                      updateLang(language, (c) => ({
+                                      updatePricingLang(language, (c) => ({
                                         ...c,
                                         plans: c.plans.map((p, i) =>
                                           i === index ? { ...p, price: e.target.value } : p,
@@ -421,14 +501,14 @@ export default function AdminLandingPricingPage() {
                                   <p className="text-sm font-medium">{t.featured}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {lang === 'ar'
-                                      ? 'سيظهر شارة “الأكثر شيوعاً”.'
+                                      ? 'سيظهر شارة «الأكثر شيوعاً».'
                                       : 'Shows the “most popular” badge.'}
                                   </p>
                                 </div>
                                 <Switch
                                   checked={!!plan.isFeatured}
                                   onCheckedChange={(checked) =>
-                                    updateLang(language, (c) => ({
+                                    updatePricingLang(language, (c) => ({
                                       ...c,
                                       plans: c.plans.map((p, i) =>
                                         i === index ? { ...p, isFeatured: !!checked } : p,
@@ -441,9 +521,10 @@ export default function AdminLandingPricingPage() {
                               <div className="space-y-2">
                                 <label className="text-sm font-medium">{t.features}</label>
                                 <Textarea
+                                  dir="auto"
                                   value={plan.featuresText}
                                   onChange={(e) =>
-                                    updateLang(language, (c) => ({
+                                    updatePricingLang(language, (c) => ({
                                       ...c,
                                       plans: c.plans.map((p, i) =>
                                         i === index ? { ...p, featuresText: e.target.value } : p,
@@ -453,6 +534,115 @@ export default function AdminLandingPricingPage() {
                                   rows={6}
                                 />
                                 <p className="text-xs text-muted-foreground">{t.featuresHelp}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>
+                            {t.faq} — {language === 'ar' ? t.arabic : t.english}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.heading}</label>
+                            <Input
+                              dir="auto"
+                              value={faqCfg.heading}
+                              onChange={(e) =>
+                                updateFaqLang(language, (c) => ({ ...c, heading: e.target.value }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.subtitle}</label>
+                            <Textarea
+                              dir="auto"
+                              value={faqCfg.sub}
+                              onChange={(e) =>
+                                updateFaqLang(language, (c) => ({ ...c, sub: e.target.value }))
+                              }
+                              rows={2}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                          <CardTitle>{t.questions}</CardTitle>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              updateFaqLang(language, (c) => ({
+                                ...c,
+                                items: [
+                                  ...(c.items || []),
+                                  { id: newId('faq'), question: '', answer: '' },
+                                ],
+                              }))
+                            }
+                          >
+                            {t.addQuestion}
+                          </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {(faqCfg.items || []).map((item, index) => (
+                            <div key={item.id} className="rounded-lg border p-4 space-y-4">
+                              <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div className="text-sm font-medium">
+                                  {lang === 'ar' ? `سؤال ${index + 1}` : `Question ${index + 1}`}
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    updateFaqLang(language, (c) => ({
+                                      ...c,
+                                      items: (c.items || []).filter((_, i) => i !== index),
+                                    }))
+                                  }
+                                  disabled={(faqCfg.items || []).length <= 1}
+                                >
+                                  {t.removeQuestion}
+                                </Button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">{t.questionLabel}</label>
+                                <Input
+                                  dir="auto"
+                                  value={item.question}
+                                  onChange={(e) =>
+                                    updateFaqLang(language, (c) => ({
+                                      ...c,
+                                      items: (c.items || []).map((it, i) =>
+                                        i === index ? { ...it, question: e.target.value } : it,
+                                      ),
+                                    }))
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">{t.answerLabel}</label>
+                                <Textarea
+                                  dir="auto"
+                                  value={item.answer}
+                                  onChange={(e) =>
+                                    updateFaqLang(language, (c) => ({
+                                      ...c,
+                                      items: (c.items || []).map((it, i) =>
+                                        i === index ? { ...it, answer: e.target.value } : it,
+                                      ),
+                                    }))
+                                  }
+                                  rows={4}
+                                />
                               </div>
                             </div>
                           ))}

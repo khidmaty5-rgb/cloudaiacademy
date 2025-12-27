@@ -21,6 +21,7 @@ export default function Footer() {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: ui } = useDoc<any>(settingsDocRef);
   const showPricing = ui?.showPricing !== false; // default: show
+  const showFaq = ui?.showFaq !== false; // default: show
   const t = {
     en: {
       tagline: 'An online learning platform for Cloud and AI courses.',
@@ -130,14 +131,16 @@ export default function Footer() {
                   {t[lang].testimonials}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="#faq"
-                  className="text-primary-foreground/70 hover:text-accent"
-                >
-                  {t[lang].faq}
-                </Link>
-              </li>
+              {showFaq && (
+                <li>
+                  <Link
+                    href="#faq"
+                    className="text-primary-foreground/70 hover:text-accent"
+                  >
+                    {t[lang].faq}
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
