@@ -146,18 +146,22 @@ export default function Hero() {
             <div className="absolute -inset-10 rounded-[2.5rem] bg-gradient-to-br from-accent/35 via-chart-3/20 to-chart-1/20 blur-3xl opacity-70" />
             <div className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0" />
-              <div className="relative h-full w-full rounded-xl bg-white p-6 shadow-lg">
-                {browserImage && (
-                  <Image
-                    src={browserImage.imageUrl}
-                    alt={browserImage.description}
-                    fill
-                    sizes="(max-width: 1024px) 70vw, 520px"
-                    className="object-contain object-center transition-transform duration-300 group-hover:scale-[1.02]"
-                    priority
-                    data-ai-hint={browserImage.imageHint}
-                  />
-                )}
+              <div className="relative h-full w-full overflow-hidden rounded-xl bg-white shadow-lg">
+                <div className="absolute inset-6 pb-6 sm:inset-8 sm:pb-8">
+                  <div className="relative h-full w-full">
+                    {browserImage && (
+                      <Image
+                        src={browserImage.imageUrl}
+                        alt={browserImage.description}
+                        fill
+                        sizes="(max-width: 1024px) 70vw, 520px"
+                        className="object-contain object-center transition-transform duration-300 group-hover:scale-[1.02]"
+                        priority
+                        data-ai-hint={browserImage.imageHint}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
               <div
                 className={`pointer-events-none absolute top-6 ${isRTL ? 'right-6' : 'left-6'} inline-flex items-center gap-2 rounded-full bg-primary/70 px-3 py-1 text-xs text-primary-foreground ring-1 ring-white/15 backdrop-blur-md ${isRTL ? 'flex-row-reverse' : ''}`}
@@ -173,4 +177,3 @@ export default function Hero() {
     </section>
   );
 }
-

@@ -168,7 +168,7 @@ export default function AdminLandingPage() {
           arabic: 'Arabic',
           sections: 'Sections',
           hero: 'Hero',
-          features: 'Why Choose',
+          whyChoose: 'Why Choose',
           pricing: 'Pricing',
           faq: 'FAQ',
           heroBadge: 'Badge',
@@ -222,7 +222,7 @@ export default function AdminLandingPage() {
           arabic: 'العربية',
           sections: 'الأقسام',
           hero: 'المقدمة',
-          features: 'لماذا تختارنا؟',
+          whyChoose: 'لماذا تختارنا؟',
           pricing: 'الأسعار',
           faq: 'الأسئلة الشائعة',
           heroBadge: 'الشارة',
@@ -450,6 +450,22 @@ export default function AdminLandingPage() {
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1">
+                      <p className="font-medium">{t.showFeatures}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar'
+                          ? 'إخفاء أو إظهار قسم لماذا تختار في الصفحة الرئيسية.'
+                          : 'Hide or show the “Why Choose” section on the homepage.'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draft.showFeatures}
+                      onCheckedChange={(checked) =>
+                        setDraft((prev) => (prev ? { ...prev, showFeatures: !!checked } : prev))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
                       <p className="font-medium">{t.showPricing}</p>
                       <p className="text-sm text-muted-foreground">
                         {lang === 'ar'
@@ -491,6 +507,7 @@ export default function AdminLandingPage() {
 
                 {(['en', 'ar'] as const).map((language) => {
                   const heroCfg = draft.hero[language];
+                  const featuresCfg = draft.features[language];
                   const pricingCfg = draft.pricing[language];
                   const faqCfg = draft.faq[language];
                   return (
@@ -581,6 +598,146 @@ export default function AdminLandingPage() {
                                 }
                               />
                             </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+                          <CardTitle>
+                            {t.whyChoose} — {language === 'ar' ? t.arabic : t.english}
+                          </CardTitle>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              updateFeaturesLang(language, (c) => ({
+                                ...c,
+                                items: [
+                                  ...(c.items || []),
+                                  {
+                                    id: newId('feature'),
+                                    icon: 'laptop' as FeatureIconId,
+                                    title: '',
+                                    description: '',
+                                  },
+                                ],
+                              }))
+                            }
+                          >
+                            {t.addFeature}
+                          </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.heading}</label>
+                            <Input
+                              dir="auto"
+                              value={featuresCfg.heading}
+                              onChange={(e) =>
+                                updateFeaturesLang(language, (c) => ({ ...c, heading: e.target.value }))
+                              }
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.subtitle}</label>
+                            <Textarea
+                              dir="auto"
+                              value={featuresCfg.sub}
+                              onChange={(e) =>
+                                updateFeaturesLang(language, (c) => ({ ...c, sub: e.target.value }))
+                              }
+                              rows={3}
+                            />
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="text-sm font-medium">{t.featureItems}</div>
+                            {(featuresCfg.items || []).map((item, index) => (
+                              <div key={item.id} className="rounded-lg border p-4 space-y-4">
+                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                  <div className="text-sm font-medium">
+                                    {lang === 'ar' ? `عنصر ${index + 1}` : `Item ${index + 1}`}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() =>
+                                      updateFeaturesLang(language, (c) => ({
+                                        ...c,
+                                        items: (c.items || []).filter((_, i) => i !== index),
+                                      }))
+                                    }
+                                    disabled={(featuresCfg.items || []).length <= 1}
+                                  >
+                                    {t.removeFeature}
+                                  </Button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">{t.featureIcon}</label>
+                                    <Select
+                                      value={item.icon}
+                                      onValueChange={(value) =>
+                                        updateFeaturesLang(language, (c) => ({
+                                          ...c,
+                                          items: (c.items || []).map((it, i) =>
+                                            i === index ? { ...it, icon: value as FeatureIconId } : it,
+                                          ),
+                                        }))
+                                      }
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="laptop">
+                                          {lang === 'ar' ? 'حاسوب' : 'Laptop'}
+                                        </SelectItem>
+                                        <SelectItem value="graduationCap">
+                                          {lang === 'ar' ? 'تعليم' : 'Graduation cap'}
+                                        </SelectItem>
+                                        <SelectItem value="award">{lang === 'ar' ? 'جائزة' : 'Award'}</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-2 md:col-span-2">
+                                    <label className="text-sm font-medium">{t.featureTitle}</label>
+                                    <Input
+                                      dir="auto"
+                                      value={item.title}
+                                      onChange={(e) =>
+                                        updateFeaturesLang(language, (c) => ({
+                                          ...c,
+                                          items: (c.items || []).map((it, i) =>
+                                            i === index ? { ...it, title: e.target.value } : it,
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">{t.featureDescription}</label>
+                                  <Textarea
+                                    dir="auto"
+                                    value={item.description}
+                                    onChange={(e) =>
+                                      updateFeaturesLang(language, (c) => ({
+                                        ...c,
+                                        items: (c.items || []).map((it, i) =>
+                                          i === index ? { ...it, description: e.target.value } : it,
+                                        ),
+                                      }))
+                                    }
+                                    rows={3}
+                                  />
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </CardContent>
                       </Card>
