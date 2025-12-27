@@ -1,12 +1,14 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useUser } from '@/firebase';
+import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useLang } from '@/components/i18n/lang';
 import { CheckCircle2, Sparkles } from 'lucide-react';
+import { doc, getFirestore } from 'firebase/firestore';
+import { DEFAULT_HERO, sanitizeHeroConfig } from '@/lib/landing-hero';
 
 export default function Hero() {
   const { user, isUserLoading } = useUser();
@@ -15,30 +17,18 @@ export default function Hero() {
   const textAlign = isRTL ? 'lg:text-right' : 'lg:text-left';
   const textOrder = isRTL ? 'lg:order-2' : 'lg:order-1';
   const imageOrder = isRTL ? 'lg:order-1' : 'lg:order-2';
+
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-background');
   const browserImage = PlaceHolderImages.find((img) => img.id === 'hero-browser');
-  const text = {
-    en: {
-      title: 'Unlock Your Potential in Cloud & AI',
-      desc:
-        "Join thousands of professionals advancing their careers with our industry-leading courses and hands-on projects.",
-      explore: 'Explore Courses',
-      dashboard: 'Go to Dashboard',
-      trial: 'Create Free Account',
-      badge: 'Cohorts starting soon',
-      highlights: ['Hands-on labs', 'Printable certificates', 'Arabic & English'],
-    },
-    ar: {
-      title: 'أطلق إمكاناتك في الحوسبة السحابية والذكاء الاصطناعي',
-      desc:
-        'انضم إانضم إلى مجتمع متنامٍ من المهنيين الذين يطوّرون مهاراتهم عبر دورات عملية ومشاريع تطبيقية.',
-      explore: 'استكشف الدورات',
-      dashboard: 'اذهب إلى لوحة التحكم',
-      trial: 'إنشاء حساب مجاني',
-      badge: 'دفعات جديدة قريبًا',
-      highlights: ['مختبرات عملية', 'شهادات قابلة للطباعة', 'باللغتين العربية والإنجليزية'],
-    },
-  } as const;
+
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui } = useDoc<any>(settingsDocRef);
+
+  const showHero = ui?.showHero !== false; // default: show
+  if (!showHero) return null;
+
+  const content = sanitizeHeroConfig(ui?.hero?.[lang], DEFAULT_HERO[lang]);
 
   return (
     <section className="relative bg-primary text-primary-foreground py-20 md:py-32">
@@ -55,10 +45,7 @@ export default function Hero() {
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--accent)/0.22),transparent_45%)]" />
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_80%_30%,hsl(var(--chart-3)/0.18),transparent_55%)]" />
 
-      <div
-        className="absolute inset-0 -z-10 overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <svg
           className="absolute left-[max(50%,25rem)] top-0 h-full w-full -translate-x-1/2 stroke-gray-200/20 [mask-image:radial-gradient(64rem_64rem_at_top,white,transparent)]"
           aria-hidden="true"
@@ -81,14 +68,10 @@ export default function Hero() {
               strokeWidth={0}
             />
           </svg>
-          <rect
-            width="100%"
-            height="100%"
-            strokeWidth={0}
-            fill="url(#e813992c-7d03-4cc4-a2bd-151760b470a0)"
-          />
+          <rect width="100%" height="100%" strokeWidth={0} fill="url(#e813992c-7d03-4cc4-a2bd-151760b470a0)" />
         </svg>
       </div>
+
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className={`text-center ${textAlign} ${textOrder}`}>
@@ -96,33 +79,41 @@ export default function Hero() {
               className={`mx-auto lg:mx-0 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-sm text-primary-foreground/90 backdrop-blur-sm ${isRTL ? 'flex-row-reverse' : ''}`}
             >
               <Sparkles className="h-4 w-4 text-accent" />
-              <span>{text[lang].badge}</span>
+              <span dir="auto">{content.badge}</span>
             </div>
 
-            <h1 className="mt-5 font-headline text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
-              {text[lang].title}
+            <h1
+              dir="auto"
+              className="mt-5 font-headline text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]"
+            >
+              {content.title}
             </h1>
 
-            <p className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
-              {text[lang].desc}
+            <p dir="auto" className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
+              {content.desc}
             </p>
 
-            <ul
-              className={`mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-primary-foreground/80 justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'}`}
-            >
-              {text[lang].highlights.map((item) => (
-                <li key={item} className={`inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+            {content.highlights.length > 0 && (
+              <ul
+                className={`mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-primary-foreground/80 justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'}`}
+              >
+                {content.highlights.map((item) => (
+                  <li
+                    key={item}
+                    className={`inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    <span dir="auto">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div
               className={`mt-10 flex flex-col sm:flex-row justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}
             >
               <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/courses">{text[lang].explore}</Link>
+                <Link href="/courses">{content.explore}</Link>
               </Button>
 
               {isUserLoading ? (
@@ -134,7 +125,7 @@ export default function Hero() {
                   variant="outline"
                   className="border-white/25 bg-white/5 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
                 >
-                  <Link href="/dashboard">{text[lang].dashboard}</Link>
+                  <Link href="/dashboard">{content.dashboard}</Link>
                 </Button>
               ) : (
                 <Button
@@ -143,7 +134,7 @@ export default function Hero() {
                   variant="outline"
                   className="border-white/25 bg-white/5 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
                 >
-                  <Link href="/signup">{text[lang].trial}</Link>
+                  <Link href="/signup">{content.trial}</Link>
                 </Button>
               )}
             </div>
@@ -182,3 +173,4 @@ export default function Hero() {
     </section>
   );
 }
+

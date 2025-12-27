@@ -56,6 +56,10 @@ type UserProfileMenuProps = {
   isProfileLoading: boolean;
   showJournalNav: boolean;
   onToggleJournalNav: () => void;
+  showHero: boolean;
+  onToggleHero: () => void;
+  showFeatures: boolean;
+  onToggleFeatures: () => void;
   showStats: boolean;
   onToggleStats: () => void;
   showTestimonials: boolean;
@@ -73,6 +77,10 @@ function UserProfileMenu({
   isProfileLoading,
   showJournalNav,
   onToggleJournalNav,
+  showHero,
+  onToggleHero,
+  showFeatures,
+  onToggleFeatures,
   showStats,
   onToggleStats,
   showTestimonials,
@@ -219,6 +227,16 @@ function UserProfileMenu({
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
+          <DropdownMenuItem onClick={onToggleHero}>
+            {showHero ? 'Hide Hero on Home' : 'Show Hero on Home'}
+          </DropdownMenuItem>
+        )}
+        {role === 'admin' && (
+          <DropdownMenuItem onClick={onToggleFeatures}>
+            {showFeatures ? 'Hide Why Choose section' : 'Show Why Choose section'}
+          </DropdownMenuItem>
+        )}
+        {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleStats}>
             {showStats ? 'Hide Stats on Home' : 'Show Stats on Home'}
           </DropdownMenuItem>
@@ -275,6 +293,8 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: uiSettings } = useDoc(settingsDocRef);
   const showJournalNav = uiSettings?.showJournalNav !== false;
+  const showHero = uiSettings?.showHero !== false;
+  const showFeatures = uiSettings?.showFeatures !== false;
   const showStats = uiSettings?.showStats !== false;
   const showTestimonials = uiSettings?.showTestimonials !== false;
   const showPricing = uiSettings?.showPricing !== false;
@@ -285,6 +305,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const toggleJournalNav = async () => {
     const next = !showJournalNav;
     await setDoc(settingsDocRef as any, { showJournalNav: next }, { merge: true });
+  };
+  const toggleHero = async () => {
+    const next = !showHero;
+    await setDoc(settingsDocRef as any, { showHero: next }, { merge: true });
+  };
+  const toggleFeatures = async () => {
+    const next = !showFeatures;
+    await setDoc(settingsDocRef as any, { showFeatures: next }, { merge: true });
   };
   const toggleStats = async () => {
     const next = !showStats;
@@ -502,6 +530,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             isProfileLoading={isProfileLoading}
             showJournalNav={showJournalNav}
             onToggleJournalNav={toggleJournalNav}
+            showHero={showHero}
+            onToggleHero={toggleHero}
+            showFeatures={showFeatures}
+            onToggleFeatures={toggleFeatures}
             showStats={showStats}
             onToggleStats={toggleStats}
             showTestimonials={showTestimonials}

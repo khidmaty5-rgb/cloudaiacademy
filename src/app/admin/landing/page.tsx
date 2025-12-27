@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
   DEFAULT_PRICING,
@@ -23,14 +24,29 @@ import {
   type SupportedLang,
 } from '@/lib/landing-pricing';
 import { DEFAULT_FAQ, sanitizeFaqConfig, type FaqConfig } from '@/lib/landing-faq';
+import { DEFAULT_HERO, sanitizeHeroConfig, type HeroConfig } from '@/lib/landing-hero';
+import {
+  DEFAULT_FEATURES,
+  sanitizeFeaturesConfig,
+  type FeatureIconId,
+  type FeatureItem,
+  type FeaturesConfig,
+} from '@/lib/landing-features';
 
 type PricingPlanDraft = Omit<PricingPlan, 'features'> & { featuresText: string };
 type PricingConfigDraft = Omit<PricingConfig, 'plans'> & { plans: PricingPlanDraft[] };
 type FaqConfigDraft = FaqConfig;
+type HeroConfigDraft = Omit<HeroConfig, 'highlights'> & { highlightsText: string };
+type FeatureItemDraft = FeatureItem;
+type FeaturesConfigDraft = Omit<FeaturesConfig, 'items'> & { items: FeatureItemDraft[] };
 
 type LandingSettingsDraft = {
+  showHero: boolean;
+  showFeatures: boolean;
   showPricing: boolean;
   showFaq: boolean;
+  hero: Record<SupportedLang, HeroConfigDraft>;
+  features: Record<SupportedLang, FeaturesConfigDraft>;
   pricing: Record<SupportedLang, PricingConfigDraft>;
   faq: Record<SupportedLang, FaqConfigDraft>;
 };
@@ -77,6 +93,45 @@ function draftToConfig(draft: PricingConfigDraft): PricingConfig {
   };
 }
 
+function highlightsToText(highlights: string[]) {
+  return (highlights || [])
+    .map((h) => (typeof h === 'string' ? h.trim() : ''))
+    .filter(Boolean)
+    .join('\n');
+}
+
+function textToHighlights(text: string) {
+  return (text || '')
+    .split(/\r?\n/g)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function heroToDraft(config: HeroConfig): HeroConfigDraft {
+  return {
+    title: config.title,
+    desc: config.desc,
+    explore: config.explore,
+    dashboard: config.dashboard,
+    trial: config.trial,
+    badge: config.badge,
+    highlightsText: highlightsToText(config.highlights),
+  };
+}
+
+function draftToHero(draft: HeroConfigDraft): HeroConfig {
+  return {
+    title: draft.title,
+    desc: draft.desc,
+    explore: draft.explore,
+    dashboard: draft.dashboard,
+    trial: draft.trial,
+    badge: draft.badge,
+    highlights: textToHighlights(draft.highlightsText),
+  };
+}
+
 function newId(prefix: string) {
   try {
     if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
@@ -99,6 +154,8 @@ export default function AdminLandingPage() {
         en: {
           pageTitle: 'Landing Page Settings',
           noPermission: 'You do not have permission to view this page.',
+          showHero: 'Show hero section',
+          showFeatures: 'Show “Why Choose” section',
           showPricing: 'Show pricing section',
           showFaq: 'Show FAQ section',
           save: 'Save changes',
@@ -110,8 +167,24 @@ export default function AdminLandingPage() {
           english: 'English',
           arabic: 'Arabic',
           sections: 'Sections',
+          hero: 'Hero',
+          features: 'Why Choose',
           pricing: 'Pricing',
           faq: 'FAQ',
+          heroBadge: 'Badge',
+          heroTitle: 'Title',
+          heroDesc: 'Description',
+          heroHighlights: 'Highlights',
+          heroHighlightsHelp: 'One per line (max 8).',
+          heroExplore: 'Explore button',
+          heroDashboard: 'Dashboard button',
+          heroTrial: 'Signup button',
+          featureItems: 'Items',
+          addFeature: 'Add item',
+          removeFeature: 'Remove item',
+          featureIcon: 'Icon',
+          featureTitle: 'Item title',
+          featureDescription: 'Item description',
           heading: 'Heading',
           subtitle: 'Subtitle',
           period: 'Billing period label',
@@ -135,6 +208,8 @@ export default function AdminLandingPage() {
         ar: {
           pageTitle: 'إعدادات الصفحة الرئيسية',
           noPermission: 'ليست لديك صلاحية لعرض هذه الصفحة.',
+          showHero: 'إظهار قسم المقدمة',
+          showFeatures: 'إظهار قسم لماذا تختار CloudAI Academy؟',
           showPricing: 'إظهار قسم الأسعار',
           showFaq: 'إظهار قسم الأسئلة الشائعة',
           save: 'حفظ التغييرات',
@@ -146,8 +221,24 @@ export default function AdminLandingPage() {
           english: 'English',
           arabic: 'العربية',
           sections: 'الأقسام',
+          hero: 'المقدمة',
+          features: 'لماذا تختارنا؟',
           pricing: 'الأسعار',
           faq: 'الأسئلة الشائعة',
+          heroBadge: 'الشارة',
+          heroTitle: 'العنوان',
+          heroDesc: 'الوصف',
+          heroHighlights: 'نقاط مميزة',
+          heroHighlightsHelp: 'سطر لكل نقطة (حد أقصى 8).',
+          heroExplore: 'زر استكشاف الدورات',
+          heroDashboard: 'زر لوحة التحكم',
+          heroTrial: 'زر إنشاء الحساب',
+          featureItems: 'العناصر',
+          addFeature: 'إضافة عنصر',
+          removeFeature: 'حذف عنصر',
+          featureIcon: 'الأيقونة',
+          featureTitle: 'عنوان العنصر',
+          featureDescription: 'وصف العنصر',
           heading: 'العنوان',
           subtitle: 'الوصف',
           period: 'نص فترة الفوترة',
@@ -183,8 +274,14 @@ export default function AdminLandingPage() {
 
   const makeDraftFromSettings = useMemo(
     () => (settings: any | undefined | null): LandingSettingsDraft => {
+      const showHero = settings?.showHero !== false;
+      const showFeatures = settings?.showFeatures !== false;
       const showPricing = settings?.showPricing !== false;
       const showFaq = settings?.showFaq !== false;
+      const heroEn = heroToDraft(sanitizeHeroConfig(settings?.hero?.en, DEFAULT_HERO.en));
+      const heroAr = heroToDraft(sanitizeHeroConfig(settings?.hero?.ar, DEFAULT_HERO.ar));
+      const featuresEn = sanitizeFeaturesConfig(settings?.features?.en, DEFAULT_FEATURES.en);
+      const featuresAr = sanitizeFeaturesConfig(settings?.features?.ar, DEFAULT_FEATURES.ar);
       const pricingEn = configToDraft(
         sanitizePricingConfig(settings?.pricing?.en, DEFAULT_PRICING.en),
       );
@@ -194,8 +291,12 @@ export default function AdminLandingPage() {
       const faqEn = sanitizeFaqConfig(settings?.faq?.en, DEFAULT_FAQ.en);
       const faqAr = sanitizeFaqConfig(settings?.faq?.ar, DEFAULT_FAQ.ar);
       return {
+        showHero,
+        showFeatures,
         showPricing,
         showFaq,
+        hero: { en: heroEn, ar: heroAr },
+        features: { en: featuresEn, ar: featuresAr },
         pricing: { en: pricingEn, ar: pricingAr },
         faq: { en: faqEn, ar: faqAr },
       };
@@ -207,6 +308,20 @@ export default function AdminLandingPage() {
     if (draft) return;
     setDraft(makeDraftFromSettings(uiSettings));
   }, [draft, makeDraftFromSettings, uiSettings]);
+
+  const updateHeroLang = (language: SupportedLang, updater: (current: HeroConfigDraft) => HeroConfigDraft) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, hero: { ...prev.hero, [language]: updater(prev.hero[language]) } };
+    });
+  };
+
+  const updateFeaturesLang = (language: SupportedLang, updater: (current: FeaturesConfigDraft) => FeaturesConfigDraft) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, features: { ...prev.features, [language]: updater(prev.features[language]) } };
+    });
+  };
 
   const updatePricingLang = (language: SupportedLang, updater: (current: PricingConfigDraft) => PricingConfigDraft) => {
     setDraft((prev) => {
@@ -229,8 +344,18 @@ export default function AdminLandingPage() {
     setIsSaving(true);
     try {
       const payload = {
+        showHero: draft.showHero,
+        showFeatures: draft.showFeatures,
         showPricing: draft.showPricing,
         showFaq: draft.showFaq,
+        hero: {
+          en: draftToHero(draft.hero.en),
+          ar: draftToHero(draft.hero.ar),
+        },
+        features: {
+          en: draft.features.en,
+          ar: draft.features.ar,
+        },
         pricing: {
           en: draftToConfig(draft.pricing.en),
           ar: draftToConfig(draft.pricing.ar),
@@ -275,8 +400,12 @@ export default function AdminLandingPage() {
                 onClick={() =>
                   setDraft(
                     makeDraftFromSettings({
+                      showHero: true,
+                      showFeatures: true,
                       showPricing: true,
                       showFaq: true,
+                      hero: DEFAULT_HERO,
+                      features: DEFAULT_FEATURES,
                       pricing: DEFAULT_PRICING,
                       faq: DEFAULT_FAQ,
                     }),
@@ -303,6 +432,22 @@ export default function AdminLandingPage() {
                   <CardTitle>{t.sections}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="font-medium">{t.showHero}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar'
+                          ? 'إخفاء أو إظهار قسم المقدمة في الصفحة الرئيسية.'
+                          : 'Hide or show the hero section on the homepage.'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draft.showHero}
+                      onCheckedChange={(checked) =>
+                        setDraft((prev) => (prev ? { ...prev, showHero: !!checked } : prev))
+                      }
+                    />
+                  </div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">{t.showPricing}</p>
@@ -345,10 +490,100 @@ export default function AdminLandingPage() {
                 </TabsList>
 
                 {(['en', 'ar'] as const).map((language) => {
+                  const heroCfg = draft.hero[language];
                   const pricingCfg = draft.pricing[language];
                   const faqCfg = draft.faq[language];
                   return (
                     <TabsContent key={language} value={language} className="space-y-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>
+                            {t.hero} — {language === 'ar' ? t.arabic : t.english}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">{t.heroBadge}</label>
+                              <Input
+                                dir="auto"
+                                value={heroCfg.badge}
+                                onChange={(e) =>
+                                  updateHeroLang(language, (c) => ({ ...c, badge: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">{t.heroTitle}</label>
+                              <Input
+                                dir="auto"
+                                value={heroCfg.title}
+                                onChange={(e) =>
+                                  updateHeroLang(language, (c) => ({ ...c, title: e.target.value }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.heroDesc}</label>
+                            <Textarea
+                              dir="auto"
+                              value={heroCfg.desc}
+                              onChange={(e) =>
+                                updateHeroLang(language, (c) => ({ ...c, desc: e.target.value }))
+                              }
+                              rows={3}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t.heroHighlights}</label>
+                            <Textarea
+                              dir="auto"
+                              value={heroCfg.highlightsText}
+                              onChange={(e) =>
+                                updateHeroLang(language, (c) => ({ ...c, highlightsText: e.target.value }))
+                              }
+                              rows={4}
+                            />
+                            <p className="text-xs text-muted-foreground">{t.heroHighlightsHelp}</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">{t.heroExplore}</label>
+                              <Input
+                                dir="auto"
+                                value={heroCfg.explore}
+                                onChange={(e) =>
+                                  updateHeroLang(language, (c) => ({ ...c, explore: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">{t.heroDashboard}</label>
+                              <Input
+                                dir="auto"
+                                value={heroCfg.dashboard}
+                                onChange={(e) =>
+                                  updateHeroLang(language, (c) => ({ ...c, dashboard: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">{t.heroTrial}</label>
+                              <Input
+                                dir="auto"
+                                value={heroCfg.trial}
+                                onChange={(e) =>
+                                  updateHeroLang(language, (c) => ({ ...c, trial: e.target.value }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                       <Card>
                         <CardHeader>
                           <CardTitle>
@@ -660,4 +895,3 @@ export default function AdminLandingPage() {
     </div>
   );
 }
-
