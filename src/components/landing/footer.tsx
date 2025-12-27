@@ -195,13 +195,13 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-3 text-sm">
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <Mail className="h-4 w-4" /> info@cloudaiacademy.ca
+                <Mail className="h-4 w-4" /> <bdi dir="ltr">info@cloudaiacademy.ca</bdi>
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <Phone className="h-4 w-4" /> +1 (519) 694-2661
+                <Phone className="h-4 w-4" /> <bdi dir="ltr">+1 (519) 694-2661</bdi>
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
-                <MapPin className="h-4 w-4" /> London Ontario, CA
+                <MapPin className="h-4 w-4" /> <bdi dir="ltr">London Ontario, CA</bdi>
               </li>
             </ul>
           </div>
@@ -209,7 +209,7 @@ export default function Footer() {
 
         <div className="mt-12 border-t border-primary-foreground/20 pt-8 text-center text-sm text-primary-foreground/70">
           <p>
-            &copy; {new Date().getFullYear()} CloudAI Academy. {t[lang].rights}
+            &copy; <bdi dir="ltr">{new Date().getFullYear()} CloudAI Academy</bdi>. {t[lang].rights}
           </p>
         </div>
       </div>
