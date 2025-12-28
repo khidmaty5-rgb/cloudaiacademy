@@ -40,6 +40,7 @@ const navLinks = [
   { href: '/', id: 'home' as const },
   { href: '/courses', id: 'courses' as const },
   { href: '/journal', id: 'journal' as const },
+  { href: '/print/qr', id: 'qr' as const },
 ];
 
 type Role = 'student' | 'teacher' | 'editor' | 'admin' | null;
