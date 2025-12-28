@@ -151,6 +151,7 @@ export default function Hero() {
               )}
             </div>
 
+            {false && (
             <div className={`mt-4 ${isRTL ? 'lg:text-right' : 'lg:text-left'} text-center`}>
               <Link
                 href="/print/qr"
@@ -160,6 +161,7 @@ export default function Hero() {
                 <span dir="auto">{lang === 'ar' ? 'طباعة ومشاركة QR' : 'Print & share QR'}</span>
               </Link>
             </div>
+            )}
           </div>
 
           <div
