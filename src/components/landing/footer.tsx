@@ -113,6 +113,14 @@ export default function Footer() {
                   {t[lang].courses}
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/print/qr"
+                  className="text-primary-foreground/70 hover:text-accent"
+                >
+                  {lang === 'ar' ? 'طباعة QR' : 'Print QR'}
+                </Link>
+              </li>
               {showPricing && (
                 <li>
                   <Link

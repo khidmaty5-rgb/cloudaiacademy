@@ -1,12 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
-import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, Printer, Share2 } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 const FALLBACK_SITE = 'https://www.cloudaiacademy.ca';
 
@@ -19,10 +17,8 @@ function normalizeSiteUrl(value: string) {
 export default function PrintableQrFlyerPage() {
   const { lang, dir } = useLang();
   const isRTL = dir === 'rtl';
-  const { toast } = useToast();
 
   const site = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE);
-  const flyerUrl = `${site}/print/qr`;
 
   const t = {
     en: {
@@ -45,36 +41,6 @@ export default function PrintableQrFlyerPage() {
     },
   }[lang];
 
-  const handleShare = async () => {
-    const shareData = {
-      title: 'CloudAI Academy',
-      text: flyerUrl,
-      url: flyerUrl,
-    };
-
-    try {
-      if (typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function') {
-        await (navigator as any).share(shareData);
-        return;
-      }
-    } catch (e: any) {
-      // Ignore user-cancelled shares
-      if (e?.name === 'AbortError') return;
-    }
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(flyerUrl);
-        toast({ title: t.copied });
-        return;
-      }
-    } catch {}
-
-    if (typeof window !== 'undefined') {
-      window.prompt('Copy this link:', flyerUrl);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-muted/40 py-8 pb-28 print:bg-white print:py-0 print:pb-0 md:pb-8">
       <style jsx global>{`
@@ -94,63 +60,29 @@ export default function PrintableQrFlyerPage() {
 
       <div className="no-print mx-auto mb-4 hidden max-w-5xl items-center justify-between gap-3 px-4 md:flex">
         <h1 className="font-headline text-lg font-semibold">{t.title}</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => void handleShare()}
-            className={isRTL ? 'flex-row-reverse gap-2' : 'gap-2'}
-          >
-            <Share2 className="h-4 w-4" />
-            <span dir="auto">{t.share}</span>
-          </Button>
-          <Button
-            variant="outline"
-            asChild
-            className={isRTL ? 'flex-row-reverse gap-2' : 'gap-2'}
-          >
-            <Link href={site} target="_blank" rel="noreferrer noopener">
-              <ExternalLink className="h-4 w-4" />
-              <span dir="auto">{t.openSite}</span>
-            </Link>
-          </Button>
+        <Button
+          onClick={() => window.print()}
+          className={[
+            'bg-accent hover:bg-accent/90 text-accent-foreground',
+            isRTL ? 'flex-row-reverse gap-2' : 'gap-2',
+          ].join(' ')}
+        >
+          <Printer className="h-4 w-4" />
+          <span dir="auto">{t.print}</span>
+        </Button>
+      </div>
+
+      <div className="no-print fixed bottom-4 left-4 right-4 z-50 md:hidden">
+        <div className="mx-auto flex max-w-md rounded-2xl border bg-background/90 p-2 shadow-xl backdrop-blur">
           <Button
             onClick={() => window.print()}
             className={[
-              'bg-accent hover:bg-accent/90 text-accent-foreground',
+              'flex-1 bg-accent hover:bg-accent/90 text-accent-foreground',
               isRTL ? 'flex-row-reverse gap-2' : 'gap-2',
             ].join(' ')}
           >
             <Printer className="h-4 w-4" />
             <span dir="auto">{t.print}</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="no-print fixed bottom-4 left-4 right-4 z-50 md:hidden">
-        <div className="mx-auto flex max-w-md gap-2 rounded-2xl border bg-background/90 p-2 shadow-xl backdrop-blur">
-          <Button
-            onClick={() => void handleShare()}
-            className={['flex-1 bg-accent hover:bg-accent/90 text-accent-foreground', isRTL ? 'flex-row-reverse gap-2' : 'gap-2'].join(' ')}
-          >
-            <Share2 className="h-4 w-4" />
-            <span dir="auto">{t.share}</span>
-          </Button>
-          <Button
-            onClick={() => window.print()}
-            variant="outline"
-            className={['flex-1', isRTL ? 'flex-row-reverse gap-2' : 'gap-2'].join(' ')}
-          >
-            <Printer className="h-4 w-4" />
-            <span dir="auto">{t.print}</span>
-          </Button>
-          <Button
-            variant="outline"
-            asChild
-            className="w-12 shrink-0 px-0"
-          >
-            <Link href={site} target="_blank" rel="noreferrer noopener" aria-label={t.openSite}>
-              <ExternalLink className="h-4 w-4" />
-            </Link>
           </Button>
         </div>
       </div>

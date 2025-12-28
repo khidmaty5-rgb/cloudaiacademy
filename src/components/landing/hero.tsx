@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useLang } from '@/components/i18n/lang';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2, QrCode, Sparkles } from 'lucide-react';
 import { doc, getFirestore } from 'firebase/firestore';
 import { DEFAULT_HERO, sanitizeHeroConfig } from '@/lib/landing-hero';
 
@@ -116,6 +116,18 @@ export default function Hero() {
                 <Link href="/courses">{content.explore}</Link>
               </Button>
 
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-accent/40 bg-accent/10 text-primary-foreground hover:bg-accent/15 hover:text-primary-foreground"
+              >
+                <Link href="/print/qr" className={isRTL ? 'flex-row-reverse' : ''}>
+                  <QrCode className="h-4 w-4" />
+                  <span dir="auto">{lang === 'ar' ? '\u0637\u0628\u0627\u0639\u0629 QR' : 'Print QR'}</span>
+                </Link>
+              </Button>
+
               {isUserLoading ? (
                 <div className="h-11 w-44 animate-pulse rounded-md bg-white/20" />
               ) : user ? (
@@ -137,6 +149,16 @@ export default function Hero() {
                   <Link href="/signup">{content.trial}</Link>
                 </Button>
               )}
+            </div>
+
+            <div className={`mt-4 ${isRTL ? 'lg:text-right' : 'lg:text-left'} text-center`}>
+              <Link
+                href="/print/qr"
+                className={`inline-flex items-center gap-2 text-sm text-primary-foreground/80 hover:text-accent hover:underline underline-offset-4 ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <QrCode className="h-4 w-4" />
+                <span dir="auto">{lang === 'ar' ? 'طباعة ومشاركة QR' : 'Print & share QR'}</span>
+              </Link>
             </div>
           </div>
 

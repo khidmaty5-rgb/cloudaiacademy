@@ -331,8 +331,9 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     await setDoc(settingsDocRef as any, { showFaq: next }, { merge: true });
   };
 
-  const navLabel = (id: 'home' | 'courses' | 'journal') => {
-    const map: Record<'en' | 'ar', Record<typeof id, string>> = {
+  const navLabel = (id: 'home' | 'courses' | 'journal' | 'qr') => {
+    if (id === 'qr') return lang === 'ar' ? 'طباعة QR' : 'Print QR';
+    const map: Record<'en' | 'ar', Record<'home' | 'courses' | 'journal', string>> = {
       en: { home: 'Home', courses: 'Courses', journal: 'Journal' },
       ar: { home: 'الرئيسية', courses: 'الدورات', journal: 'المجلة' },
     };
@@ -471,17 +472,19 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         {!isAppVariant && (
         <nav className="hidden items-center gap-8 md:flex">
           {/* Always show public nav */}
-          {visibleLinks.map((link) => (
-            <Link
-              key={link.id}
-              href={link.href}
-              className={`font-medium text-primary-foreground/80 transition-colors hover:text-accent ${
-                pathname === link.href ? 'font-semibold text-accent' : ''
-              }`}
-            >
-              {navLabel(link.id)}
-            </Link>
-          ))}
+           {visibleLinks.map((link) => (
+             <Link
+               key={link.id}
+               href={link.href}
+               className={[
+                 'font-medium text-primary-foreground/80 transition-colors hover:text-accent',
+                 link.id === 'qr' ? 'rounded-full bg-accent/15 px-3 py-1 text-accent hover:bg-accent/20 hover:text-accent' : '',
+                 pathname === link.href ? 'font-semibold text-accent' : '',
+               ].join(' ')}
+             >
+               {navLabel(link.id)}
+             </Link>
+           ))}
           {user && (
             <>
               <Link
@@ -571,16 +574,16 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                   <ThemeToggle className="mb-2" />
                   {!isAdminRoute && !isAppVariant && (
                     <>
-                      {visibleLinks.map((link) => (
-                        <Link
-                          key={link.id}
-                          href={link.href}
-                          onClick={() => setIsOpen(false)}
-                          className="text-lg font-medium hover:text-accent"
-                        >
-                          {navLabel(link.id)}
-                        </Link>
-                      ))}
+                       {visibleLinks.map((link) => (
+                         <Link
+                           key={link.id}
+                           href={link.href}
+                           onClick={() => setIsOpen(false)}
+                           className={['text-lg font-medium hover:text-accent', link.id === 'qr' ? 'font-semibold text-accent' : ''].join(' ')}
+                         >
+                           {navLabel(link.id)}
+                         </Link>
+                       ))}
                       {user && (
                         <>
                           <Link
