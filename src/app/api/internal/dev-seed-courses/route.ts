@@ -206,6 +206,80 @@ const seedCourses: Array<{
       { title: 'KPIs & Reporting', content: 'Defining metrics and automating reports.', title_ar: 'Ù…Ø¤Ø´Ø±Ø§Øª Ø§Ù„Ø£Ø¯Ø§Ø¡ ÙˆØ§Ù„ØªÙ‚Ø§Ø±ÙŠØ±', content_ar: 'ØªØ¹Ø±ÙŠÙ Ø§Ù„Ù…Ù‚Ø§ÙŠÙŠØ³ ÙˆØ£ØªÙ…ØªØ© Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±.' },
     ],
   },
+  {
+    title: 'n8n Workflow Automation',
+    courseCode: 'N8N-AUTO',
+    description:
+      'Build reliable automations with n8n: triggers, webhooks, APIs, data transformations, error handling, and deployment. Create AI-powered workflows and real integrations.',
+    category: 'Automation',
+    price: 'Free',
+    duration: '20 hours over 4 weeks',
+    totalHours: 20,
+    level: 'Beginner',
+    imageId: 'course-n8n',
+    lessons: [
+      {
+        title: 'Welcome to n8n (What & Why)',
+        content:
+          'What n8n is, where it fits vs Zapier/Make, and how workflows, nodes, and executions work. Define your capstone automation for this course.',
+      },
+      {
+        title: 'Setup: Cloud vs Self-Hosted',
+        content:
+          'Choose n8n Cloud or self-host with Docker. Configure basic settings, create a test workflow, and learn the editor UI (nodes, connections, executions).',
+      },
+      {
+        title: 'Your First Workflow: Triggers & Actions',
+        content:
+          'Build a workflow with Manual and Schedule triggers, connect action nodes, run and debug. Learn how to inspect input/output data for each node.',
+      },
+      {
+        title: 'Data & Expressions (JSON, Items, Mapping)',
+        content:
+          'Understand items, $json, and expressions like {{$json.field}}. Map fields between nodes, use Set/Merge, and avoid common mapping mistakes.',
+      },
+      {
+        title: 'Webhooks in n8n',
+        content:
+          'Create a Webhook trigger, test with Postman/curl, parse query/body data, and return responses. Learn safe patterns for idempotency and signature checks.',
+      },
+      {
+        title: 'HTTP Request Node & API Basics',
+        content:
+          'Call external APIs, handle headers, query params, pagination, and rate limits. Practice with a public API and store results in a spreadsheet or database.',
+      },
+      {
+        title: 'Transforming Data: Built-in Nodes + Code',
+        content:
+          'Use SplitInBatches, IF, Switch, Date & Time, and the Code node (JavaScript) to clean and transform data. Build reusable sub-workflows.',
+      },
+      {
+        title: 'Credentials & Security',
+        content:
+          'Manage credentials (API keys, OAuth2), environment variables, and secrets. Learn least-privilege access, safe logging, and protecting webhook endpoints.',
+      },
+      {
+        title: 'Reliability: Errors, Retries, and Alerting',
+        content:
+          'Configure error workflows, Continue On Fail, retry/backoff, and notifications. Design workflows that are resilient and easy to support.',
+      },
+      {
+        title: 'Deploying n8n for Production',
+        content:
+          'Docker Compose setup, database choice, encryption key, webhook base URL, reverse proxy, backups, and upgrade strategy. Basic scaling and monitoring.',
+      },
+      {
+        title: 'AI Automations (LLMs) with n8n',
+        content:
+          'Use an LLM node to summarize, classify, and extract structured data. Add guardrails, control cost, and handle sensitive data safely.',
+      },
+      {
+        title: 'Capstone: End-to-End Business Automation',
+        content:
+          'Build a complete automation: intake via webhook/form, validate & dedupe, enrich with AI, write to Sheets/CRM, notify via email/chat, and implement error handling.',
+      },
+    ],
+  },
 ];
 
 export async function POST(req: NextRequest) {
@@ -257,6 +331,7 @@ export async function POST(req: NextRequest) {
         {
           id: slug,
           slug,
+          status: 'PUBLISHED',
           ...(courseCode ? { courseCode } : {}),
           title: course.title,
           description: course.description,

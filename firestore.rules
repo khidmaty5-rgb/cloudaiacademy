@@ -82,6 +82,26 @@ service cloud.firestore {
       );
     }
 
+    function teacherCanUpdateCourse(courseId) {
+      return (
+        isTeacher() &&
+        isInstructorOfCourse(courseId) &&
+        // Teachers can edit safe fields only; admin-only fields (status, isFull, instructors, live config) are denied.
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'title',
+          'courseCode',
+          'imageUrl',
+          'description',
+          'category',
+          'price',
+          'duration',
+          'totalHours',
+          'level',
+          'updatedAt'
+        ])
+      );
+    }
+
     // Deny access if the user's profile indicates payment is required
     function accountActive() {
       return isSignedIn() && (
@@ -137,18 +157,25 @@ service cloud.firestore {
      * @principle Allows public read access with restricted writes.
      */
     match /courses/{courseId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdminOrTeacher();
+      // Public can only see published courses; staff and enrolled users can see their courses.
+      allow get, list: if (
+        isInstructorOfCourse(courseId) ||
+        (resource.data.status != 'DRAFT') ||
+        (accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)))
+      );
+      // Admins can create/delete courses. Teachers can only update courses they teach (limited fields).
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || teacherCanUpdateCourse(courseId);
 
       // Lessons subcollection access
       match /lessons/{lessonId} {
-        // Read if admin/teacher or the user is enrolled AND account is active (no payment required)
-        allow get, list: if isAdminOrTeacher() || (
+        // Read if admin/assigned instructor, or the user is enrolled AND account is active (no payment required)
+        allow get, list: if isInstructorOfCourse(courseId) || (
           accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId))
         );
 
-        // Only admins/teachers can create/update/delete lessons
-        allow create, update, delete: if isAdminOrTeacher();
+        // Only admins or assigned instructors can create/update/delete lessons
+        allow create, update, delete: if isInstructorOfCourse(courseId);
       }
     }
 

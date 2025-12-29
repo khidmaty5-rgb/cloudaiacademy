@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, getFirestore, query, orderBy, doc, where, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, doc, where, writeBatch } from 'firebase/firestore';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,6 +44,8 @@ const coursesText = {
     actions: 'Actions',
     noCourses: 'No courses found.',
     teach: 'Teach',
+    backfillStatus: 'Backfill publish status',
+    backfillingStatus: 'Backfilling...',
     noPermission: 'You do not have permission to view this page.',
     toastSeedFailedTitle: 'Seed failed',
     toastSeedErrorTitle: 'Seed error',
@@ -54,6 +56,8 @@ const coursesText = {
     unknownError: 'Unknown error',
   },
   ar: {
+    backfillStatus: 'Backfill publish status',
+    backfillingStatus: 'Backfilling...',
     pageTitle: 'إدارة الدورات',
     resetAndSeed: 'إعادة التهيئة مع التكوين',
     resetting: 'جارٍ إعادة التهيئة...',
@@ -85,6 +89,7 @@ export default function AdminCoursesPage() {
   const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
   const [seeding, setSeeding] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [backfillingStatus, setBackfillingStatus] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { lang } = useLang();
@@ -136,7 +141,47 @@ export default function AdminCoursesPage() {
     return [];
   }, [isAdmin, isTeacher, allCourses, assignedMerged]);
 
+  const legacyCoursesMissingStatus = useMemo(() => {
+    if (!isAdmin) return [];
+    return (courses as Course[]).filter((c) => !c.status);
+  }, [courses, isAdmin]);
+
   // no teacher self-assign here; admins assign instructors in CourseForm
+
+  const handleBackfillStatus = async () => {
+    if (!isAdmin) return;
+    if (legacyCoursesMissingStatus.length === 0) return;
+
+    try {
+      setBackfillingStatus(true);
+
+      // Firestore batches max 500 operations; keep headroom.
+      const chunkSize = 450;
+      let updated = 0;
+      for (let i = 0; i < legacyCoursesMissingStatus.length; i += chunkSize) {
+        const batch = writeBatch(firestore);
+        for (const c of legacyCoursesMissingStatus.slice(i, i + chunkSize)) {
+          batch.update(doc(firestore, 'courses', c.id), { status: 'PUBLISHED' });
+          updated += 1;
+        }
+        await batch.commit();
+      }
+
+      toast({
+        title: 'Updated',
+        description: `Backfilled status for ${updated} course${updated === 1 ? '' : 's'}.`,
+      });
+      router.refresh();
+    } catch (e: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Backfill failed',
+        description: e?.message || t.unknownError,
+      });
+    } finally {
+      setBackfillingStatus(false);
+    }
+  };
 
   const handleSeed = async () => {
     try {
@@ -286,6 +331,17 @@ export default function AdminCoursesPage() {
                     >
                       {resetting ? t.resetting : t.resetAndSeed}
                     </Button>
+                    {legacyCoursesMissingStatus.length > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={handleBackfillStatus}
+                        disabled={backfillingStatus}
+                      >
+                        {backfillingStatus
+                          ? t.backfillingStatus
+                          : `${t.backfillStatus} (${legacyCoursesMissingStatus.length})`}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={handleSeed}

@@ -32,6 +32,7 @@ const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
 
 type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 'duration'> & {
   courseCode?: Course['courseCode'];
+  status?: Course['status'];
   isFull?: Course['isFull'];
   totalHours?: Course['totalHours'];
   imageUrl?: Course['imageUrl'];
@@ -47,6 +48,7 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
   const uid = getAuth().currentUser?.uid;
   const courseCode = data.courseCode ? data.courseCode.trim().toUpperCase() : undefined;
   const imageUrl = data.imageUrl ? data.imageUrl.trim() : undefined;
+  const status = data.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT';
   const totalHours =
     typeof data.totalHours === 'number' && Number.isFinite(data.totalHours)
       ? data.totalHours
@@ -57,6 +59,7 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
 
   const base = {
     ...data,
+    status,
     imageUrl: imageUrl || undefined,
     slug,
     id: slug,
@@ -93,6 +96,7 @@ export async function updateCourse(courseId: string, data: Partial<CourseData & 
       : undefined;
   const normalized = {
     ...data,
+    ...(data.status ? { status: data.status } : {}),
     ...(data.courseCode ? { courseCode: data.courseCode.trim().toUpperCase() } : {}),
     ...(typeof (data as any).isFull === 'boolean' ? { isFull: (data as any).isFull } : {}),
     ...(typeof (data as any).imageUrl === 'string' ? { imageUrl: (data as any).imageUrl.trim() || undefined } : {}),

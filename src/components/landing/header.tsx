@@ -444,7 +444,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
           i.href !== '/admin/users' &&
           i.href !== '/admin/seed' &&
           i.href !== '/admin/journal' &&
-          i.href !== '/admin/access',
+          i.href !== '/admin/access' &&
+          i.href !== '/admin/analytics' &&
+          i.href !== '/admin/landing' &&
+          i.href !== '/admin/announcements',
       )
     : adminNavItemsWithCertificates;
 

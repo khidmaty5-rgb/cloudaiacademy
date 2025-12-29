@@ -13,6 +13,7 @@ export function inferCourseImageId(course: Partial<Course> | null | undefined): 
   const slug = normalizeText((course as any)?.slug);
 
   // Prefer slug-based routing (more deterministic)
+  if (slug.includes('n8n')) return 'course-n8n';
   if (slug.includes('agile') || slug.includes('scrum')) return 'course-agile';
   if (slug.includes('devops') || slug.includes('cicd') || slug.includes('ci-cd')) return 'course-devops';
   if (slug.includes('cloud')) return 'course-cloud';
@@ -35,6 +36,7 @@ export function inferCourseImageId(course: Partial<Course> | null | undefined): 
   if (slug.includes('aws-solutions-architect') || slug.includes('aws-sa') || slug.includes('aws-')) return 'course-aws';
 
   // Fallback to title/category heuristics
+  if (title.includes('n8n')) return 'course-n8n';
   if (title.includes('agile') || title.includes('scrum')) return 'course-agile';
   if (title.includes('devops') || title.includes('ci/cd') || title.includes('git')) return 'course-devops';
   if (title.includes('cloud') || category.includes('cloud')) return 'course-cloud';

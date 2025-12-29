@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { collection, getFirestore, limit, orderBy, query } from 'firebase/firestore';
+import { collection, getFirestore, limit, orderBy, query, where } from 'firebase/firestore';
 import { Clock, Signal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,7 +58,13 @@ export default function Courses() {
   const { lang } = useLang();
 
   const coursesQuery = useMemoFirebase(
-    () => query(collection(firestore, 'courses'), orderBy('createdAt', 'desc'), limit(6)),
+    () =>
+      query(
+        collection(firestore, 'courses'),
+        where('status', '==', 'PUBLISHED'),
+        orderBy('createdAt', 'desc'),
+        limit(6),
+      ),
     [firestore],
   );
   const { data: courses, isLoading, error } = useCollection(coursesQuery);

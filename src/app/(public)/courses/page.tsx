@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, getFirestore, query, orderBy } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
  
@@ -56,7 +56,12 @@ export default function CoursesPage() {
 
   const firestore = getFirestore();
   const coursesQuery = useMemoFirebase(
-    () => query(collection(firestore, 'courses'), orderBy('createdAt', 'desc')),
+    () =>
+      query(
+        collection(firestore, 'courses'),
+        where('status', '==', 'PUBLISHED'),
+        orderBy('createdAt', 'desc'),
+      ),
     [firestore]
   );
   const { data: allCourses, isLoading, error } = useCollection(coursesQuery);

@@ -85,6 +85,12 @@
       "imageHint": "ci/cd pipeline"
     },
     {
+      "id": "course-n8n",
+      "description": "n8n Workflow Automation course image",
+      "imageUrl": "/images/course-n8n.png",
+      "imageHint": "workflow automation"
+    },
+    {
       "id": "course-cloud",
       "description": "Cloud Fundamentals course image",
       "imageUrl": "/images/course-cloud.png",
@@ -147,7 +153,7 @@
     {
       "id": "course-sql",
       "description": "SQL for Analysts course image",
-      "imageUrl": "/images/course-pbii.png",
+      "imageUrl": "/images/course-sql.png",
       "imageHint": "database"
     },
     {

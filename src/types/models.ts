@@ -4,6 +4,7 @@ export type FirestoreTimestamp = Timestamp | FieldValue | Date | null;
 export type UserRole = 'student' | 'teacher' | 'editor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
+export type CourseStatus = 'DRAFT' | 'PUBLISHED';
 
 export interface UserProfile {
   id: string;
@@ -18,6 +19,8 @@ export interface UserProfile {
 export interface Course {
   id: string;
   slug: string;
+  /** Controls public visibility. Defaults to `PUBLISHED` when omitted (legacy data). */
+  status?: CourseStatus;
   /** Short, human-friendly code used for certificates (e.g. AWSFND, PY101). */
   courseCode?: string;
   /** If true, students must join a waiting list instead of enrolling directly. */

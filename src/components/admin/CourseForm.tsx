@@ -59,6 +59,7 @@ const courseSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   price: z.string().min(1, 'Price is required'),
   duration: z.string().min(1, 'Duration is required'),
+  status: z.enum(['DRAFT', 'PUBLISHED']).default('DRAFT'),
   isFull: z.boolean().default(false),
   totalHours: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
@@ -95,6 +96,7 @@ export default function CourseForm({ course }: CourseFormProps) {
       category: (course as any)?.category ?? '',
       price: (course as any)?.price ?? '',
       duration: (course as any)?.duration ?? '',
+      status: isEditMode ? ((course as any)?.status as any) ?? 'PUBLISHED' : 'DRAFT',
       isFull: (course as any)?.isFull ?? false,
       totalHours: (course as any)?.totalHours ?? undefined,
       level: ((course as any)?.level as any) ?? 'Beginner',
@@ -137,7 +139,16 @@ export default function CourseForm({ course }: CourseFormProps) {
         liveMeetUrl: data.livePlatform === 'google-meet' ? (data.liveMeetUrl?.trim() || null) : null,
       } as CourseFormValues;
       // Prevent teachers from accidentally toggling admin-only fields.
-      const cleanedForSave: CourseFormValues = isAdmin ? cleaned : ({ ...(cleaned as any), isFull: undefined } as any);
+      const cleanedForSave: CourseFormValues = isAdmin
+        ? cleaned
+        : ({
+            ...(cleaned as any),
+            isFull: undefined,
+            status: undefined,
+            livePlatform: undefined,
+            liveJitsiRoom: undefined,
+            liveMeetUrl: undefined,
+          } as any);
 
       const extra = isAdmin
         ? {
@@ -269,13 +280,40 @@ export default function CourseForm({ course }: CourseFormProps) {
                 </FormItem>
             )}
             />
-        </div>
+         </div>
 
-        {isAdmin && (
-          <FormField
-            control={form.control}
-            name="isFull"
-            render={({ field }) => (
+         {isAdmin && (
+           <FormField
+             control={form.control}
+             name="status"
+             render={({ field }) => (
+               <FormItem>
+                 <FormLabel>Visibility</FormLabel>
+                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                   <FormControl>
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select visibility" />
+                     </SelectTrigger>
+                   </FormControl>
+                   <SelectContent>
+                     <SelectItem value="DRAFT">Draft (hidden)</SelectItem>
+                     <SelectItem value="PUBLISHED">Published (public)</SelectItem>
+                   </SelectContent>
+                 </Select>
+                 <p className="text-xs text-muted-foreground">
+                   Draft courses won’t appear on public course lists.
+                 </p>
+                 <FormMessage />
+               </FormItem>
+             )}
+           />
+         )}
+
+         {isAdmin && (
+           <FormField
+             control={form.control}
+             name="isFull"
+             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
                   <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(!!v)} />
