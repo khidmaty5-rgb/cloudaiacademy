@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Recommendations from '@/components/dashboard/recommendations';
-import { collection, getFirestore, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getFirestore } from 'firebase/firestore';
 import Image from 'next/image';
 import { getCourseImage } from '@/lib/course-images';
 import { Badge } from '@/components/ui/badge';
@@ -77,72 +77,57 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
     return enrollments.map(e => e.id);
   }, [enrollments]);
 
-  const [largeSetCourses, setLargeSetCourses] = useState<Course[] | null>(null);
-  const [largeSetLoading, setLargeSetLoading] = useState(false);
-  const [largeSetError, setLargeSetError] = useState<Error | null>(null);
+  const [courses, setCourses] = useState<Course[] | null>(null);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<Error | null>(null);
 
-  const useRealtime = enrolledCourseIds.length > 0 && enrolledCourseIds.length <= 10;
-
-  const coursesQuery = useMemoFirebase(() => {
-    if (!useRealtime) return null;
-    return query(collection(firestore, 'courses'), where('id', 'in', enrolledCourseIds));
-  }, [firestore, useRealtime, enrolledCourseIds]);
-
-
-  const { data: realtimeCourses, isLoading: coursesLoading, error: coursesError } = useCollection<Course>(coursesQuery);
-
-  // Fallback for >10 ids
   useEffect(() => {
     let cancelled = false;
-    async function fetchLarge() {
-      if (useRealtime || enrolledCourseIds.length === 0) {
-        setLargeSetCourses(null);
-        setLargeSetLoading(false);
-        setLargeSetError(null);
+    async function fetchCourses() {
+      if (!user) {
+        setCourses(null);
+        setCoursesLoading(false);
+        setCoursesError(null);
         return;
       }
-      setLargeSetLoading(true);
-      setLargeSetError(null);
-      const chunks: string[][] = [];
-      for (let i = 0; i < enrolledCourseIds.length; i += 10) {
-        chunks.push(enrolledCourseIds.slice(i, i + 10));
+      if (enrolledCourseIds.length === 0) {
+        setCourses([]);
+        setCoursesLoading(false);
+        setCoursesError(null);
+        return;
       }
+
+      setCoursesLoading(true);
+      setCoursesError(null);
       try {
-        const results: Course[] = [];
-        for (const c of chunks) {
-          const q = query(collection(firestore, 'courses'), where('id', 'in', c));
-          const snap = await getDocs(q);
-          snap.forEach(d => {
-            const data = d.data() as Course;
-            const { id: _ignored, ...rest } = (data as any) || {};
-            results.push({ ...rest, id: d.id });
-          });
-        }
+        const results = await Promise.all(
+          enrolledCourseIds.map(async (courseId) => {
+            const snap = await getDoc(doc(firestore, 'courses', courseId));
+            if (!snap.exists()) return null;
+            const data = snap.data() as Course;
+            return { ...(data as any), id: snap.id } as Course;
+          }),
+        );
         if (!cancelled) {
-          setLargeSetCourses(results);
-          setLargeSetLoading(false);
+          setCourses(results.filter(Boolean) as Course[]);
+          setCoursesLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!cancelled) {
-          setLargeSetError(err instanceof Error ? err : new Error('Failed to load your courses.'));
-          setLargeSetCourses([]);
-          setLargeSetLoading(false);
+          setCoursesError(err instanceof Error ? err : new Error('Failed to load your courses.'));
+          setCourses([]);
+          setCoursesLoading(false);
         }
       }
     }
-    fetchLarge();
+    fetchCourses();
     return () => { cancelled = true };
-  }, [firestore, useRealtime, enrolledCourseIds]);
-
-  const allCourses = useMemo(() => {
-    if (useRealtime) return realtimeCourses || [];
-    return largeSetCourses || [];
-  }, [useRealtime, realtimeCourses, largeSetCourses]);
+  }, [firestore, user, enrolledCourseIds]);
 
   const enrolledCourses = useMemo(() => {
-    if (!enrollments || !allCourses) return [];
+    if (!enrollments || !courses) return [];
     const enrollmentByCourseId = new Map(enrollments.map(enrollment => [enrollment.id, enrollment]));
-    return allCourses
+    return courses
       .map((course) => {
         const enrollment = enrollmentByCourseId.get(course.id);
         if (!enrollment) return null;
@@ -151,17 +136,17 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
         return { ...course, progress };
       })
       .filter((course): course is Course & { progress: number } => !!course);
-  }, [enrollments, allCourses]);
+  }, [enrollments, courses]);
 
-  if (enrollmentsError || coursesError || largeSetError) {
+  if (enrollmentsError || coursesError) {
     return (
       <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-        {enrollmentsError?.message || coursesError?.message || largeSetError?.message || 'Failed to load your courses.'}
+        {enrollmentsError?.message || coursesError?.message || 'Failed to load your courses.'}
       </div>
     );
   }
 
-  if (enrollmentsLoading || isUserLoading || (useRealtime ? coursesLoading : largeSetLoading)) {
+  if (enrollmentsLoading || isUserLoading || coursesLoading) {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-48 w-full" />

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
+import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc, where, writeBatch } from 'firebase/firestore';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -94,12 +94,6 @@ export default function AdminCoursesPage() {
   const router = useRouter();
   const { lang } = useLang();
   const t = coursesText[lang];
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  const { data: userProfile } = useDoc(userDocRef);
 
   const uid = user?.uid;
 
@@ -257,7 +251,7 @@ export default function AdminCoursesPage() {
     }
   };
 
-  const canView = isAdmin || isTeacher;
+  const canView = isAdmin === true;
 
   if (roleLoading) {
     return (

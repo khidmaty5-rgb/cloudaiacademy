@@ -1,10 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 import { Printer } from 'lucide-react';
+import { Logo } from '@/components/logo';
 
 const FALLBACK_SITE = 'https://www.cloudaiacademy.ca';
 
@@ -19,6 +19,7 @@ export default function PrintableQrFlyerPage() {
   const isRTL = dir === 'rtl';
 
   const site = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE);
+  const printCopies = 10;
 
   const t = {
     en: {
@@ -41,19 +42,89 @@ export default function PrintableQrFlyerPage() {
     },
   }[lang];
 
+  const PrintCard = () => (
+    <div
+      className={[
+        'qr-business-card grid w-full gap-4 overflow-hidden rounded-2xl border bg-white shadow-sm',
+        isRTL ? 'grid-cols-[auto_1fr]' : 'grid-cols-[1fr_auto]',
+      ].join(' ')}
+      dir={dir}
+    >
+      <div className="flex min-w-0 flex-col justify-between gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <Logo size={30} hideText />
+          <div className="min-w-0">
+            <div className="truncate font-headline text-sm font-bold text-foreground">
+              CloudAI Academy
+            </div>
+            <div className="text-[10px] text-muted-foreground" dir="auto">
+              {t.hint}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-[11px] font-semibold leading-tight text-foreground">
+            <bdi dir="ltr">{site}</bdi>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center p-4">
+        <div className="qr-business-card__qr rounded-lg border bg-white p-2">
+          <QRCode
+            value={site}
+            style={{ height: '100%', width: '100%' }}
+            viewBox="0 0 256 256"
+            title={site}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-muted/40 py-8 pb-28 print:bg-white print:py-0 print:pb-0 md:pb-8">
       <style jsx global>{`
         @page {
-          size: A4 landscape;
-          margin: 10mm;
+          size: auto;
+          margin: 0.25in;
         }
         @media print {
           .no-print {
             display: none !important;
           }
+          * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          html,
+          body {
+            height: 100%;
+          }
           body {
             background: white !important;
+            margin: 0 !important;
+          }
+          .print-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 3.5in);
+            grid-auto-rows: 2in;
+            gap: 0.1in;
+            justify-content: center;
+            align-content: start;
+          }
+          .qr-business-card {
+            width: 3.5in !important;
+            height: 2in !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            overflow: hidden;
+            break-inside: avoid;
+          }
+          .qr-business-card__qr {
+            width: 1.35in !important;
+            height: 1.35in !important;
           }
         }
       `}</style>
@@ -87,41 +158,55 @@ export default function PrintableQrFlyerPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-4 print:max-w-none print:px-0">
-        <div className="overflow-hidden rounded-2xl border bg-background shadow-sm print:rounded-none print:border-0 print:shadow-none">
-          <div className="relative w-full bg-black" style={{ aspectRatio: '1655/751' }}>
-            <Image
-              src="/images/QR.png"
-              alt={t.alt}
-              fill
-              priority
-              className="object-contain"
-              sizes="100vw"
-            />
-
-            <div
-              className={[
-                'absolute bottom-4 z-10 w-[190px] rounded-xl border bg-white/95 p-3 shadow-lg',
-                isRTL ? 'left-4' : 'right-4',
-              ].join(' ')}
-            >
-              <div className="grid place-items-center rounded-lg bg-white p-2">
-                <QRCode
-                  value={site}
-                  size={150}
-                  style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                  viewBox="0 0 256 256"
-                  title={site}
-                />
+      <div className="mx-auto w-full max-w-2xl px-4 print:hidden">
+        <div
+          className={[
+            'qr-business-card grid w-full gap-4 overflow-hidden rounded-2xl border bg-white shadow-sm',
+            isRTL ? 'grid-cols-[auto_1fr]' : 'grid-cols-[1fr_auto]',
+          ].join(' ')}
+          dir={dir}
+        >
+          <div className="flex min-w-0 flex-col justify-between gap-3 p-4">
+            <div className="flex items-center gap-2">
+              <Logo size={30} hideText />
+              <div className="min-w-0">
+                <div className="truncate font-headline text-sm font-bold text-foreground">
+                  CloudAI Academy
+                </div>
+                <div className="text-[10px] text-muted-foreground" dir="auto">
+                  {t.hint}
+                </div>
               </div>
-              <p dir="auto" className="mt-2 text-center text-xs text-muted-foreground">
-                {t.hint}
-              </p>
-              <p className="mt-1 text-center text-[11px] font-semibold text-foreground">
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold leading-tight text-foreground">
                 <bdi dir="ltr">{site}</bdi>
-              </p>
+              </div>
+              <div className="text-[10px] leading-tight text-muted-foreground" dir="auto">
+                {lang === 'ar' ? 'امسح رمز الاستجابة السريعة.' : 'Scan the QR code.'}
+              </div>
             </div>
           </div>
+
+          <div className="flex items-center justify-center p-4">
+            <div className="qr-business-card__qr rounded-lg border bg-white p-2">
+              <QRCode
+                value={site}
+                style={{ height: '100%', width: '100%' }}
+                viewBox="0 0 256 256"
+                title={site}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden print:block">
+        <div className="print-grid">
+          {Array.from({ length: printCopies }).map((_, idx) => (
+            <PrintCard key={idx} />
+          ))}
         </div>
       </div>
     </div>

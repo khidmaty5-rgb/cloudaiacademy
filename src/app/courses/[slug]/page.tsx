@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { getCourseImage } from '@/lib/course-images';
@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Signal } from 'lucide-react';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import type { Lesson } from '@/lib/lessons';
 import type { Course, Enrollment, EnrollmentRequest } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +26,8 @@ const courseCopy = {
     courseNotFound: 'Course not found.',
     goToCourse: 'Go to Course',
     enrollNow: 'Enroll Now',
+    enrollNotAllowed: 'Enrollment not available',
+    enrollNotAllowedDesc: 'Only student accounts can enroll in courses.',
     enrollSuccess: 'Successfully Enrolled!',
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
@@ -37,6 +38,8 @@ const courseCopy = {
     courseNotFound: 'Course not found.',
     goToCourse: 'Go to Course',
     enrollNow: 'Enroll Now',
+    enrollNotAllowed: 'Enrollment not available',
+    enrollNotAllowedDesc: 'Only student accounts can enroll in courses.',
     enrollSuccess: 'Successfully Enrolled!',
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
@@ -54,42 +57,15 @@ export default function CourseDetailPage() {
   const firestore = useFirestore();
   const { lang } = useLang();
   const t = courseCopy[lang];
-  const { isAdmin, isTeacher } = useCurrentRole();
+  const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
-  const { data: userProfile } = useDoc(userDocRef);
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch { setHasAdminOrTeacherClaim(false); }
-    });
-    return () => unsub();
-  }, []);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
-  const isStudent = ((userProfile?.role as string | undefined) || 'student') === 'student' && hasAdminOrTeacherClaim !== true;
+  const isStudent = !!user && !roleLoading && role === 'student';
   const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
   
 
@@ -116,14 +92,14 @@ export default function CourseDetailPage() {
   );
 
   const isEnrolled = !!enrollment;
-  const isLoading = isUserLoading || isCourseLoading || isEnrollmentLoading || isEnrollmentRequestLoading;
+  const isLoading = isUserLoading || roleLoading || isProfileLoading || isCourseLoading || isEnrollmentLoading || isEnrollmentRequestLoading;
 
   const image = course ? getCourseImage(course as any) : undefined;
 
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
-  const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
+  const canAccessCourseContent = !!(canPreviewCourse || (isEnrolled && !studentPaymentRequired));
   const canJoinLive = !!(isCourseInstructor || isEnrolled);
 
   const lessonsQuery = useMemoFirebase(() => {
@@ -147,16 +123,19 @@ export default function CourseDetailPage() {
       return;
     }
     if (!course) return;
+    if (!isStudent) {
+      toast({ title: t.enrollNotAllowed, description: t.enrollNotAllowedDesc });
+      return;
+    }
+    if (studentPaymentRequired && !canPreviewCourse) {
+      window.location.assign('/#pricing');
+      return;
+    }
 
     try {
       setIsWaitlistSaving(true);
 
       if (!courseIsFull) {
-        if (studentPaymentRequired && !canPreviewCourse) {
-          window.location.assign('/#pricing');
-          return;
-        }
-
         await enrollInCourse(user.uid, course.id);
         // If the course was previously full, clean up any old request doc.
         await cancelEnrollmentRequest(user.uid, course.id);
@@ -328,11 +307,15 @@ export default function CourseDetailPage() {
                     >
                       {t.goToCourse}
                     </Button>
-                ) : (
+                ) : isStudent ? (
                     <Button
                       onClick={handleEnroll}
                       size="lg"
-                      disabled={isWaitlistSaving || (courseIsFull && isWaitlistPending) || (!courseIsFull && studentPaymentRequired && !canPreviewCourse)}
+                      disabled={
+                        isWaitlistSaving ||
+                        (courseIsFull && isWaitlistPending) ||
+                        (studentPaymentRequired && !canPreviewCourse)
+                      }
                       className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
                     >
                         {!courseIsFull
@@ -345,10 +328,12 @@ export default function CourseDetailPage() {
                             ? 'Start Course'
                             : isWaitlistPending
                               ? 'On Waiting List'
-                              : isWaitlistRejected
-                                ? 'Request Again'
-                                : 'Join Waiting List'}
+                                : isWaitlistRejected
+                                  ? 'Request Again'
+                                  : 'Join Waiting List'}
                     </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t.enrollNotAllowedDesc}</p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {isCourseInstructor && (

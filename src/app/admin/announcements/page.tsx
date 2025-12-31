@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { useEffect, useState } from 'react';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -20,7 +20,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { createAnnouncement } from '@/lib/announcements';
-import { doc, getFirestore } from 'firebase/firestore';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
 
@@ -28,7 +27,6 @@ export default function CreateAnnouncementPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  const firestore = getFirestore();
   const { lang } = useLang();
   const { isAdmin, loading: roleLoading } = useCurrentRole();
   const t = {
@@ -76,11 +74,9 @@ export default function CreateAnnouncementPage() {
   const [body, setBody] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  useEffect(() => {
+    if (!isUserLoading && !user) router.push('/admin');
+  }, [user, isUserLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +107,7 @@ export default function CreateAnnouncementPage() {
     }
   };
   
-  if (isUserLoading || isProfileLoading || roleLoading || !user) {
+  if (isUserLoading || roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
           <Header />
@@ -136,6 +132,8 @@ export default function CreateAnnouncementPage() {
       </div>
     );
   }
+
+  if (!user) return null;
 
   const canView = isAdmin === true;
 

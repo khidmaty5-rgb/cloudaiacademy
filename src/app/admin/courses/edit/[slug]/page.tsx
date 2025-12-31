@@ -22,11 +22,13 @@ export default function EditCoursePage() {
   const { lang } = useLang();
   const t = {
     en: {
+      teacherPageTitle: 'Manage Lessons',
       pageTitle: 'Edit Course',
       courseNotFound: 'Course not found.',
       noPermission: 'You do not have permission to view this page.',
     },
     ar: {
+      teacherPageTitle: 'إدارة الدروس',
       pageTitle: 'تعديل الدورة',
       courseNotFound: 'لم يتم العثور على الدورة.',
       noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
@@ -41,7 +43,7 @@ export default function EditCoursePage() {
 
   const { data: course, isLoading } = useDoc(courseDocRef);
 
-  const canEditCourse =
+  const canAccessCourse =
     isAdmin || (isTeacher && !!user?.uid && !!course && canTeachCourse(course as any, user.uid));
 
   const isPageLoading = roleLoading || isLoading;
@@ -58,14 +60,18 @@ export default function EditCoursePage() {
             </>
           ) : !course ? (
             <p>{t.courseNotFound}</p>
-          ) : canEditCourse ? (
+          ) : canAccessCourse ? (
             <>
               <h1 className="font-headline text-3xl md:text-4xl font-bold mb-8">
-                {t.pageTitle}
+                {isTeacher ? t.teacherPageTitle : t.pageTitle}
               </h1>
               <div className="space-y-12">
-                <CourseForm course={course as any} />
-                <Separator />
+                {isAdmin && (
+                  <>
+                    <CourseForm course={course as any} />
+                    <Separator />
+                  </>
+                )}
                 <LessonManager course={course as any} />
               </div>
             </>

@@ -68,8 +68,9 @@ export async function POST(req: NextRequest) {
       requesterRoleRaw === 'admin' ? 'admin' : requesterRoleRaw === 'teacher' ? 'teacher' : requesterRoleRaw === 'student' ? 'student' : undefined;
 
     const db = getFirestore(app);
-    const { userId, role } = await req.json();
-    if (!userId || !role || !['student', 'teacher', 'editor', 'admin'].includes(role)) {
+    const { userId, role } = (await req.json()) as { userId?: string; role?: string };
+    const hasRole = typeof role === 'string' && role.length > 0;
+    if (!userId || (hasRole && !['student', 'teacher', 'editor', 'admin'].includes(role))) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
@@ -79,10 +80,26 @@ export async function POST(req: NextRequest) {
     if (requesterUid === userId) {
       const userSnap = await db.doc(`users/${userId}`).get();
       const desiredRole = userSnap.exists ? ((userSnap.data() as any)?.role as string | undefined) : undefined;
-      if (desiredRole && desiredRole === role) {
-        await getAuth(app).setCustomUserClaims(userId, { role: desiredRole });
-        return NextResponse.json({ ok: true, selfSync: true }, { status: 200 });
+      if (!desiredRole) {
+        return NextResponse.json({ ok: true, selfSync: true, updated: false }, { status: 200 });
       }
+
+      // If a role was provided by the client, require it to match what's stored.
+      if (hasRole && desiredRole !== role) {
+        return NextResponse.json({ error: 'Role mismatch' }, { status: 400 });
+      }
+
+      const currentClaimRole = requesterRoleRaw;
+      const needsUpdate = currentClaimRole !== desiredRole;
+
+      if (needsUpdate) {
+        await getAuth(app).setCustomUserClaims(userId, { role: desiredRole });
+      }
+      return NextResponse.json({ ok: true, selfSync: true, updated: needsUpdate, role: desiredRole }, { status: 200 });
+    }
+
+    if (!hasRole) {
+      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
     const allowBootstrap = process.env.ALLOW_BOOTSTRAP_ADMIN === 'true';

@@ -8,6 +8,7 @@ import Footer from '@/components/landing/footer';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type PageProps = {
   params: Promise<{ roomId: string }>;
@@ -22,29 +23,74 @@ export default function LiveRoomPage({ params }: PageProps) {
   const courseId = prettyLabel;
   const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomId)}`;
 
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
-  const { isAdmin, isTeacher } = useCurrentRole();
+  const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
   const router = useRouter();
 
   const courseDocRef = useMemoFirebase(() => {
     if (!courseId) return null;
     return doc(firestore, 'courses', courseId);
   }, [firestore, courseId]);
-  const { data: course } = useDoc<any>(courseDocRef);
+  const { data: course, isLoading: isCourseLoading } = useDoc<any>(courseDocRef);
 
   const enrollmentDocRef = useMemoFirebase(() => {
     if (!user || !courseId) return null;
     return doc(firestore, 'users', user.uid, 'enrollments', courseId);
   }, [firestore, user, courseId]);
-  const { data: enrollment } = useDoc<any>(enrollmentDocRef);
+  const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc<any>(enrollmentDocRef);
+
+  const isLoading = isUserLoading || roleLoading || isCourseLoading || isEnrollmentLoading;
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 py-10 md:py-16">
+          <div className="container max-w-3xl mx-auto space-y-4">
+            <Skeleton className="h-7 w-1/2" />
+            <Skeleton className="h-28 w-full" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    const nextHref = `/live/${encodeURIComponent(roomId)}`;
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1 py-10 md:py-16">
+          <div className="container max-w-3xl mx-auto">
+            <Card className="border-accent">
+              <CardHeader>
+                <CardTitle>Login required</CardTitle>
+                <CardDescription>Please login to join this live session.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link
+                  href={`/login?next=${encodeURIComponent(nextHref)}`}
+                  className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block"
+                >
+                  Go to Login
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const uid = user?.uid;
   const isInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const isEnrolled = !!enrollment;
   const canJoinLive = !!(isAdmin || isInstructor || isEnrolled);
 
-  const dashboardHref = isAdmin ? '/admin/dashboard' : isTeacher ? '/teacher/dashboard' : '/dashboard';
+  const dashboardHref =
+    role === 'admin' ? '/admin/dashboard' : role === 'teacher' ? '/teacher/dashboard' : role === 'editor' ? '/admin/journal' : '/dashboard';
 
   if (!canJoinLive) {
     return (

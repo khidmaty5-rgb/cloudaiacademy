@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Query,
   onSnapshot,
-  getDocs,
   DocumentData,
   FirestoreError,
   QuerySnapshot,
@@ -73,8 +72,10 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
     let cancelled = false;
+    let didUnsubscribe = false;
     const TIMEOUT_MS = 8000;
     let didSettle = false;
+    let didResolveWithData = false;
     const timeoutId = setTimeout(() => {
       if (!didSettle && !cancelled) {
         setIsLoading(false);
@@ -88,6 +89,7 @@ export function useCollection<T = any>(
         : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
 
     const handleError = (err: FirestoreError) => {
+      if (cancelled) return;
       // Only treat real permission failures as "permission errors".
       if (err.code === 'permission-denied' || err.code === 'unauthenticated') {
         const contextualError = new FirestorePermissionError({
@@ -105,32 +107,21 @@ export function useCollection<T = any>(
       }
     };
 
-    // One-shot fetch to avoid hanging when Firestore streaming is blocked.
-    // This also makes list pages usable even if realtime listeners can’t connect.
-    getDocs(memoizedTargetRefOrQuery)
-      .then((snapshot) => {
-        if (cancelled) return;
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
-        setData(results);
-        setError(null);
-        setIsLoading(false);
-        didSettle = true;
-        clearTimeout(timeoutId);
-      })
-      .catch((err: FirestoreError) => {
-        if (cancelled) return;
-        didSettle = true;
-        clearTimeout(timeoutId);
-        handleError(err);
-      });
+    const safeUnsubscribe = (unsubscribe: () => void) => {
+      if (didUnsubscribe) return;
+      didUnsubscribe = true;
+      try {
+        unsubscribe();
+      } catch (e) {
+        console.warn('[FirestoreUnsubscribeError]', e);
+      }
+    };
 
     // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        if (cancelled) return;
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id });
@@ -139,9 +130,27 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
         didSettle = true;
+        didResolveWithData = true;
         clearTimeout(timeoutId);
       },
       (error: FirestoreError) => {
+        if (cancelled) return;
+        // Permission errors should still block and propagate globally.
+        if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+          didSettle = true;
+          clearTimeout(timeoutId);
+          handleError(error);
+          return;
+        }
+
+        // If we already have usable data, don't blow up the page due to a late subscription error.
+        if (didResolveWithData) {
+          console.warn('[FirestoreCollectionSubscriptionError]', error);
+          setIsLoading(false);
+          return;
+        }
+
+        // Otherwise surface the subscription error.
         didSettle = true;
         clearTimeout(timeoutId);
         handleError(error);
@@ -151,7 +160,7 @@ export function useCollection<T = any>(
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
-      unsubscribe();
+      safeUnsubscribe(unsubscribe);
     };
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {

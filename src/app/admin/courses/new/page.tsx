@@ -3,16 +3,11 @@
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import CourseForm from '@/components/admin/CourseForm';
-import { useState } from 'react';
-import { useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function NewCoursePage() {
-  const { user } = useUser();
-  const firestore = getFirestore();
   const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = {
@@ -25,12 +20,6 @@ export default function NewCoursePage() {
       noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     },
   }[lang];
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  const { data: userProfile } = useDoc(userDocRef);
   const canView = isAdmin === true;
 
   if (roleLoading) {

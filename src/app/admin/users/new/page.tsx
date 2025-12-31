@@ -33,9 +33,6 @@ import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithRole } from '@/lib/user';
-import { useEffect } from 'react';
-import { useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
@@ -53,8 +50,6 @@ export default function NewUserPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useUser();
-  const firestore = getFirestore();
   const { isAdmin, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
   const t = {
@@ -103,12 +98,6 @@ export default function NewUserPage() {
       noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     },
   }[lang];
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  const { data: userProfile } = useDoc(userDocRef);
 
   // useCurrentRole handles admin detection
 

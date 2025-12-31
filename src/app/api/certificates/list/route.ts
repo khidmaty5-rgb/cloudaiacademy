@@ -80,8 +80,8 @@ export async function GET(req: NextRequest) {
     }
 
     const role = (decoded?.role as string | undefined) || 'student';
-    const isStaff = role === 'admin' || role === 'teacher';
-    if (!isStaff) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const isAdmin = role === 'admin';
+    if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const app = getAdminAppWithCert();
     if (!app) return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });

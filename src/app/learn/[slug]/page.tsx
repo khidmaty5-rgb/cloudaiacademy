@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -17,6 +16,7 @@ import type { Lesson } from '@/lib/lessons';
 import { enrollInCourse } from '@/lib/enrollment';
 import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
 import type { EnrollmentRequest } from '@/types/models';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LearnCoursePage() {
   const params = useParams();
@@ -24,42 +24,15 @@ export default function LearnCoursePage() {
   
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
   const firestore = getFirestore();
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
-  const { data: userProfile } = useDoc(userDocRef);
-  const { isAdmin, isTeacher, isStudent: isStudentRole } = useCurrentRole();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch { setHasAdminOrTeacherClaim(false); }
-    });
-    return () => unsub();
-  }, []);
-  // Treat teacher-not-instructor as student for learn access unless admin or instructor
-  const isStudent = isStudentRole && hasAdminOrTeacherClaim !== true;
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
+  const isStudent = !!user && !roleLoading && role === 'student';
   const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
 
   const courseDocRef = useMemoFirebase(() => {
@@ -84,15 +57,15 @@ export default function LearnCoursePage() {
     enrollmentRequestDocRef,
   );
 
+  const uid = user?.uid;
+  const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
+  const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
+  const canAccessCourseContent = !!(canPreviewCourse || (isEnrolled && !studentPaymentRequired));
+
   const lessonsQuery = useMemoFirebase(() => {
-    if (!course) return null;
-    const uid = user?.uid;
-    const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || ((course.instructorIds || []).includes(uid))));
-    const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
-    const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
-    if (!canAccessCourseContent) return null;
+    if (!course || !canAccessCourseContent) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, user, isAdmin, isTeacher, isEnrolled]);
+  }, [firestore, course, canAccessCourseContent]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
@@ -106,18 +79,15 @@ export default function LearnCoursePage() {
       setCompletedLessons(enrollment.completedLessons || []);
     }
   }, [enrollment]);
-  
-  useEffect(() => {
-    // Wait until all loading is finished; no navigation here to avoid loops
-    if (isUserLoading || isEnrollmentLoading || isCourseLoading) return;
-  }, [isUserLoading, isEnrollmentLoading, isCourseLoading]);
 
-
-  const uid = user?.uid;
-  const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
-  const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
-  const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
-  const isLoading = isUserLoading || isEnrollmentLoading || isEnrollmentRequestLoading || isCourseLoading || areLessonsLoading;
+  const isLoading =
+    isUserLoading ||
+    roleLoading ||
+    isProfileLoading ||
+    isEnrollmentLoading ||
+    isEnrollmentRequestLoading ||
+    isCourseLoading ||
+    areLessonsLoading;
 
   if (isLoading) {
     return (
@@ -184,24 +154,27 @@ export default function LearnCoursePage() {
       router.push(`/login?next=${encodeURIComponent(`/learn/${slug}`)}`);
       return;
     }
+    if (!isStudent) return;
+    if (studentPaymentRequired && !canPreviewCourse) {
+      window.location.assign('/#pricing');
+      return;
+    }
 
     try {
       setEnrolling(true);
 
       const courseIsFull = (course as any)?.isFull === true;
       if (!courseIsFull) {
-        if (studentPaymentRequired && !canPreviewCourse) {
-          window.location.assign('/#pricing');
-          return;
-        }
         await enrollInCourse(user.uid, course.id);
         await cancelEnrollmentRequest(user.uid, course.id);
+        toast({ title: 'Enrolled', description: 'You can now access the course lessons.' });
         return;
       }
 
       if (isWaitlistApproved) {
         await enrollInCourse(user.uid, course.id);
         await cancelEnrollmentRequest(user.uid, course.id);
+        toast({ title: 'Enrollment started', description: 'You can now access the course lessons.' });
         return;
       }
 
@@ -210,6 +183,13 @@ export default function LearnCoursePage() {
         courseId: course.id,
         courseTitle: course.title,
         courseCode: (course as any)?.courseCode || null,
+      });
+      toast({ title: 'Added to waiting list', description: 'We will review your request soon.' });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Enrollment failed',
+        description: err?.message || 'Could not update your enrollment.',
       });
     } finally {
       setEnrolling(false);
@@ -247,33 +227,37 @@ export default function LearnCoursePage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    disabled={
-                      enrolling ||
-                      (courseIsFull && isWaitlistPending) ||
-                      (!courseIsFull && studentPaymentRequired && !canPreviewCourse)
-                    }
-                    onClick={handleWaitlist}
-                    className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
-                  >
-                    {!user
-                      ? 'Log in'
-                      : !courseIsFull
-                        ? studentPaymentRequired && !canPreviewCourse
+                  {isStudent ? (
+                    <button
+                      disabled={
+                        enrolling ||
+                        (courseIsFull && isWaitlistPending) ||
+                        (studentPaymentRequired && !canPreviewCourse)
+                      }
+                      onClick={handleWaitlist}
+                      className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
+                    >
+                      {!user
+                        ? 'Log in'
+                        : studentPaymentRequired && !canPreviewCourse
                           ? 'Payment required'
-                          : enrolling
-                            ? 'Enrolling...'
-                            : 'Enroll Now'
-                        : isWaitlistApproved
-                          ? 'Start Course'
-                          : isWaitlistPending
-                            ? 'On Waiting List'
-                            : isWaitlistRejected
-                              ? 'Request Again'
-                              : enrolling
-                                ? 'Saving...'
-                                : 'Join Waiting List'}
-                  </button>
+                          : !courseIsFull
+                            ? enrolling
+                              ? 'Enrolling...'
+                              : 'Enroll Now'
+                            : isWaitlistApproved
+                              ? 'Start Course'
+                              : isWaitlistPending
+                                ? 'On Waiting List'
+                                : isWaitlistRejected
+                                  ? 'Request Again'
+                                  : enrolling
+                                    ? 'Saving...'
+                                    : 'Join Waiting List'}
+                    </button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Only students can enroll in courses.</p>
+                  )}
                   {studentPaymentRequired && (
                     <Link
                       href="/#pricing"
@@ -282,6 +266,12 @@ export default function LearnCoursePage() {
                       View Plans
                     </Link>
                   )}
+                  <Link
+                    href={`/courses/${slug}`}
+                    className="px-4 py-2 rounded border border-accent text-accent inline-block"
+                  >
+                    Back to course
+                  </Link>
                 </div>
               </CardContent>
             </Card>

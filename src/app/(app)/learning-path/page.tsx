@@ -178,8 +178,9 @@ export default function LearningPathPage() {
         language,
       });
       setResult(response);
-    } catch (err) {
-      setError(t.errorGenerate);
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      setError(msg.includes('AI_DISABLED') ? 'AI is currently unavailable. Please try again later.' : t.errorGenerate);
       console.error(err);
     } finally {
       setIsLoading(false);

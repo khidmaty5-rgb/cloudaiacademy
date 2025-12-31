@@ -11,12 +11,12 @@ export function inferCourseImageId(course: Partial<Course> | null | undefined): 
   const title = normalizeText((course as any)?.title);
   const category = normalizeText((course as any)?.category);
   const slug = normalizeText((course as any)?.slug);
+  const slugTokens = slug.split(/[^a-z0-9]+/).filter(Boolean);
 
   // Prefer slug-based routing (more deterministic)
   if (slug.includes('n8n')) return 'course-n8n';
   if (slug.includes('agile') || slug.includes('scrum')) return 'course-agile';
   if (slug.includes('devops') || slug.includes('cicd') || slug.includes('ci-cd')) return 'course-devops';
-  if (slug.includes('cloud')) return 'course-cloud';
   if (slug.includes('python-for-data') || (slug.includes('data') && slug.includes('python'))) return 'course-python-data';
   if (slug.includes('power-bi') || slug.includes('pbi')) return 'course-power-bi';
   if (slug.includes('sql')) return 'course-sql';
@@ -32,14 +32,14 @@ export function inferCourseImageId(course: Partial<Course> | null | undefined): 
   if (slug.includes('business-intelligence')) return 'course-bi';
   if (slug.includes('full-stack')) return 'course-full-stack';
   if (slug.includes('azure-ai')) return 'course-azure';
-  if (slug.includes('machine-learning') || slug.includes('ml')) return 'course-ml';
+  if (slug.includes('machine-learning') || slugTokens.includes('ml')) return 'course-ml';
   if (slug.includes('aws-solutions-architect') || slug.includes('aws-sa') || slug.includes('aws-')) return 'course-aws';
+  if (slug.includes('cloud')) return 'course-cloud';
 
   // Fallback to title/category heuristics
   if (title.includes('n8n')) return 'course-n8n';
   if (title.includes('agile') || title.includes('scrum')) return 'course-agile';
   if (title.includes('devops') || title.includes('ci/cd') || title.includes('git')) return 'course-devops';
-  if (title.includes('cloud') || category.includes('cloud')) return 'course-cloud';
   if (title.includes('python for data analysis') || (title.includes('data analysis') && title.includes('python'))) return 'course-python-data';
   if (title.includes('power bi')) return 'course-power-bi';
   if (title.includes(' sql') || title.startsWith('sql') || category.includes('sql')) return 'course-sql';
@@ -58,6 +58,7 @@ export function inferCourseImageId(course: Partial<Course> | null | undefined): 
   if (title.includes('azure ai')) return 'course-azure';
   if (title.includes('machine learning')) return 'course-ml';
   if (title.includes('aws solutions architect') || title.includes('aws ')) return 'course-aws';
+  if (title.includes('cloud') || category.includes('cloud')) return 'course-cloud';
 
   return undefined;
 }

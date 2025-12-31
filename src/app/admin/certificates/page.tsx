@@ -58,9 +58,9 @@ export default function AdminCertificatesPage() {
   const router = useRouter();
   const { toast } = useToast();
   const firestore = getFirestore();
-  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
 
-  const canView = isAdmin || isTeacher;
+  const canView = isAdmin === true;
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/admin');

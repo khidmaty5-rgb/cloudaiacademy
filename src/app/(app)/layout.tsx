@@ -13,14 +13,12 @@ import {
 } from '@/components/ui/sidebar';
 import { LayoutDashboard, UserCog, BookOpen, GraduationCap, Award } from 'lucide-react';
 import { Logo } from '@/components/logo';
-import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
-import { useDoc, useUser, useMemoFirebase } from '@/firebase';
-import { doc, getFirestore } from 'firebase/firestore';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
+import { useUser } from '@/firebase';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -36,55 +34,9 @@ const menuItems = [
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useUser();
-  const firestore = getFirestore();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  const [roleLabel, setRoleLabel] = useState<string | null>(null);
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-
-  const { data: userProfile } = useDoc(userDocRef);
-  // Prefer ID token claims for gating; avoid using Firestore role alone to prevent flicker or stale UI.
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) {
-          setHasAdminOrTeacherClaim(allowed);
-          setRoleLabel(role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : null);
-        }
-      } catch {
-        if (!cancelled) setHasAdminOrTeacherClaim(false);
-      }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-        setRoleLabel(role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : null);
-      } catch {
-        setHasAdminOrTeacherClaim(false);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  const canAccessAdmin = hasAdminOrTeacherClaim === true;
+  const { user, isUserLoading } = useUser();
+  const { role, loading: roleLoading } = useCurrentRole();
+  const showStudentMenu = !!user && !isUserLoading && !roleLoading && role === 'student';
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -97,7 +49,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                 <Logo />
               </SidebarHeader>
               <SidebarMenu>
-                {hasAdminOrTeacherClaim === false && (
+                {showStudentMenu && (
                   <>
                     {menuItems.map((item) => (
                       <SidebarMenuItem key={item.label}>

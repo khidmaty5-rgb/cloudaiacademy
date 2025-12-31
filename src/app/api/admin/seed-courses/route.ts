@@ -621,8 +621,10 @@ export async function POST(req: NextRequest) {
 
     const app = getAdminApp();
     let decoded: any;
+    let verified = false;
     try {
       decoded = await getAuth(app).verifyIdToken(token);
+      verified = true;
     } catch (e) {
       // Dev-only fallback to decode token payload for uid if verification fails locally
       if (process.env.NODE_ENV !== 'production') {
@@ -646,9 +648,15 @@ export async function POST(req: NextRequest) {
     const only = url.searchParams.get('only');
     const limit = limitParam ? Math.max(1, Math.min(seedCourses.length, parseInt(limitParam))) : seedCourses.length;
 
-    // Authorize: require admin role from ID token custom claims only
+    // Authorize: require admin role from verified ID token claims only.
+    // In dev fallback decode mode (unverified token), require the Firestore profile role instead.
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    const isAdmin = roleFromToken === 'admin';
+    let roleFromDoc: string | undefined;
+    if (!verified && uid) {
+      const userDoc = await db.doc(`users/${uid}`).get();
+      roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
+    }
+    const isAdmin = verified ? roleFromToken === 'admin' : roleFromDoc === 'admin';
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const results: string[] = [];

@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
 import type { Certificate } from '@/types/models';
+import { trimImageToPngDataUrl } from '@/lib/image-trim';
 
 function toDateValue(v: any): Date | null {
   if (!v) return null;
@@ -164,7 +165,7 @@ export async function generateCertificatePdfBytes({
   verifyUrl,
   templatePdfUrl = null,
   logoUrl = '/images/certificateLog.png',
-  signatureImageUrl = '/images/signature.png',
+  signatureImageUrl = null,
   instructorSignatureImageUrl = null,
   authorizedSignatureImageUrl = null,
 }: CertificatePdfOptions): Promise<Uint8Array> {
@@ -236,7 +237,13 @@ export async function generateCertificatePdfBytes({
   const tryEmbedImage = async (src?: string | null) => {
     if (!src) return null;
     try {
-      const bytes = src.startsWith('data:') ? dataUrlToBytes(src) : await fetchBytes(src);
+      let effectiveSrc = src;
+      if (!effectiveSrc.startsWith('data:') && effectiveSrc.toLowerCase().includes('/signature')) {
+        const trimmed = await trimImageToPngDataUrl(effectiveSrc);
+        if (trimmed) effectiveSrc = trimmed;
+      }
+
+      const bytes = effectiveSrc.startsWith('data:') ? dataUrlToBytes(effectiveSrc) : await fetchBytes(effectiveSrc);
       try {
         return await pdfDoc.embedPng(bytes);
       } catch {
@@ -257,13 +264,17 @@ export async function generateCertificatePdfBytes({
 
   const instructorSignatureImage = await tryEmbedFirstImage([
     instructorSignatureImageUrl,
-    '/images/signature-instructor.png',
     signatureImageUrl,
+    '/images/signature_1.png',
+    '/images/signature.png',
+    '/images/signature1.png',
   ]);
   const authorizedSignatureImage = await tryEmbedFirstImage([
     authorizedSignatureImageUrl,
-    '/images/signature-authorized.png',
     signatureImageUrl,
+    '/images/signature_2.png',
+    '/images/signature.png',
+    '/images/signature2.png',
   ]);
 
   const signatureTextFontFamily =
@@ -495,7 +506,7 @@ export async function generateCertificatePdfBytes({
       // Detected from cert-template-img-000.png signature lines (y=842px from top).
       const sigNameY = toY(204);
       const instructorMaxW = toX(270);
-      const instructorMaxH = toY(40) - toY(0);
+      const instructorMaxH = toY(80) - toY(0);
       const instructorSigImage = instructorSignatureImage || instructorSignatureTextImage;
       if (instructorSigImage) {
         const scale = Math.min(
@@ -526,7 +537,7 @@ export async function generateCertificatePdfBytes({
       }
 
       const authorizedMaxW = toX(270);
-      const authorizedMaxH = toY(40) - toY(0);
+      const authorizedMaxH = toY(70) - toY(0);
       const authorizedSigImage = authorizedSignatureImage || authorizedSignatureTextImage;
       if (authorizedSigImage) {
         const scale = Math.min(
@@ -537,7 +548,7 @@ export async function generateCertificatePdfBytes({
         const h = authorizedSigImage.height * scale;
         page.drawImage(authorizedSigImage, {
           x: toX(1148.5) - w / 2,
-          y: sigNameY,
+          y: sigNameY - 10 * scaleY,
           width: w,
           height: h,
         });
@@ -549,7 +560,7 @@ export async function generateCertificatePdfBytes({
           startSize: Math.round(18 * scaleY),
           minSize: Math.round(12 * scaleY),
         });
-        drawValueCenteredAt(String(certificate.authorizedByName || ''), toX(1148.5), sigNameY, {
+        drawValueCenteredAt(String(certificate.authorizedByName || ''), toX(1148.5), sigNameY - 10 * scaleY, {
           font: sigFont,
           size: authorizedSize,
           color: borderColor,
@@ -913,7 +924,7 @@ export async function generateCertificatePdfBytes({
       maxWidth: verifyMaxWidth,
       maxLines: 2,
     });
-    const verifyStartY = 174;
+    const verifyStartY = 184;
     verifyLines.forEach((line, idx) => {
       drawCenteredAtX(line, verifyCenterX, verifyStartY - idx * 14, {
         font: sans,
@@ -923,7 +934,7 @@ export async function generateCertificatePdfBytes({
     });
 
     // Footer: signatures + QR
-    const sigLineY = safeBottom + 34;
+    const sigLineY = safeBottom;
     const sigLineW = 240;
     const sigLineH = 1.2;
 
@@ -956,11 +967,13 @@ export async function generateCertificatePdfBytes({
       nameCenterX: number;
       titleAlign: 'left' | 'right';
       image: any | null;
+      imageMaxH?: number;
+      imageYOffset?: number;
     }) => {
       const lineY = sigLineY + 10;
       const imageMaxW = sigLineW;
-      const imageMaxH = 30;
-      const imageBottomY = lineY + 6;
+      const imageMaxH = options.imageMaxH ?? 100;
+      const imageBottomY = lineY + 4 + (options.imageYOffset ?? 0);
 
       if (options.image) {
         const scale = Math.min(imageMaxW / options.image.width, imageMaxH / options.image.height);
@@ -1029,6 +1042,8 @@ export async function generateCertificatePdfBytes({
       nameCenterX: rightLineX + sigLineW / 2,
       titleAlign: 'right',
       image: authorizedSignatureImage || authorizedSignatureTextImage,
+      imageMaxH: 90,
+      imageYOffset: -4,
     });
 
     // QR

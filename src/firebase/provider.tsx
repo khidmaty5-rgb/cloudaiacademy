@@ -122,7 +122,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         try { errorEmitter.emit('claim-error', (e as Error) || new Error('Claim sync failed')); } catch {}
       }
     });
-    return () => unsubscribe();
+    return () => {
+      try {
+        unsubscribe();
+      } catch (e) {
+        console.warn('[FirestoreUnsubscribeError]', e);
+      }
+    };
   }, [auth, firestore, userAuthState.user]);
 
   // Memoize the context value

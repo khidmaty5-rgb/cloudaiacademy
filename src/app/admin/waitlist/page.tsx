@@ -88,8 +88,8 @@ export default function AdminWaitlistPage() {
   const router = useRouter();
   const firestore = getFirestore();
   const { toast } = useToast();
-  const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
-  const canView = isAdmin || isTeacher;
+  const { isAdmin, loading: roleLoading } = useCurrentRole();
+  const canView = isAdmin;
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/admin');

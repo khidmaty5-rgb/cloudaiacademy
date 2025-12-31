@@ -36,11 +36,10 @@ export function initializeFirebase() {
 function initFirestore(firebaseApp: FirebaseApp) {
   try {
     // Improves reliability on networks/proxies that block Firestore streaming.
-    // Default to long-polling in dev; allow explicit override via env.
+    // Prefer auto-detect long-polling; allow explicit override via env.
     const forceLongPolling =
       process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === '1' ||
-      process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === 'true' ||
-      process.env.NODE_ENV !== 'production';
+      process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === 'true';
 
     return initializeFirestore(
       firebaseApp,

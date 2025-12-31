@@ -214,8 +214,10 @@ export async function POST(req: NextRequest) {
 
     const app = getAdminApp();
     let decoded: any;
+    let verified = false;
     try {
       decoded = await getAuth(app).verifyIdToken(token);
+      verified = true;
     } catch (e) {
       if (process.env.NODE_ENV !== 'production') {
         try {
@@ -229,7 +231,12 @@ export async function POST(req: NextRequest) {
 
     const db = getFirestore(app);
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    const isAdmin = roleFromToken === 'admin';
+    let roleFromDoc: string | undefined;
+    if (!verified && uid) {
+      const userDoc = await db.doc(`users/${uid}`).get();
+      roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
+    }
+    const isAdmin = verified ? roleFromToken === 'admin' : roleFromDoc === 'admin';
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const url = new URL(req.url);

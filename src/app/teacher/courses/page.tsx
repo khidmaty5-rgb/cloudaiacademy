@@ -71,7 +71,7 @@ export default function TeacherCoursesPage() {
                   <TableCell>{course.level}</TableCell>
                   <TableCell className="space-x-2">
                     <Link href={`/courses/${course.slug}`} className="text-accent hover:underline">View</Link>
-                    <Link href={`/admin/courses/edit/${course.slug}`} className="text-accent hover:underline">Manage</Link>
+                    <Link href={`/admin/courses/edit/${course.slug}`} className="text-accent hover:underline">Manage Lessons</Link>
                     <LiveSessionButton course={course as any} label="Start Live" />
                   </TableCell>
                 </TableRow>

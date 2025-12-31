@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getCourseRecommendations } from '@/ai/flows/ai-powered-course-recommendations';
 import { Sparkles } from 'lucide-react';
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, getFirestore, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 
 export default function Recommendations() {
@@ -16,9 +16,9 @@ export default function Recommendations() {
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [largeSetCourses, setLargeSetCourses] = useState<any[] | null>(null);
-  const [largeSetLoading, setLargeSetLoading] = useState(false);
-  const [largeSetError, setLargeSetError] = useState<Error | null>(null);
+  const [courses, setCourses] = useState<any[] | null>(null);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<Error | null>(null);
 
   const enrollmentsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -32,63 +32,51 @@ export default function Recommendations() {
     return enrollments.map(e => e.id);
   }, [enrollments]);
 
-  const useRealtime = enrolledCourseIds.length > 0 && enrolledCourseIds.length <= 10;
-
-  const coursesQuery = useMemoFirebase(() => {
-    if (!useRealtime) return null;
-    return query(collection(firestore, 'courses'), where('id', 'in', enrolledCourseIds));
-  }, [firestore, useRealtime, enrolledCourseIds]);
-
-  const { data: enrolledCourses, isLoading: coursesLoading, error: coursesError } = useCollection(coursesQuery);
-
-  // Fallback for >10 ids
   useEffect(() => {
     let cancelled = false;
-    async function fetchLarge() {
-      if (useRealtime || enrolledCourseIds.length === 0) {
-        setLargeSetCourses(null);
-        setLargeSetLoading(false);
-        setLargeSetError(null);
+    async function fetchCourses() {
+      if (!user) {
+        setCourses(null);
+        setCoursesLoading(false);
+        setCoursesError(null);
         return;
       }
-      setLargeSetLoading(true);
-      setLargeSetError(null);
-      const chunks: string[][] = [];
-      for (let i = 0; i < enrolledCourseIds.length; i += 10) {
-        chunks.push(enrolledCourseIds.slice(i, i + 10));
+      if (enrolledCourseIds.length === 0) {
+        setCourses([]);
+        setCoursesLoading(false);
+        setCoursesError(null);
+        return;
       }
+
+      setCoursesLoading(true);
+      setCoursesError(null);
       try {
-        const results: any[] = [];
-        for (const c of chunks) {
-          const q = query(collection(firestore, 'courses'), where('id', 'in', c));
-          const snap = await getDocs(q);
-          snap.forEach(d => results.push({ id: d.id, ...d.data() } as any));
-        }
+        const results = await Promise.all(
+          enrolledCourseIds.map(async (courseId) => {
+            const snap = await getDoc(doc(firestore, 'courses', courseId));
+            return snap.exists() ? ({ id: snap.id, ...snap.data() } as any) : null;
+          }),
+        );
         if (!cancelled) {
-          setLargeSetCourses(results);
-          setLargeSetLoading(false);
+          setCourses(results.filter(Boolean));
+          setCoursesLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!cancelled) {
-          setLargeSetError(err instanceof Error ? err : new Error('Failed to load your learning history.'));
-          setLargeSetCourses([]);
-          setLargeSetLoading(false);
+          setCoursesError(err instanceof Error ? err : new Error('Failed to load your learning history.'));
+          setCourses([]);
+          setCoursesLoading(false);
         }
       }
     }
-    fetchLarge();
+    fetchCourses();
     return () => { cancelled = true };
-  }, [firestore, useRealtime, enrolledCourseIds]);
-
-  const mergedCourses = useMemo(() => {
-    if (useRealtime) return enrolledCourses || [];
-    return largeSetCourses || [];
-  }, [useRealtime, enrolledCourses, largeSetCourses]);
+  }, [firestore, user, enrolledCourseIds]);
 
   const learningHistory = useMemo(() => {
-    if (!mergedCourses) return 'None';
-    return mergedCourses.length > 0 ? mergedCourses.map((c: any) => c.title).join(', ') : 'None';
-  }, [mergedCourses]);
+    if (!courses) return 'None';
+    return courses.length > 0 ? courses.map((c: any) => c.title).join(', ') : 'None';
+  }, [courses]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,15 +91,20 @@ export default function Recommendations() {
         inDemandSkills: 'AI, Cloud Computing, DevOps, Machine Learning', // Placeholder
       });
       setRecommendations(result.courseRecommendations);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to get recommendations:', error);
-      setAiError('Failed to get recommendations. Please try again.');
+      const msg = String(error?.message || error);
+      if (msg.includes('AI_DISABLED')) {
+        setAiError('AI recommendations are currently unavailable. Please try again later.');
+      } else {
+        setAiError('Failed to get recommendations. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isUserLoading || enrollmentsLoading || (useRealtime ? coursesLoading : largeSetLoading)) {
+  if (isUserLoading || enrollmentsLoading || coursesLoading) {
     return (
         <div className="space-y-4">
             <Skeleton className='h-4 w-full' />
@@ -123,9 +116,9 @@ export default function Recommendations() {
 
   return (
     <div className="space-y-4">
-      {(enrollmentsError || coursesError || largeSetError) && (
+      {(enrollmentsError || coursesError) && (
         <p className="text-sm text-destructive">
-          Couldn’t load your learning history. Recommendations may be less accurate.
+          Couldn't load your learning history. Recommendations may be less accurate.
         </p>
       )}
       <p className="text-sm text-muted-foreground">

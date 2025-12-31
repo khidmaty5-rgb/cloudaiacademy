@@ -105,7 +105,7 @@
     {
       "id": "course-linux",
       "description": "Linux Fundamentals course image",
-      "imageUrl": "/images/d.png",
+      "imageUrl": "/images/course-linux.png",
       "imageHint": "linux terminal"
     },
     {
@@ -123,13 +123,13 @@
     {
       "id": "course-maintenance",
       "description": "Computer & Mobile Maintenance course image",
-      "imageUrl": "/images/hero-browser.png",
+      "imageUrl": "/images/course-maintenance.png",
       "imageHint": "tools gears"
     },
     {
       "id": "course-service-desk",
       "description": "IT Support / Helpdesk course image",
-      "imageUrl": "/images/tet.jpg",
+      "imageUrl": "/images/course-service-desk.png",
       "imageHint": "headset support"
     },
     {

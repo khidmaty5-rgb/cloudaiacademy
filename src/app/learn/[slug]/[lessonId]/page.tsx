@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
-import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { canTeachCourse } from '@/lib/roles';
 import { updateUserProgress, enrollInCourse } from '@/lib/enrollment';
@@ -35,41 +34,13 @@ export default function LessonPage() {
 
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
-  const [hasAdminOrTeacherClaim, setHasAdminOrTeacherClaim] = useState<boolean | null>(null);
-  const { isAdmin, isTeacher } = useCurrentRole();
+  const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
 
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userDocRef);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function checkClaims() {
-      if (!user) { if (!cancelled) setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        const allowed = role === 'admin' || role === 'teacher';
-        if (!cancelled) setHasAdminOrTeacherClaim(allowed);
-      } catch { if (!cancelled) setHasAdminOrTeacherClaim(false); }
-    }
-    checkClaims();
-    return () => { cancelled = true };
-  }, [user]);
-  useEffect(() => {
-    const auth = getAuth();
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      if (!u) { setHasAdminOrTeacherClaim(false); return; }
-      try {
-        const tr = await u.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        setHasAdminOrTeacherClaim(role === 'admin' || role === 'teacher');
-      } catch { setHasAdminOrTeacherClaim(false); }
-    });
-    return () => unsub();
-  }, []);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -101,15 +72,17 @@ export default function LessonPage() {
   const isWaitlistRejected = enrollmentRequest?.status === 'REJECTED';
   const [isWaitlistSaving, setIsWaitlistSaving] = useState(false);
 
+  const uid = user?.uid;
+  const isInstructor = !!(uid && canTeachCourse(course as any, uid));
+  const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
+  const isStudent = !!user && !roleLoading && role === 'student';
+  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
+  const canAccessCourseContent = !!(canPreviewCourse || (isEnrolled && !studentPaymentRequired));
+
   const lessonsQuery = useMemoFirebase(() => {
-    if (!course) return null;
-    const uid = user?.uid;
-    const isInstructor = !!(uid && course && ((course.ownerId === uid) || ((course.instructorIds || []).includes(uid))));
-    const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
-    const canAccessCourseContent = !!(isEnrolled || canPreviewCourse);
-    if (!canAccessCourseContent) return null;
+    if (!course || !canAccessCourseContent) return null;
     return query(collection(firestore, 'courses', course.id, 'lessons'), orderBy('createdAt', 'asc'));
-  }, [firestore, course, user, isAdmin, isTeacher, isEnrolled]);
+  }, [firestore, course, canAccessCourseContent]);
   const { data: courseLessons, isLoading: areLessonsLoading } = useCollection<Lesson>(lessonsQuery);
 
   const sortedLessons = useMemo(() => {
@@ -212,14 +185,9 @@ export default function LessonPage() {
     }
   };
   
-  const uid = user?.uid;
-  const isInstructor = !!(uid && canTeachCourse(course as any, uid));
-  const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
-  const canAccessCourseContent = !!(!!enrollment || canPreviewCourse);
-  const isStudent = !canPreviewCourse;
-  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
   const isLoading =
     isUserLoading ||
+    roleLoading ||
     isCourseLoading ||
     isProfileLoading ||
     isEnrollmentLoading ||
@@ -232,16 +200,23 @@ export default function LessonPage() {
       router.push(`/login?next=${encodeURIComponent(`/learn/${slug}/${lessonId}`)}`);
       return;
     }
+    if (!isStudent) {
+      toast({
+        title: 'Enrollment not available',
+        description: 'Only student accounts can enroll in courses.',
+      });
+      return;
+    }
+    if (studentPaymentRequired && !canPreviewCourse) {
+      window.location.assign('/#pricing');
+      return;
+    }
 
     try {
       setIsWaitlistSaving(true);
 
       const courseIsFull = (course as any)?.isFull === true;
       if (!courseIsFull) {
-        if (studentPaymentRequired && !canPreviewCourse) {
-          window.location.assign('/#pricing');
-          return;
-        }
         await enrollInCourse(user.uid, course.id);
         await cancelEnrollmentRequest(user.uid, course.id);
         toast({ title: 'Enrolled', description: 'You can now access the course lessons.' });
@@ -360,31 +335,35 @@ export default function LessonPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <Button
-                    disabled={
-                      isWaitlistSaving ||
-                      (courseIsFull && isWaitlistPending) ||
-                      (!courseIsFull && studentPaymentRequired && !canPreviewCourse)
-                    }
-                    onClick={handleWaitlist}
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
-                  >
-                    {!courseIsFull
-                      ? studentPaymentRequired && !canPreviewCourse
+                  {isStudent ? (
+                    <Button
+                      disabled={
+                        isWaitlistSaving ||
+                        (courseIsFull && isWaitlistPending) ||
+                        (studentPaymentRequired && !canPreviewCourse)
+                      }
+                      onClick={handleWaitlist}
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
+                    >
+                      {studentPaymentRequired && !canPreviewCourse
                         ? 'Payment required'
-                        : isWaitlistSaving
-                          ? 'Enrolling...'
-                          : 'Enroll Now'
-                      : isWaitlistApproved
-                        ? 'Start Course'
-                        : isWaitlistPending
-                          ? 'On Waiting List'
-                          : isWaitlistRejected
-                            ? 'Request Again'
-                            : isWaitlistSaving
-                              ? 'Saving...'
-                              : 'Join Waiting List'}
-                  </Button>
+                        : !courseIsFull
+                          ? isWaitlistSaving
+                            ? 'Enrolling...'
+                            : 'Enroll Now'
+                          : isWaitlistApproved
+                            ? 'Start Course'
+                            : isWaitlistPending
+                              ? 'On Waiting List'
+                              : isWaitlistRejected
+                                ? 'Request Again'
+                                : isWaitlistSaving
+                                  ? 'Saving...'
+                                  : 'Join Waiting List'}
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Only students can enroll in courses.</p>
+                  )}
                   {studentPaymentRequired && (
                     <Button asChild variant="outline">
                       <Link href="/#pricing">View Plans</Link>

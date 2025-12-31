@@ -21,7 +21,7 @@ function getAdminApp(): App {
   }
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const rawKey = process.env.FIREBASE_PRIVATE_KEY;
-  const privateKey = rawKey ? rawKey.replace(/\n/g, '\n') : undefined;
+  const privateKey = rawKey ? rawKey.replace(/\\n/g, '\n') : undefined;
   if (projectId && clientEmail && privateKey) {
     return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }, name);
   }
@@ -218,8 +218,10 @@ export async function POST(req: NextRequest) {
 
     const app = getAdminApp();
     let decoded: any;
+    let verified = false;
     try {
       decoded = await getAuth(app).verifyIdToken(token);
+      verified = true;
     } catch (e) {
       // Dev-only fallback to decode token payload locally if verification fails
       const isDev = (process.env.NODE_ENV as string) !== 'production';
@@ -237,7 +239,8 @@ export async function POST(req: NextRequest) {
     const userDoc = await db.doc(`users/${uid}`).get();
     const roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    const isAdmin = roleFromDoc === 'admin' || roleFromToken === 'admin';
+    // Only trust role claims when the token is verified. In dev fallback mode, require the Firestore profile role.
+    const isAdmin = verified ? (roleFromDoc === 'admin' || roleFromToken === 'admin') : roleFromDoc === 'admin';
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const deletedCourses = await wipeCoursesAndLessons(db);

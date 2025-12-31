@@ -404,10 +404,6 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       label: lang === 'ar' ? 'تهيئة البيانات' : 'Seed',
     },
     {
-      href: '/admin/waitlist',
-      label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
-    },
-    {
       href: '/admin/landing',
       label: lang === 'ar' ? 'إعدادات الصفحة الرئيسية' : 'Landing Page',
     },
@@ -415,7 +411,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
 
   const adminNavItemsWithCertificates = [
     ...adminNavItems,
-    ...(isAdmin || isTeacher
+    ...(isAdmin
       ? [
           {
             href: '/admin/certificates',
@@ -430,17 +426,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     { href: '/teacher/courses', label: lang === 'ar' ? 'دوراتي' : 'My Courses' },
   ] as const;
 
-  const teachingNavItemsWithCertificates = [
-    ...teachingNavItems,
-    {
-      href: '/admin/certificates',
-      label: lang === 'ar' ? 'الشهادات' : 'Certificates',
-    },
-  ] as const;
-
   const filteredAdminNavItems = isTeacher
     ? adminNavItemsWithCertificates.filter(
         (i) =>
+          i.href !== '/admin/courses' &&
           i.href !== '/admin/users' &&
           i.href !== '/admin/seed' &&
           i.href !== '/admin/journal' &&
@@ -516,7 +505,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
+                {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
                   <DropdownMenuItem asChild key={item.href}>
                     <Link href={item.href}>{item.label}</Link>
                   </DropdownMenuItem>
@@ -613,7 +602,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                           <p className="px-2 text-xs text-primary-foreground/60">
                             {isTeacher ? (lang==='ar' ? 'التدريس' : 'Teaching') : (lang==='ar' ? 'الإدارة' : 'Admin')}
                           </p>
-                          {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
+                          {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
                             <Link
                               key={item.href}
                               href={item.href}
@@ -700,7 +689,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                               <p className="px-2 text-xs text-primary-foreground/60">
                                 {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
                               </p>
-                              {(isTeacher ? teachingNavItemsWithCertificates : adminNavItemsWithCertificates).map((item) => (
+                              {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
                                 <Link
                                   key={item.href}
                                   href={item.href}

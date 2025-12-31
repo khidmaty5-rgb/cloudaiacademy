@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, getFirestore, collection, query, doc } from 'firebase/firestore';
+import { useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collectionGroup, deleteDoc, doc, getFirestore, collection, query, where } from 'firebase/firestore';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +24,7 @@ import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
  
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
+import { useToast } from '@/hooks/use-toast';
 
 function toDateValue(v: any): Date | null {
   if (!v) return null;
@@ -120,19 +120,46 @@ const dashboardText = {
 
 export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
-  const router = useRouter();
   const firestore = getFirestore();
   const { isAdmin, isTeacher, loading: roleLoading } = useCurrentRole();
   const roleLabel = isAdmin ? 'Admin' : isTeacher ? 'Teacher' : null;
   const { lang } = useLang();
   const t = dashboardText[lang];
+  const { toast } = useToast();
+  const uid = user?.uid;
+  const [unenrollingKey, setUnenrollingKey] = useState<string | null>(null);
 
-  // Fetch user profile to check role
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const handleUnenroll = async (enrollment: any) => {
+    if (!isAdmin) return;
+    const userId = enrollment?.userId as string | undefined;
+    const courseId = enrollment?.courseId as string | undefined;
+    if (!userId || !courseId) return;
+
+    const studentLabel = (enrollment?.userEmail as string | undefined) || userId;
+    const courseLabel = (enrollment?.courseTitle as string | undefined) || courseId;
+    const ok =
+      typeof window !== 'undefined'
+        ? window.confirm(`Unenroll ${studentLabel} from ${courseLabel}?`)
+        : false;
+    if (!ok) return;
+
+    const key = `${userId}:${courseId}`;
+    setUnenrollingKey(key);
+    try {
+      await deleteDoc(doc(firestore, 'users', userId, 'enrollments', courseId));
+      toast({ title: 'Student unenrolled.', description: `${studentLabel} — ${courseLabel}` });
+    } catch (e) {
+      console.error('[AdminUnenroll]', e);
+      const code = (e as any)?.code as string | undefined;
+      const msg =
+        code === 'permission-denied'
+          ? 'Permission denied. Deploy Firestore rules and re-login as admin.'
+          : 'Failed to unenroll.';
+      toast({ title: msg, variant: 'destructive' });
+    } finally {
+      setUnenrollingKey((k) => (k === key ? null : k));
+    }
+  };
 
   // Fetch all users for total user count and growth calculation (admin-only)
   const canListUsers = isAdmin;
@@ -143,48 +170,130 @@ export default function AdminDashboardPage() {
   );
   const { data: users, isLoading: isUsersLoading, error: usersError } = useCollection(usersQuery);
 
-  // Fetch all enrollments for total enrollment count and revenue
-  const canListEnrollments = isAdmin || isTeacher;
-  const enrollmentsQuery = useMemoFirebase(
-    () => (canListEnrollments ? query(collectionGroup(firestore, 'enrollments')) : null),
-    [firestore, canListEnrollments]
+  const adminCoursesQuery = useMemoFirebase(
+    () => (isAdmin ? collection(firestore, 'courses') : null),
+    [firestore, isAdmin]
   );
-  const { data: enrollments, isLoading: isEnrollmentsLoading, error: enrollmentsError } = useCollection(enrollmentsQuery);
+  const teacherOwnedCoursesQuery = useMemoFirebase(
+    () =>
+      isTeacher && uid
+        ? query(collection(firestore, 'courses'), where('ownerId', '==', uid))
+        : null,
+    [firestore, isTeacher, uid]
+  );
+  const teacherAssignedCoursesQuery = useMemoFirebase(
+    () =>
+      isTeacher && uid
+        ? query(collection(firestore, 'courses'), where('instructorIds', 'array-contains', uid))
+        : null,
+    [firestore, isTeacher, uid]
+  );
 
-  const coursesQuery = useMemoFirebase(
-    () => collection(firestore, 'courses'),
-    [firestore]
-  );
-  const { data: allCourses, isLoading: isCoursesLoading, error: coursesError } =
-    useCollection(coursesQuery);
+  const {
+    data: adminCourses,
+    isLoading: isAdminCoursesLoading,
+    error: adminCoursesError,
+  } = useCollection(adminCoursesQuery);
+  const {
+    data: teacherOwnedCourses,
+    isLoading: isTeacherOwnedCoursesLoading,
+    error: teacherOwnedCoursesError,
+  } = useCollection(teacherOwnedCoursesQuery);
+  const {
+    data: teacherAssignedCourses,
+    isLoading: isTeacherAssignedCoursesLoading,
+    error: teacherAssignedCoursesError,
+  } = useCollection(teacherAssignedCoursesQuery);
+
+  const allCourses = useMemo(() => {
+    if (isAdmin) return adminCourses;
+    if (isTeacher) {
+      const map = new Map<string, any>();
+      for (const c of teacherOwnedCourses || []) map.set(c.id, c);
+      for (const c of teacherAssignedCourses || []) map.set(c.id, c);
+      return Array.from(map.values());
+    }
+    return null;
+  }, [isAdmin, isTeacher, adminCourses, teacherOwnedCourses, teacherAssignedCourses]);
+
+  const isCoursesLoading = isAdmin
+    ? isAdminCoursesLoading
+    : isTeacher
+    ? isTeacherOwnedCoursesLoading || isTeacherAssignedCoursesLoading
+    : false;
+
+  const coursesError =
+    adminCoursesError || teacherOwnedCoursesError || teacherAssignedCoursesError;
+
+  const teacherCourseIds = useMemo(() => {
+    if (!isTeacher || !allCourses) return [] as string[];
+    return allCourses.map((c) => c.id).filter(Boolean).sort();
+  }, [isTeacher, allCourses]);
+
+  const teacherTooManyCourses = isTeacher && teacherCourseIds.length > 10;
+
+  // Fetch enrollments for total enrollment count and recent enrollments
+  const enrollmentsQuery = useMemoFirebase(() => {
+    if (isAdmin) {
+      return query(collectionGroup(firestore, 'enrollments'));
+    }
+
+    if (isTeacher) {
+      // Firestore `in` supports up to 10 values.
+      if (teacherTooManyCourses) return null;
+      if (teacherCourseIds.length === 0) return null;
+      return query(
+        collectionGroup(firestore, 'enrollments'),
+        where('courseId', 'in', teacherCourseIds)
+      );
+    }
+
+    return null;
+  }, [firestore, isAdmin, isTeacher, teacherTooManyCourses, teacherCourseIds]);
+  const {
+    data: enrollments,
+    isLoading: isEnrollmentsLoading,
+    error: enrollmentsError,
+  } = useCollection(enrollmentsQuery);
 
   // Calculate enrollments by course for the chart (replace fake revenue)
   const enrollmentsByCourse = useMemo(() => {
     if (!enrollments || !allCourses) return [] as Array<{ name: string; count: number }>;
-    const map = new Map<string, { name: string; count: number }>();
-    enrollments.forEach((e) => {
-      const course = allCourses.find((c) => c.id === e.courseId);
-      const name = course?.title || e.courseId;
-      const prev = map.get(name) || { name, count: 0 };
-      prev.count += 1;
-      map.set(name, prev);
-    });
-    return Array.from(map.values());
+
+    const courseTitleById = new Map<string, string>();
+    for (const c of allCourses) {
+      courseTitleById.set(c.id, c.title ?? c.id);
+    }
+
+    const countsByCourseId = new Map<string, number>();
+    for (const e of enrollments) {
+      const courseId = e.courseId;
+      countsByCourseId.set(courseId, (countsByCourseId.get(courseId) ?? 0) + 1);
+    }
+
+    return Array.from(countsByCourseId.entries()).map(([courseId, count]) => ({
+      name: courseTitleById.get(courseId) ?? courseId,
+      count,
+    }));
   }, [enrollments, allCourses]);
 
   // Calculate user growth percentage
   const userGrowth = useMemo(() => {
     if (!users) return { percentage: 0, count: 0 };
-    const thisMonth = new Date().getMonth();
-    const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
 
     const thisMonthSignups = users.filter((u) => {
       const d = toDateValue(u.dateJoined);
-      return d && d.getMonth() === thisMonth;
+      return d && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
     }).length;
     const lastMonthSignups = users.filter((u) => {
       const d = toDateValue(u.dateJoined);
-      return d && d.getMonth() === lastMonth;
+      return d && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
     }).length;
 
     if (lastMonthSignups === 0) {
@@ -199,8 +308,19 @@ export default function AdminDashboardPage() {
 
   // Get recent enrollments for the table
   const recentEnrollments = useMemo(() => {
-    if (!enrollments || !users || !allCourses) return [];
-    return enrollments
+    if (!enrollments || !allCourses) return [];
+
+    const userEmailById = new Map<string, string | undefined>();
+    for (const u of users || []) {
+      userEmailById.set(u.id, (u as any).email);
+    }
+
+    const courseTitleById = new Map<string, string>();
+    for (const c of allCourses) {
+      courseTitleById.set(c.id, c.title ?? c.id);
+    }
+
+    return [...enrollments]
       .sort((a, b) => {
         const bd = toDateValue(b.enrollmentDate)?.getTime() ?? 0;
         const ad = toDateValue(a.enrollmentDate)?.getTime() ?? 0;
@@ -208,18 +328,23 @@ export default function AdminDashboardPage() {
       })
       .slice(0, 5)
       .map((enrollment) => {
-        const user = users.find((u) => u.id === enrollment.userId);
-        const course = allCourses.find((c) => c.id === enrollment.courseId);
         return {
           ...enrollment,
-          userEmail: user?.email,
-          courseTitle: course?.title,
+          userEmail: userEmailById.get(enrollment.userId) ?? (enrollment as any).userEmail,
+          courseTitle: courseTitleById.get(enrollment.courseId),
         };
       });
   }, [enrollments, users, allCourses]);
 
-  const isLoading = isUserLoading || isProfileLoading || roleLoading;
-  const loadError = usersError || enrollmentsError || coursesError;
+  const isLoading = isUserLoading || roleLoading;
+  const teacherCourseLimitError =
+    teacherTooManyCourses
+      ? new Error(
+          `Teacher dashboard currently supports up to 10 courses (found ${teacherCourseIds.length}).`
+        )
+      : null;
+  const loadError =
+    usersError || enrollmentsError || coursesError || teacherCourseLimitError;
   const canView = isAdmin || isTeacher;
   const isDataLoading =
     isUsersLoading || isEnrollmentsLoading || isCoursesLoading;
@@ -280,7 +405,9 @@ export default function AdminDashboardPage() {
                     </Button>
                   )}
                   <Button asChild>
-                    <Link href="/admin/courses">{t.manageCourses}</Link>
+                    <Link href={isTeacher && !isAdmin ? '/teacher/courses' : '/admin/courses'}>
+                      {isTeacher && !isAdmin ? (lang === 'ar' ? 'دوراتي' : 'My Courses') : t.manageCourses}
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -371,6 +498,7 @@ export default function AdminDashboardPage() {
                       <TableHead>{t.student}</TableHead>
                       <TableHead>{t.course}</TableHead>
                       <TableHead>{t.date}</TableHead>
+                      {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,21 +514,40 @@ export default function AdminDashboardPage() {
                           <TableCell>
                             <Skeleton className="h-4 w-24" />
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-right">
+                              <Skeleton className="h-9 w-24 ml-auto" />
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     ) : recentEnrollments.length > 0 ? (
                       recentEnrollments.map((enrollment) => (
                         <TableRow key={`${enrollment.userId}-${enrollment.courseId}-${enrollment.id}`}>
-                          <TableCell>{enrollment.userEmail}</TableCell>
+                          <TableCell>{enrollment.userEmail || enrollment.userId}</TableCell>
                           <TableCell>{enrollment.courseTitle}</TableCell>
                           <TableCell>
                             {(() => { const d = toDateValue(enrollment.enrollmentDate); return d ? format(d, 'PPP') : 'N/A'; })()}
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleUnenroll(enrollment)}
+                                disabled={unenrollingKey === `${enrollment.userId}:${enrollment.courseId}`}
+                              >
+                                {unenrollingKey === `${enrollment.userId}:${enrollment.courseId}`
+                                  ? 'Removing...'
+                                  : 'Unenroll'}
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center">
+                        <TableCell colSpan={isAdmin ? 4 : 3} className="text-center">
                           {t.noRecentEnrollments}
                         </TableCell>
                       </TableRow>

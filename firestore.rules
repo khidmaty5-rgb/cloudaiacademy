@@ -57,6 +57,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.role == 'teacher';
     }
 
+    function isStudent() {
+      // Treat missing role claim as student (default role in the app).
+      return isSignedIn() && (
+        request.auth.token.role == 'student' ||
+        request.auth.token.role == null
+      );
+    }
+
     function isAdminOrTeacher() {
       return isAdmin() || isTeacher();
     }
@@ -82,32 +90,12 @@ service cloud.firestore {
       );
     }
 
-    function teacherCanUpdateCourse(courseId) {
-      return (
-        isTeacher() &&
-        isInstructorOfCourse(courseId) &&
-        // Teachers can edit safe fields only; admin-only fields (status, isFull, instructors, live config) are denied.
-        request.resource.data.diff(resource.data).changedKeys().hasOnly([
-          'title',
-          'courseCode',
-          'imageUrl',
-          'description',
-          'category',
-          'price',
-          'duration',
-          'totalHours',
-          'level',
-          'updatedAt'
-        ])
-      );
-    }
-
     // Deny access if the user's profile indicates payment is required
     function accountActive() {
       return isSignedIn() && (
         // Only students are restricted by payment gate; admins/teachers always pass
         !(
-          (request.auth.token.role == 'student') &&
+          isStudent() &&
           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment == true)
         )
       );
@@ -153,7 +141,8 @@ service cloud.firestore {
      * @description Rules for courses.
      * @path /courses/{courseId}
      * @allow (get, list) Any user can read courses.
-     * @allow (create, update, delete) Admins and Teachers can manage courses.
+     * @allow (create, update, delete) Admins can manage courses.
+     * @allow (create, update, delete on lessons) Admins and assigned teachers can manage lessons.
      * @principle Allows public read access with restricted writes.
      */
     match /courses/{courseId} {
@@ -163,9 +152,9 @@ service cloud.firestore {
         (resource.data.status != 'DRAFT') ||
         (accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)))
       );
-      // Admins can create/delete courses. Teachers can only update courses they teach (limited fields).
+      // Admins can create/update/delete courses. Teachers cannot update course metadata.
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || teacherCanUpdateCourse(courseId);
+      allow update: if isAdmin();
 
       // Lessons subcollection access
       match /lessons/{lessonId} {
@@ -193,28 +182,26 @@ service cloud.firestore {
       // Students can enroll directly when the course is open; when full, they must be approved via waitlist.
       allow create: if (
         isOwner(userId) &&
+        isStudent() &&
         accountActive() &&
         request.resource.data.userId == userId &&
         request.resource.data.courseId == enrollmentId &&
         (
-          // Staff can enroll themselves without a request (useful for testing).
-          isAdminOrTeacher() ||
+          // Course open => direct enrollment allowed.
           (
-            // Course open => direct enrollment allowed.
-            (
-              exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
-              get(/databases/$(database)/documents/courses/$(enrollmentId)).data.isFull != true
-            ) ||
-            // Course full => must be approved first.
-            (
-              exists(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)) &&
-              get(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)).data.status == 'APPROVED'
-            )
+            exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
+            get(/databases/$(database)/documents/courses/$(enrollmentId)).data.isFull != true
+          ) ||
+          // Course full => must be approved first.
+          (
+            exists(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)) &&
+            get(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)).data.status == 'APPROVED'
           )
         )
       );
       allow update: if isExistingOwner(userId) && accountActive() && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      // Admins can unenroll students.
+      allow delete: if isAdmin() || isExistingOwner(userId);
     }
 
     match /{path=**}/enrollments/{enrollmentId} {
@@ -223,7 +210,7 @@ service cloud.firestore {
 
     // Collection group support for enrollmentRequests (waitlist) queries.
     match /{path=**}/enrollmentRequests/{requestId} {
-      allow get, list: if isAdminOrTeacher() || (isSignedIn() && request.auth.uid == resource.data.userId);
+      allow get, list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
     }
 
     /**
@@ -232,9 +219,10 @@ service cloud.firestore {
      * @allow Students can create/delete their own requests; admins/teachers can view and update status.
      */
     match /users/{userId}/enrollmentRequests/{courseId} {
-      allow get, list: if isOwner(userId) || isAdminOrTeacher();
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if (
         isOwner(userId) &&
+        isStudent() &&
         request.resource.data.userId == userId &&
         request.resource.data.courseId == courseId &&
         request.resource.data.status == 'PENDING' &&
@@ -242,8 +230,8 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/courses/$(courseId)) &&
         get(/databases/$(database)/documents/courses/$(courseId)).data.isFull == true
       );
-      allow update: if isAdminOrTeacher();
-      allow delete: if isOwner(userId) || isAdminOrTeacher();
+      allow update: if isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     /**
@@ -266,18 +254,18 @@ service cloud.firestore {
      * @path /certificates/{certificateId} and /users/{userId}/certificates/{certificateId}
      * @allow (get) Anyone can verify a certificate by ID.
      * @allow (list) Disallowed on top-level certificates to prevent enumeration.
-     * @allow (create, update, delete) Admins and Teachers can manage certificates.
+     * @allow (create, update, delete) Admins can manage certificates.
      * @principle Public verification + controlled issuance.
      */
     match /certificates/{certificateId} {
       allow get: if true;
       allow list: if false;
-      allow create, update, delete: if isAdminOrTeacher();
+      allow create, update, delete: if isAdmin();
     }
 
     match /users/{userId}/certificates/{certificateId} {
-      allow get, list: if isOwner(userId) || isAdminOrTeacher();
-      allow create, update, delete: if isAdminOrTeacher();
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     /**
@@ -289,7 +277,7 @@ service cloud.firestore {
      */
     match /announcements/{announcementId} {
         allow get, list: if true;
-        allow create, update, delete: if isAdminOrTeacher();
+        allow create, update, delete: if isAdmin();
     }
 
     match /settings/{docId} {

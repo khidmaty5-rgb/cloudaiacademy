@@ -1,9 +1,10 @@
 'use client';
 
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
 import type { Certificate } from '@/types/models';
+import { trimImageToPngDataUrl } from '@/lib/image-trim';
 
 function toDateValue(v: any): Date | null {
   if (!v) return null;
@@ -27,10 +28,32 @@ function SignatureMark(props: {
   fallbackText: string;
   imgClassName?: string;
   textClassName?: string;
+  trim?: boolean;
 }) {
-  const { sources, fallbackText, imgClassName, textClassName } = props;
+  const { sources, fallbackText, imgClassName, textClassName, trim = true } = props;
   const [idx, setIdx] = useState(0);
   const src = sources[idx];
+  const [trimmedSrc, setTrimmedSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTrimmedSrc(null);
+    if (!src || !trim) return () => {};
+
+    // Only trim signature-like images; keep behavior predictable for other assets.
+    const shouldTrim = src.toLowerCase().includes('/signature');
+    if (!shouldTrim) return () => {};
+
+    (async () => {
+      const out = await trimImageToPngDataUrl(src);
+      if (cancelled) return;
+      if (out) setTrimmedSrc(out);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src, trim]);
 
   if (!src) {
     return <p className={textClassName}>{fallbackText}</p>;
@@ -38,10 +61,13 @@ function SignatureMark(props: {
 
   return (
     <img
-      src={src}
+      src={trimmedSrc || src}
       alt="Signature"
       className={imgClassName}
-      onError={() => setIdx((i) => i + 1)}
+      onError={() => {
+        setTrimmedSrc(null);
+        setIdx((i) => i + 1);
+      }}
       loading="lazy"
     />
   );
@@ -161,9 +187,9 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
             </div>
             <div>
               <SignatureMark
-                sources={['/images/signature-instructor.png', '/images/signature.png']}
+                sources={['/images/signature_1.png', '/images/signature.png', '/images/signature1.png']}
                 fallbackText={certificate.instructorName}
-                imgClassName="h-10 w-auto max-w-[260px] object-contain"
+                imgClassName="h-24 w-auto max-w-[320px] object-contain"
                 textClassName="font-signature text-3xl leading-none text-primary"
               />
               <div className="mt-1 h-px w-56 bg-border" />
@@ -174,9 +200,9 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
           <div className="flex items-center gap-6">
             <div className="text-right">
               <SignatureMark
-                sources={['/images/signature-authorized.png', '/images/signature.png']}
+                sources={['/images/signature_2.png', '/images/signature.png', '/images/signature2.png']}
                 fallbackText={certificate.authorizedByName}
-                imgClassName="ml-auto h-10 w-auto max-w-[260px] object-contain"
+                imgClassName="ml-auto h-20 w-auto max-w-[320px] translate-y-1 object-contain object-bottom"
                 textClassName="font-signature text-3xl leading-none text-primary"
               />
               <div className="mt-1 h-px w-56 bg-border" />
