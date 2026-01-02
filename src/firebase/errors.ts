@@ -93,7 +93,10 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
 /**
  * Builds a safe, user-facing error message for permission failures.
  */
-function buildPublicErrorMessage(): string {
+function buildPublicErrorMessage(context: SecurityRuleContext): string {
+  if (process.env.NODE_ENV !== 'production') {
+    return `Missing or insufficient permissions. (${context.operation} ${context.path})`;
+  }
   return 'Missing or insufficient permissions.';
 }
 
@@ -107,7 +110,7 @@ export class FirestorePermissionError extends Error {
 
   constructor(context: SecurityRuleContext) {
     const requestObject = buildRequestObject(context);
-    super(buildPublicErrorMessage());
+    super(buildPublicErrorMessage(context));
     this.name = 'FirebaseError';
     this.request = requestObject;
   }

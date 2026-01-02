@@ -20,14 +20,14 @@ export default function TeacherDashboardPage() {
   const uid = user?.uid;
 
   const ownerQuery = useMemoFirebase(() => {
-    if (!uid) return null;
+    if (loading || !isTeacher || !uid) return null;
     return query(collection(firestore, 'courses'), where('ownerId', '==', uid));
-  }, [firestore, uid]);
+  }, [firestore, uid, isTeacher, loading]);
 
   const instructorQuery = useMemoFirebase(() => {
-    if (!uid) return null;
+    if (loading || !isTeacher || !uid) return null;
     return query(collection(firestore, 'courses'), where('instructorIds', 'array-contains', uid));
-  }, [firestore, uid]);
+  }, [firestore, uid, isTeacher, loading]);
 
   const { data: ownedCourses, isLoading: loadingOwned } = useCollection<Course>(ownerQuery);
   const { data: assignedCourses, isLoading: loadingAssigned } = useCollection<Course>(instructorQuery);

@@ -6,6 +6,7 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
+import { isPriceFree } from '@/lib/course-price';
 
 export const runtime = 'nodejs';
 
@@ -92,18 +93,42 @@ export async function GET(
     const courseSnap = await db.doc(`courses/${courseId}`).get();
     if (!courseSnap.exists) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     const course = courseSnap.data() as any;
+    const isFreeCourse = isPriceFree(course?.price);
 
     const isAdmin = role === 'admin';
     const isTeacherInstructor = role === 'teacher' && canTeachCourse(course, String(uid));
 
     let allowed = isAdmin || isTeacherInstructor;
     if (!allowed) {
-      // Student access: must be enrolled and not payment-gated.
+      // Student access: must be enrolled AND either the course is free, the course was purchased,
+      // or the student's account is not paywalled (e.g. subscription active / paywall off).
+      if (role !== 'student') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const enrollmentSnap = await db.doc(`users/${uid}/enrollments/${courseId}`).get();
+      if (!enrollmentSnap.exists) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
       const profileSnap = await db.doc(`users/${uid}`).get();
-      const requirePayment = profileSnap.exists ? (profileSnap.data() as any)?.requirePayment === true : false;
-      if (!(role === 'student' && requirePayment)) {
-        const enrollmentSnap = await db.doc(`users/${uid}/enrollments/${courseId}`).get();
-        allowed = enrollmentSnap.exists;
+      const requirePaymentValue = profileSnap.exists ? (profileSnap.data() as any)?.requirePayment : null;
+
+      const paymentSettingsSnap = await db.doc('settings/payment').get();
+      const paywallEnabled =
+        paymentSettingsSnap.exists && (paymentSettingsSnap.data() as any)?.paywall?.enabled === true;
+      const defaultRequirePayment =
+        paymentSettingsSnap.exists &&
+        (paymentSettingsSnap.data() as any)?.paywall?.defaultRequirePayment === true;
+
+      const accountActive =
+        !paywallEnabled || (defaultRequirePayment ? requirePaymentValue === false : requirePaymentValue !== true);
+
+      if (isFreeCourse || accountActive) {
+        allowed = true;
+      } else {
+        const purchaseSnap = await db.doc(`users/${uid}/coursePurchases/${courseId}`).get();
+        allowed = purchaseSnap.exists;
       }
     }
 

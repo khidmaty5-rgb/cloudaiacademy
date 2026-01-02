@@ -407,6 +407,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       href: '/admin/landing',
       label: lang === 'ar' ? 'إعدادات الصفحة الرئيسية' : 'Landing Page',
     },
+    {
+      href: '/admin/payment',
+      label: 'Payments',
+    },
   ] as const);
 
   const adminNavItemsWithCertificates = [
@@ -434,6 +438,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
           i.href !== '/admin/seed' &&
           i.href !== '/admin/journal' &&
           i.href !== '/admin/access' &&
+          i.href !== '/admin/payment' &&
           i.href !== '/admin/analytics' &&
           i.href !== '/admin/landing' &&
           i.href !== '/admin/announcements',

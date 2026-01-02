@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { getCourseImage } from '@/lib/course-images';
 import Header from '@/components/landing/header';
@@ -20,6 +20,11 @@ import type { Course, Enrollment, EnrollmentRequest } from '@/types/models';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
 import LiveSessionButton from '@/components/LiveSessionButton';
+import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import { studentRequiresPayment } from '@/lib/payment-gate';
+import { roleFromClaims } from '@/lib/roles';
+import { startCourseCheckout } from '@/lib/course-checkout';
+import { isPriceFree } from '@/lib/course-price';
 
 const courseCopy = {
   en: {
@@ -53,6 +58,7 @@ export default function CourseDetailPage() {
   const slug = params.slug as string;
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const firestore = useFirestore();
   const { lang } = useLang();
@@ -65,9 +71,19 @@ export default function CourseDetailPage() {
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
 
+  const paymentDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
+  const { data: paymentDoc, isLoading: isPaymentLoading } = useDoc(paymentDocRef);
+  const paymentSettings = useMemo(
+    () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
+    [paymentDoc],
+  );
+  const perCourseCheckoutAvailable =
+    paymentSettings.enabled && paymentSettings.provider === 'stripe' && paymentSettings.model === 'per_course';
+
   const isStudent = !!user && !roleLoading && role === 'student';
-  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
-  
+  const studentAccountRequiresPayment =
+    isStudent && studentRequiresPayment(paymentSettings, userProfile as any);
+   
 
   const courseDocRef = useMemoFirebase(() => {
       if (!slug) return null;
@@ -83,6 +99,14 @@ export default function CourseDetailPage() {
 
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc<Enrollment>(enrollmentDocRef);
 
+  const coursePurchaseDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'coursePurchases', course.id);
+  }, [firestore, user, course]);
+  const { data: coursePurchase, isLoading: isPurchaseLoading } =
+    useDoc<Record<string, unknown>>(coursePurchaseDocRef);
+  const hasCoursePurchase = !!coursePurchase;
+
   const enrollmentRequestDocRef = useMemoFirebase(() => {
     if (!user || !course) return null;
     return doc(firestore, 'users', user.uid, 'enrollmentRequests', course.id);
@@ -92,14 +116,34 @@ export default function CourseDetailPage() {
   );
 
   const isEnrolled = !!enrollment;
-  const isLoading = isUserLoading || roleLoading || isProfileLoading || isCourseLoading || isEnrollmentLoading || isEnrollmentRequestLoading;
+  const isLoading =
+    isUserLoading ||
+    roleLoading ||
+    isProfileLoading ||
+    isPaymentLoading ||
+    isCourseLoading ||
+    isEnrollmentLoading ||
+    isPurchaseLoading ||
+    isEnrollmentRequestLoading;
 
   const image = course ? getCourseImage(course as any) : undefined;
 
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
-  const canAccessCourseContent = !!(canPreviewCourse || (isEnrolled && !studentPaymentRequired));
+  const canEvaluateStudentAccess =
+    !roleLoading && !isProfileLoading && !isPaymentLoading && !isEnrollmentLoading && !isPurchaseLoading;
+  const courseIsFree = !!(course && isPriceFree(course.price));
+  const coursePaymentRequired = !!(
+    isStudent &&
+    !canPreviewCourse &&
+    paymentSettings.paywall.enabled &&
+    studentAccountRequiresPayment &&
+    (paymentSettings.model !== 'per_course' || (!courseIsFree && !hasCoursePurchase))
+  );
+  const canAccessCourseContent = !!(
+    canPreviewCourse || (canEvaluateStudentAccess && isEnrolled && !coursePaymentRequired)
+  );
   const canJoinLive = !!(isCourseInstructor || isEnrolled);
 
   const lessonsQuery = useMemoFirebase(() => {
@@ -117,17 +161,66 @@ export default function CourseDetailPage() {
   const [isWaitlistSaving, setIsWaitlistSaving] = useState(false);
   const courseIsFull = course?.isFull === true;
 
+  const handlePayForCourse = async () => {
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`/courses/${slug}`)}`);
+      return;
+    }
+    if (!course) return;
+
+    if (courseIsFree) {
+      toast({ title: 'This course is free.' });
+      return;
+    }
+    if (!perCourseCheckoutAvailable) {
+      toast({
+        variant: 'destructive',
+        title: 'Payments are not enabled',
+        description: 'Ask an admin to enable Stripe per-course payments in /admin/payment.',
+      });
+      return;
+    }
+
+    try {
+      await startCourseCheckout(course.id);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Could not start checkout.';
+      toast({
+        variant: 'destructive',
+        title: 'Checkout failed',
+        description: message,
+      });
+    }
+  };
+
   const handleEnroll = async () => {
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(`/courses/${slug}`)}`);
       return;
     }
     if (!course) return;
+
+    // Force-refresh token claims before enrollment to avoid stale role mismatches
+    // (otherwise Firestore rules may deny even if the UI thinks this is a student).
+    let tokenRoleHint: string | null = null;
+    try {
+      const tr = await user.getIdTokenResult(true);
+      const tokenRole = roleFromClaims(tr.claims);
+      tokenRoleHint = tokenRole;
+      if (tokenRole !== 'student') {
+        toast({ title: t.enrollNotAllowed, description: t.enrollNotAllowedDesc });
+        return;
+      }
+    } catch (e) {
+      // If this fails, Firestore may still reject the write due to stale claims.
+      console.warn('[Enroll] Failed to refresh token claims', e);
+    }
+
     if (!isStudent) {
       toast({ title: t.enrollNotAllowed, description: t.enrollNotAllowedDesc });
       return;
     }
-    if (studentPaymentRequired && !canPreviewCourse) {
+    if (studentAccountRequiresPayment && !canPreviewCourse && paymentSettings.model !== 'per_course') {
       window.location.assign('/#pricing');
       return;
     }
@@ -136,33 +229,42 @@ export default function CourseDetailPage() {
       setIsWaitlistSaving(true);
 
       if (!courseIsFull) {
+        if (paymentSettings.model === 'per_course' && coursePaymentRequired) {
+          await handlePayForCourse();
+          return;
+        }
         await enrollInCourse(user.uid, course.id);
         // If the course was previously full, clean up any old request doc.
-        await cancelEnrollmentRequest(user.uid, course.id);
+        // This should never block a successful enrollment.
+        try {
+          await cancelEnrollmentRequest(user.uid, course.id);
+        } catch (e) {
+          console.warn('[Enroll] Failed to clear enrollment request', e);
+        }
         toast({
           title: t.enrollSuccess,
           description: t.enrollSuccessDesc(course.title),
         });
-        if (firstLessonId) {
-          router.push(`/learn/${slug}/${firstLessonId}`);
-        } else {
-          router.push(`/learn/${slug}`);
-        }
+        router.push(firstLessonId ? `/learn/${slug}/${firstLessonId}` : `/learn/${slug}`);
         return;
       }
 
       if (isWaitlistApproved) {
         await enrollInCourse(user.uid, course.id);
-        await cancelEnrollmentRequest(user.uid, course.id);
+        try {
+          await cancelEnrollmentRequest(user.uid, course.id);
+        } catch (e) {
+          console.warn('[Enroll] Failed to clear enrollment request', e);
+        }
         toast({
           title: t.enrollSuccess,
           description: t.enrollSuccessDesc(course.title),
         });
-        if (firstLessonId) {
-          router.push(`/learn/${slug}/${firstLessonId}`);
-        } else {
-          router.push(`/learn/${slug}`);
+        if (paymentSettings.model === 'per_course' && coursePaymentRequired) {
+          await handlePayForCourse();
+          return;
         }
+        router.push(firstLessonId ? `/learn/${slug}/${firstLessonId}` : `/learn/${slug}`);
         return;
       }
 
@@ -177,6 +279,34 @@ export default function CourseDetailPage() {
         description: 'We will review your request and approve your enrollment soon.',
       });
     } catch (error: any) {
+      const code = (error as any)?.code as string | undefined;
+      if (code === 'permission-denied') {
+        const roleHint = tokenRoleHint || role || 'unknown';
+        const profileRoleHint = (userProfile as any)?.role as string | undefined;
+        const debug =
+          process.env.NODE_ENV !== 'production'
+            ? ` (paywall=${paymentSettings.paywall.enabled ? 'on' : 'off'}, defaultRequirePayment=${
+                paymentSettings.paywall.defaultRequirePayment ? 'on' : 'off'
+              }, requirePayment=${String((userProfile as any)?.requirePayment)}, profile=${
+                userProfile ? 'yes' : 'no'
+              }, profileRole=${String(profileRoleHint)}, uiRole=${String(roleHint)}, courseIsFull=${String(
+                courseIsFull,
+              )}, courseId=${course.id})`
+            : '';
+        toast({
+          variant: 'destructive',
+          title: t.enrollFailed,
+          description:
+            studentAccountRequiresPayment && !canPreviewCourse && paymentSettings.model !== 'per_course'
+              ? 'Payment is required to enroll.'
+              : profileRoleHint && profileRoleHint !== 'student'
+              ? `Permission denied. Your profile role is "${profileRoleHint}". Only student accounts can enroll.${debug}`
+              : roleHint !== 'student'
+              ? `Permission denied. Your role is "${roleHint}". Only student accounts can enroll.${debug}`
+              : `Permission denied by Firestore rules.${debug}`,
+        });
+        return;
+      }
       toast({
         variant: 'destructive',
         title: t.enrollFailed,
@@ -187,7 +317,34 @@ export default function CourseDetailPage() {
     }
   };
 
-  // no teacher self-assign; admin assigns instructors in Admin → Courses
+  // no teacher self-assign; admin assigns instructors in Admin > Courses
+
+  const paymentStatus = searchParams.get('payment');
+
+  useEffect(() => {
+    if (paymentStatus !== 'cancel') return;
+    toast({ title: 'Payment canceled', description: 'You can try again anytime.' });
+    router.replace(`/courses/${slug}`);
+  }, [paymentStatus, router, slug, toast]);
+
+  useEffect(() => {
+    if (paymentStatus !== 'success') return;
+    if (!user || !course) return;
+    if (!hasCoursePurchase) return;
+
+    const run = async () => {
+      if (!isEnrolled) {
+        try {
+          await enrollInCourse(user.uid, course.id);
+        } catch (e) {
+          console.warn('[Payment] Paid but failed to auto-enroll', e);
+        }
+      }
+      toast({ title: 'Payment successful', description: 'Access unlocked.' });
+      router.replace(`/learn/${slug}`);
+    };
+    void run();
+  }, [course, hasCoursePurchase, isEnrolled, paymentStatus, router, slug, toast, user]);
 
   if (isLoading) {
       return (
@@ -280,9 +437,16 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="mt-8">
-                {studentPaymentRequired && (
+                {coursePaymentRequired && (
                   <p className="mb-4 text-sm text-destructive">Payment is required to access lessons.</p>
                 )}
+                {coursePaymentRequired &&
+                  paymentSettings.model === 'per_course' &&
+                  !perCourseCheckoutAvailable && (
+                    <p className="mb-4 text-sm text-destructive">
+                      Payments are disabled or not configured. Ask an admin to enable payments in /admin/payment.
+                    </p>
+                  )}
                 {courseIsFull && isWaitlistPending && !canAccessCourseContent && (
                   <p className="mb-4 text-sm text-muted-foreground">
                     Your request is pending approval. You will be able to start once approved.
@@ -293,10 +457,10 @@ export default function CourseDetailPage() {
                     Your request was rejected. You can request again if you think this is a mistake.
                   </p>
                 )}
-                {canAccessCourseContent ? (
-                    <Button
-                      size="lg"
-                      className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"
+                   {canAccessCourseContent ? (
+                     <Button
+                       size="lg"
+                       className="w-full md:w-auto bg-green-500 hover:bg-green-600 flex items-center gap-2"
                       onClick={() => {
                         if (firstLessonId) {
                           router.push(`/learn/${slug}/${firstLessonId}`);
@@ -307,23 +471,42 @@ export default function CourseDetailPage() {
                     >
                       {t.goToCourse}
                     </Button>
-                ) : isStudent ? (
-                    <Button
-                      onClick={handleEnroll}
-                      size="lg"
-                      disabled={
-                        isWaitlistSaving ||
-                        (courseIsFull && isWaitlistPending) ||
-                        (studentPaymentRequired && !canPreviewCourse)
-                      }
-                      className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
-                    >
-                        {!courseIsFull
-                          ? studentPaymentRequired && !canPreviewCourse
-                            ? 'Payment required'
-                            : isWaitlistSaving
-                              ? 'Enrolling...'
-                              : t.enrollNow
+                 ) : isStudent ? (
+                   isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
+                     <Button
+                       onClick={handlePayForCourse}
+                       size="lg"
+                       disabled={!perCourseCheckoutAvailable}
+                       className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
+                     >
+                       {perCourseCheckoutAvailable ? `Pay ${course.price}` : 'Payments disabled'}
+                     </Button>
+                   ) : (
+                     <Button
+                       onClick={handleEnroll}
+                       size="lg"
+                       disabled={
+                         isWaitlistSaving ||
+                         (courseIsFull && isWaitlistPending) ||
+                         (!courseIsFull &&
+                           paymentSettings.model === 'per_course' &&
+                           coursePaymentRequired &&
+                           !perCourseCheckoutAvailable)
+                       }
+                       className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
+                     >
+                         {!courseIsFull
+                           ? isWaitlistSaving
+                             ? 'Enrolling...'
+                             : paymentSettings.model === 'per_course' && coursePaymentRequired
+                               ? perCourseCheckoutAvailable
+                                 ? 'Pay & Enroll'
+                                 : 'Payments disabled'
+                               : studentAccountRequiresPayment &&
+                                   !canPreviewCourse &&
+                                   paymentSettings.model !== 'per_course'
+                                 ? 'View Plans'
+                                 : t.enrollNow
                           : isWaitlistApproved
                             ? 'Start Course'
                             : isWaitlistPending
@@ -332,6 +515,7 @@ export default function CourseDetailPage() {
                                   ? 'Request Again'
                                   : 'Join Waiting List'}
                     </Button>
+                  )
                 ) : (
                   <p className="text-sm text-muted-foreground">{t.enrollNotAllowedDesc}</p>
                 )}

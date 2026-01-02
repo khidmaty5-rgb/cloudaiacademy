@@ -29,14 +29,21 @@ export function FirebaseErrorListener() {
     };
   }, []);
 
-  // On re-render, if an error exists in state, throw it.
-  if (error) {
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    } else {
-      console.warn('[FirestorePermissionWarning]', error);
-      return null;
+  // In development, log once and clear to avoid noisy re-renders (React Strict Mode can double-log).
+  useEffect(() => {
+    if (!error) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[FirestorePermissionWarning]', {
+        message: error.message,
+        request: error.request,
+      });
+      setError(null);
     }
+  }, [error]);
+
+  // In production, treat permission errors as fatal (caught by global-error.tsx).
+  if (error && process.env.NODE_ENV === 'production') {
+    throw error;
   }
 
   // This component renders nothing.

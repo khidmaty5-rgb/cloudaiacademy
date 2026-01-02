@@ -2,7 +2,7 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot } from 'firebase/firestore';
+import { Firestore, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import { ensureUserClaimsSync } from '@/firebase/claim-sync';
@@ -106,6 +106,55 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     ensureClaims();
   }, [auth, firestore, userAuthState.user]);
 
+  // Ensure student accounts always have a profile doc (OAuth logins, deleted docs, etc.).
+  useEffect(() => {
+    async function ensureUserProfileDoc() {
+      if (!auth || !firestore) return;
+      const u = userAuthState.user;
+      if (!u) return;
+
+      // Never auto-create staff profiles.
+      let claimRole: string | undefined;
+      try {
+        const tr = await u.getIdTokenResult();
+        claimRole = (tr.claims as any)?.role as string | undefined;
+      } catch {}
+      if (claimRole === 'admin' || claimRole === 'teacher' || claimRole === 'editor') return;
+
+      const ref = doc(firestore, 'users', u.uid);
+      try {
+        const snap = await getDoc(ref);
+        if (snap.exists()) return;
+      } catch (e) {
+        console.warn('[FirebaseProvider.ensureUserProfileDoc] Read failed', e);
+        return;
+      }
+
+      const displayName = (u.displayName || '').trim();
+      const parts = displayName.split(/\s+/).filter(Boolean);
+      const firstName = parts[0] || 'Student';
+      const lastName = parts.slice(1).join(' ');
+
+      try {
+        await setDoc(
+          ref,
+          {
+            id: u.uid,
+            firstName,
+            lastName,
+            email: u.email || null,
+            dateJoined: serverTimestamp(),
+            role: 'student',
+          },
+          { merge: true },
+        );
+      } catch (e) {
+        console.warn('[FirebaseProvider.ensureUserProfileDoc] Create failed', e);
+      }
+    }
+    ensureUserProfileDoc();
+  }, [auth, firestore, userAuthState.user]);
+
   // React to role changes in the user's Firestore document and re-sync custom claims immediately
   useEffect(() => {
     if (!auth || !firestore) return;
@@ -199,7 +248,7 @@ export const useFirebaseApp = (): FirebaseApp => {
 type MemoFirebase <T> = T & {__memo?: boolean};
 
 export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
-  const memoized = useMemo(factory, deps);
+  const memoized = useMemo(() => factory(), deps);
   
   if(typeof memoized !== 'object' || memoized === null) return memoized;
   (memoized as MemoFirebase<T>).__memo = true;

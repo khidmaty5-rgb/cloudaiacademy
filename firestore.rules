@@ -48,21 +48,41 @@ service cloud.firestore {
       return isOwner(userId) && resource != null;
     }
 
-    // Role helpers using custom claims
+    // Role helpers. Prefer the user's profile doc role, and fall back to token claims.
+    // This prevents stale/missing claims from breaking core flows (enrollment/paywall gating).
+    function profileRole() {
+      return (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          : null
+      );
+    }
+
+    function requesterRole() {
+      // If the profile role exists, treat it as authoritative; claims can be stale.
+      return profileRole() != null ? profileRole() : request.auth.token.role;
+    }
+
+    function roleIsStaff(role) {
+      return role == 'admin' || role == 'teacher' || role == 'editor';
+    }
+
+    function roleIsAdminOrEditor(role) {
+      return role == 'admin' || role == 'editor';
+    }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn() && requesterRole() == 'admin';
     }
 
     function isTeacher() {
-      return isSignedIn() && request.auth.token.role == 'teacher';
+      return isSignedIn() && requesterRole() == 'teacher';
     }
 
     function isStudent() {
-      // Treat missing role claim as student (default role in the app).
-      return isSignedIn() && (
-        request.auth.token.role == 'student' ||
-        request.auth.token.role == null
-      );
+      // Students are the "default" role: anything that is not staff is treated as a student.
+      return isSignedIn() && !roleIsStaff(requesterRole());
     }
 
     function isAdminOrTeacher() {
@@ -70,7 +90,7 @@ service cloud.firestore {
     }
 
     function isEditor() {
-      return isSignedIn() && (request.auth.token.role == 'editor' || request.auth.token.role == 'admin');
+      return isSignedIn() && roleIsAdminOrEditor(requesterRole());
     }
 
     // Helper to determine if the requester is an instructor of a given course
@@ -90,13 +110,68 @@ service cloud.firestore {
       );
     }
 
-    // Deny access if the user's profile indicates payment is required
+    function priceIsFree(price) {
+      return (
+        ((price is string) && price.matches('^\\s*(Free|free|FREE|\\$0|0|0\\.00)\\s*$')) ||
+        ((price is number) && price <= 0)
+      );
+    }
+
+    // Paywall settings live in /settings/payment (public read; admin write).
+    function paywallEnabled() {
+      return (
+        exists(/databases/$(database)/documents/settings/payment) &&
+        (get(/databases/$(database)/documents/settings/payment).data.paywall is map) &&
+        (get(/databases/$(database)/documents/settings/payment).data.paywall.enabled == true)
+      );
+    }
+
+    // Treat courses with price == 'Free' as not requiring payment, even if paywall is enabled.
+    function courseIsFree(courseId) {
+      return (
+        exists(/databases/$(database)/documents/courses/$(courseId)) &&
+        priceIsFree(get(/databases/$(database)/documents/courses/$(courseId)).data.price)
+      );
+    }
+
+    function defaultRequirePayment() {
+      return (
+        paywallEnabled() &&
+        (get(/databases/$(database)/documents/settings/payment).data.paywall.defaultRequirePayment == true)
+      );
+    }
+
+    function coursePurchased(courseId) {
+      return (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/coursePurchases/$(courseId))
+      );
+    }
+
+    // Deny access if payment is required (students only).
     function accountActive() {
       return isSignedIn() && (
-        // Only students are restricted by payment gate; admins/teachers always pass
-        !(
-          isStudent() &&
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment == true)
+        // Staff always pass (based on token claims)
+        roleIsStaff(requesterRole()) ||
+        // If the payment settings doc does not exist, treat paywall as OFF.
+        !exists(/databases/$(database)/documents/settings/payment) ||
+        // Paywall OFF => allow.
+        get(/databases/$(database)/documents/settings/payment).data.paywall.enabled != true ||
+        // Paywall ON: enforce student payment flags.
+        (
+          get(/databases/$(database)/documents/settings/payment).data.paywall.defaultRequirePayment == true
+            ? (
+              // Default requires payment: only explicit requirePayment=false is active.
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment == false
+            )
+            : (
+              // Default does not require payment: only explicit requirePayment=true blocks.
+              !(
+                exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.requirePayment == true
+              )
+            )
         )
       );
     }
@@ -120,7 +195,14 @@ service cloud.firestore {
         request.resource.data.id == userId &&
         request.resource.data.email == request.auth.token.email &&
         request.resource.data.role == 'student' &&
-        request.resource.data.requirePayment != true
+        (
+          defaultRequirePayment()
+            // When paywall is ON + default requires payment, prevent users from bypassing
+            // by self-setting requirePayment=false during create.
+            ? request.resource.data.requirePayment != false
+            // Otherwise, do not allow users to create themselves with requirePayment=true.
+            : request.resource.data.requirePayment != true
+        )
       );
       // Owners can update their profile only if sensitive fields are unchanged; admins can update any
       allow update: if (
@@ -160,7 +242,8 @@ service cloud.firestore {
       match /lessons/{lessonId} {
         // Read if admin/assigned instructor, or the user is enrolled AND account is active (no payment required)
         allow get, list: if isInstructorOfCourse(courseId) || (
-          accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId))
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)) &&
+          (courseIsFree(courseId) || coursePurchased(courseId) || accountActive())
         );
 
         // Only admins or assigned instructors can create/update/delete lessons
@@ -182,26 +265,32 @@ service cloud.firestore {
       // Students can enroll directly when the course is open; when full, they must be approved via waitlist.
       allow create: if (
         isOwner(userId) &&
+        // Enrolling users must be students (based on claims + profile fallback).
+        exists(/databases/$(database)/documents/users/$(userId)) &&
         isStudent() &&
-        accountActive() &&
         request.resource.data.userId == userId &&
         request.resource.data.courseId == enrollmentId &&
+        // Course open => direct enrollment allowed. Course full => must be approved first.
         (
-          // Course open => direct enrollment allowed.
+          exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
           (
-            exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
-            get(/databases/$(database)/documents/courses/$(enrollmentId)).data.isFull != true
-          ) ||
-          // Course full => must be approved first.
-          (
-            exists(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)) &&
+            get(/databases/$(database)/documents/courses/$(enrollmentId)).data.isFull != true ||
             get(/databases/$(database)/documents/users/$(userId)/enrollmentRequests/$(enrollmentId)).data.status == 'APPROVED'
           )
         )
       );
-      allow update: if isExistingOwner(userId) && accountActive() && request.resource.data.userId == resource.data.userId;
+      allow update: if (
+        isExistingOwner(userId) &&
+        request.resource.data.userId == resource.data.userId &&
+        (courseIsFree(enrollmentId) || coursePurchased(enrollmentId) || accountActive())
+      );
       // Admins can unenroll students.
       allow delete: if isAdmin() || isExistingOwner(userId);
+    }
+
+    match /users/{userId}/coursePurchases/{courseId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /{path=**}/enrollments/{enrollmentId} {

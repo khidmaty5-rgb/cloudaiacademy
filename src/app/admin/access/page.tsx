@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
-import { useUser, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import { studentRequiresPayment } from '@/lib/payment-gate';
 
 export default function AdminAccessPage() {
   const { user, isUserLoading } = useUser();
@@ -51,7 +53,14 @@ export default function AdminAccessPage() {
 
   const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
 
-  const isLoading = isUserLoading || roleLoading || areUsersLoading;
+  const paymentDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
+  const { data: paymentDoc, isLoading: isPaymentLoading } = useDoc<any>(paymentDocRef);
+  const paymentSettings = useMemo(
+    () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
+    [paymentDoc],
+  );
+
+  const isLoading = isUserLoading || roleLoading || areUsersLoading || isPaymentLoading;
   const canViewPage = isAdmin === true;
 
   if (isLoading) {
@@ -120,6 +129,11 @@ export default function AdminAccessPage() {
               <Link href="/admin/users/new">{t.createUser}</Link>
             </Button>
           </div>
+          {!paymentSettings.paywall.enabled && (
+            <div className="mb-6 rounded-lg border border-accent/30 bg-accent/10 p-4 text-sm text-muted-foreground">
+              Paywall is disabled. Enable it in <Link className="underline" href="/admin/payment">Payment Settings</Link> to enforce payment access.
+            </div>
+          )}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -141,19 +155,19 @@ export default function AdminAccessPage() {
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">{u.email}</TableCell>
                       <TableCell>{`${u.firstName} ${u.lastName}`}</TableCell>
-                      <TableCell>{u.role}</TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={u.requirePayment === true}
-                          disabled={u.role !== 'student'}
+                    <TableCell>{u.role}</TableCell>
+                    <TableCell>
+                      <Switch
+                          checked={studentRequiresPayment(paymentSettings, u as any)}
+                          disabled={u.role !== 'student' || !paymentSettings.paywall.enabled}
                           onCheckedChange={async (checked) => {
-                            if (u.role !== 'student') return;
+                            if (u.role !== 'student' || !paymentSettings.paywall.enabled) return;
                             try {
                               await updateDoc(doc(firestore, 'users', u.id), { requirePayment: !!checked });
                             } catch {}
                           }}
                         />
-                      </TableCell>
+                    </TableCell>
                       <TableCell>
                         {(() => {
                           const v: any = u.dateJoined;

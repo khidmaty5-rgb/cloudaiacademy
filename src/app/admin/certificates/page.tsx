@@ -66,7 +66,10 @@ export default function AdminCertificatesPage() {
     if (!isUserLoading && !user) router.push('/admin');
   }, [user, isUserLoading, router]);
 
-  const coursesQuery = useMemoFirebase(() => query(collection(firestore, 'courses')), [firestore]);
+  const coursesQuery = useMemoFirebase(
+    () => (isAdmin ? query(collection(firestore, 'courses')) : null),
+    [firestore, isAdmin],
+  );
   const { data: courses, isLoading: coursesLoading, error: coursesError } = useCollection<Course>(coursesQuery);
 
   const [courseId, setCourseId] = useState<string>('');
@@ -116,13 +119,13 @@ export default function AdminCertificatesPage() {
 
   const deleteListQuery = useMemoFirebase(() => {
     const uid = deleteStudentUid.trim();
-    if (!uid) return null;
+    if (!isAdmin || !uid) return null;
     return query(
       collection(firestore, 'users', uid, 'certificates'),
       orderBy('issuedAt', 'desc'),
       limit(50),
     );
-  }, [firestore, deleteStudentUid]);
+  }, [firestore, isAdmin, deleteStudentUid]);
   const {
     data: deleteCandidates,
     isLoading: deleteCandidatesLoading,
@@ -131,13 +134,13 @@ export default function AdminCertificatesPage() {
 
   const viewListQuery = useMemoFirebase(() => {
     const uid = viewStudentUid.trim();
-    if (!uid) return null;
+    if (!isAdmin || !uid) return null;
     return query(
       collection(firestore, 'users', uid, 'certificates'),
       orderBy('issuedAt', 'desc'),
       limit(50),
     );
-  }, [firestore, viewStudentUid]);
+  }, [firestore, isAdmin, viewStudentUid]);
   const {
     data: viewCertificates,
     isLoading: viewCertificatesLoading,

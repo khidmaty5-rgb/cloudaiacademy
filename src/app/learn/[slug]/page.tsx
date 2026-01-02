@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
@@ -17,6 +17,11 @@ import { enrollInCourse } from '@/lib/enrollment';
 import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
 import type { EnrollmentRequest } from '@/types/models';
 import { useToast } from '@/hooks/use-toast';
+import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import { studentRequiresPayment } from '@/lib/payment-gate';
+import { roleFromClaims } from '@/lib/roles';
+import { startCourseCheckout } from '@/lib/course-checkout';
+import { isPriceFree } from '@/lib/course-price';
 
 export default function LearnCoursePage() {
   const params = useParams();
@@ -33,7 +38,16 @@ export default function LearnCoursePage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
   const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
   const isStudent = !!user && !roleLoading && role === 'student';
-  const studentPaymentRequired = isStudent && userProfile?.requirePayment === true;
+  const paymentDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
+  const { data: paymentDoc, isLoading: isPaymentLoading } = useDoc(paymentDocRef);
+  const paymentSettings = useMemo(
+    () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
+    [paymentDoc],
+  );
+  const perCourseCheckoutAvailable =
+    paymentSettings.enabled && paymentSettings.provider === 'stripe' && paymentSettings.model === 'per_course';
+  const studentAccountRequiresPayment =
+    isStudent && studentRequiresPayment(paymentSettings, userProfile as any);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -49,6 +63,14 @@ export default function LearnCoursePage() {
   const { data: enrollment, isLoading: isEnrollmentLoading } = useDoc(enrollmentDocRef);
   const isEnrolled = !!enrollment;
 
+  const coursePurchaseDocRef = useMemoFirebase(() => {
+    if (!user || !course) return null;
+    return doc(firestore, 'users', user.uid, 'coursePurchases', course.id);
+  }, [firestore, user, course]);
+  const { data: coursePurchase, isLoading: isPurchaseLoading } =
+    useDoc<Record<string, unknown>>(coursePurchaseDocRef);
+  const hasCoursePurchase = !!coursePurchase;
+
   const enrollmentRequestDocRef = useMemoFirebase(() => {
     if (!user || !course) return null;
     return doc(firestore, 'users', user.uid, 'enrollmentRequests', course.id);
@@ -60,7 +82,19 @@ export default function LearnCoursePage() {
   const uid = user?.uid;
   const isCourseInstructor = !!(uid && course && ((course.ownerId === uid) || (course.instructorIds || []).includes(uid)));
   const canPreviewCourse = !!(isAdmin || (isTeacher && isCourseInstructor));
-  const canAccessCourseContent = !!(canPreviewCourse || (isEnrolled && !studentPaymentRequired));
+  const canEvaluateStudentAccess =
+    !roleLoading && !isProfileLoading && !isPaymentLoading && !isEnrollmentLoading && !isPurchaseLoading;
+  const courseIsFree = !!(course && isPriceFree((course as any)?.price));
+  const coursePaymentRequired = !!(
+    isStudent &&
+    !canPreviewCourse &&
+    paymentSettings.paywall.enabled &&
+    studentAccountRequiresPayment &&
+    (paymentSettings.model !== 'per_course' || (!courseIsFree && !hasCoursePurchase))
+  );
+  const canAccessCourseContent = !!(
+    canPreviewCourse || (canEvaluateStudentAccess && isEnrolled && !coursePaymentRequired)
+  );
 
   const lessonsQuery = useMemoFirebase(() => {
     if (!course || !canAccessCourseContent) return null;
@@ -84,7 +118,9 @@ export default function LearnCoursePage() {
     isUserLoading ||
     roleLoading ||
     isProfileLoading ||
+    isPaymentLoading ||
     isEnrollmentLoading ||
+    isPurchaseLoading ||
     isEnrollmentRequestLoading ||
     isCourseLoading ||
     areLessonsLoading;
@@ -148,14 +184,68 @@ export default function LearnCoursePage() {
     );
   }
 
+  const handlePayForCourse = async () => {
+    if (!course) return;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`/learn/${slug}`)}`);
+      return;
+    }
+    if (courseIsFree) {
+      toast({ title: 'This course is free.' });
+      return;
+    }
+    if (!perCourseCheckoutAvailable) {
+      toast({
+        variant: 'destructive',
+        title: 'Payments are not enabled',
+        description: 'Ask an admin to enable Stripe per-course payments in /admin/payment.',
+      });
+      return;
+    }
+    try {
+      await startCourseCheckout((course as any).id);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Could not start checkout.';
+      toast({
+        variant: 'destructive',
+        title: 'Checkout failed',
+        description: message,
+      });
+    }
+  };
+
   const handleWaitlist = async () => {
     if (!course) return;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(`/learn/${slug}`)}`);
       return;
     }
-    if (!isStudent) return;
-    if (studentPaymentRequired && !canPreviewCourse) {
+
+    // Force-refresh token claims before enrollment to avoid stale role mismatches.
+    let tokenRoleHint: string | null = null;
+    try {
+      const tr = await user.getIdTokenResult(true);
+      const tokenRole = roleFromClaims(tr.claims);
+      tokenRoleHint = tokenRole;
+      if (tokenRole !== 'student') {
+        toast({
+          title: 'Enrollment not available',
+          description: 'Only student accounts can enroll in courses.',
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn('[Enroll] Failed to refresh token claims', e);
+    }
+
+    if (!isStudent) {
+      toast({
+        title: 'Enrollment not available',
+        description: 'Only student accounts can enroll in courses.',
+      });
+      return;
+    }
+    if (studentAccountRequiresPayment && !canPreviewCourse && paymentSettings.model !== 'per_course') {
       window.location.assign('/#pricing');
       return;
     }
@@ -163,20 +253,36 @@ export default function LearnCoursePage() {
     try {
       setEnrolling(true);
 
-      const courseIsFull = (course as any)?.isFull === true;
-      if (!courseIsFull) {
-        await enrollInCourse(user.uid, course.id);
-        await cancelEnrollmentRequest(user.uid, course.id);
-        toast({ title: 'Enrolled', description: 'You can now access the course lessons.' });
-        return;
-      }
+       const courseIsFull = (course as any)?.isFull === true;
+       if (!courseIsFull) {
+         if (paymentSettings.model === 'per_course' && coursePaymentRequired) {
+           await handlePayForCourse();
+           return;
+         }
+         await enrollInCourse(user.uid, course.id);
+         try {
+           await cancelEnrollmentRequest(user.uid, course.id);
+         } catch (e) {
+           console.warn('[Enroll] Failed to clear enrollment request', e);
+         }
+         toast({ title: 'Enrolled', description: 'You can now access the course lessons.' });
+         return;
+       }
 
-      if (isWaitlistApproved) {
-        await enrollInCourse(user.uid, course.id);
-        await cancelEnrollmentRequest(user.uid, course.id);
-        toast({ title: 'Enrollment started', description: 'You can now access the course lessons.' });
-        return;
-      }
+       if (isWaitlistApproved) {
+         await enrollInCourse(user.uid, course.id);
+         try {
+           await cancelEnrollmentRequest(user.uid, course.id);
+         } catch (e) {
+           console.warn('[Enroll] Failed to clear enrollment request', e);
+         }
+         if (paymentSettings.model === 'per_course' && coursePaymentRequired) {
+           await handlePayForCourse();
+           return;
+         }
+         toast({ title: 'Enrollment started', description: 'You can now access the course lessons.' });
+         return;
+       }
 
       await requestEnrollment({
         userId: user.uid,
@@ -186,6 +292,34 @@ export default function LearnCoursePage() {
       });
       toast({ title: 'Added to waiting list', description: 'We will review your request soon.' });
     } catch (err: any) {
+      const code = (err as any)?.code as string | undefined;
+      if (code === 'permission-denied') {
+        const roleHint = tokenRoleHint || role || 'unknown';
+        const profileRoleHint = (userProfile as any)?.role as string | undefined;
+        const debug =
+          process.env.NODE_ENV !== 'production'
+            ? ` (paywall=${paymentSettings.paywall.enabled ? 'on' : 'off'}, defaultRequirePayment=${
+                paymentSettings.paywall.defaultRequirePayment ? 'on' : 'off'
+              }, requirePayment=${String((userProfile as any)?.requirePayment)}, profile=${
+                userProfile ? 'yes' : 'no'
+              }, profileRole=${String(profileRoleHint)}, uiRole=${String(roleHint)}
+              }, courseIsFull=${String((course as any)?.isFull === true)}, courseId=${String(
+                (course as any)?.id || slug,
+              )})`
+            : '';
+        toast({
+          variant: 'destructive',
+          title: 'Enrollment failed',
+          description:
+            profileRoleHint && profileRoleHint !== 'student'
+              ? `Permission denied. Your profile role is "${profileRoleHint}". Only student accounts can enroll.${debug}`
+              :
+            roleHint !== 'student'
+              ? `Permission denied. Your role is "${roleHint}". Only student accounts can enroll.${debug}`
+              : `Permission denied by Firestore rules.${debug}`,
+        });
+        return;
+      }
       toast({
         variant: 'destructive',
         title: 'Enrollment failed',
@@ -198,6 +332,18 @@ export default function LearnCoursePage() {
 
   if (!canAccessCourseContent) {
     const courseIsFull = (course as any)?.isFull === true;
+    const gateTitle =
+      isEnrolled && coursePaymentRequired
+        ? 'Payment required'
+        : courseIsFull
+          ? 'Join waiting list'
+          : 'Enroll to access this course';
+    const gateDescription =
+      isEnrolled && coursePaymentRequired
+        ? 'You are enrolled, but payment is required to access lessons.'
+        : courseIsFull
+          ? 'Your request will be reviewed before you can access lessons.'
+          : 'You need to enroll before viewing lessons.';
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -205,17 +351,20 @@ export default function LearnCoursePage() {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
               <CardHeader>
-                <CardTitle>{courseIsFull ? 'Join waiting list' : 'Enroll to access this course'}</CardTitle>
-                <CardDescription>
-                  {courseIsFull
-                    ? 'Your request will be reviewed before you can access lessons.'
-                    : 'You need to enroll before viewing lessons.'}
-                </CardDescription>
+                <CardTitle>{gateTitle}</CardTitle>
+                <CardDescription>{gateDescription}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {studentPaymentRequired && (
+                {coursePaymentRequired && (
                   <p className="text-sm text-destructive">Payment is required before you can access lessons.</p>
                 )}
+                {coursePaymentRequired &&
+                  paymentSettings.model === 'per_course' &&
+                  !perCourseCheckoutAvailable && (
+                    <p className="text-sm text-destructive">
+                      Payments are disabled or not configured. Ask an admin to enable payments in /admin/payment.
+                    </p>
+                  )}
                 {courseIsFull && isWaitlistPending && (
                   <p className="text-sm text-muted-foreground">
                     Your request is pending approval. You will be able to start once approved.
@@ -228,23 +377,41 @@ export default function LearnCoursePage() {
                 )}
                 <div className="flex flex-wrap gap-3">
                   {isStudent ? (
-                    <button
-                      disabled={
-                        enrolling ||
-                        (courseIsFull && isWaitlistPending) ||
-                        (studentPaymentRequired && !canPreviewCourse)
-                      }
-                      onClick={handleWaitlist}
-                      className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
-                    >
-                      {!user
-                        ? 'Log in'
-                        : studentPaymentRequired && !canPreviewCourse
-                          ? 'Payment required'
+                    isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
+                      <button
+                        disabled={enrolling || !perCourseCheckoutAvailable}
+                        onClick={handlePayForCourse}
+                        className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
+                      >
+                        {perCourseCheckoutAvailable ? `Pay ${(course as any)?.price}` : 'Payments disabled'}
+                      </button>
+                    ) : (
+                      <button
+                        disabled={
+                          enrolling ||
+                          (courseIsFull && isWaitlistPending) ||
+                          (!courseIsFull &&
+                            paymentSettings.model === 'per_course' &&
+                            coursePaymentRequired &&
+                            !perCourseCheckoutAvailable)
+                        }
+                        onClick={handleWaitlist}
+                        className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
+                      >
+                        {!user
+                          ? 'Log in'
                           : !courseIsFull
-                            ? enrolling
-                              ? 'Enrolling...'
-                              : 'Enroll Now'
+                              ? enrolling
+                                ? 'Enrolling...'
+                                : paymentSettings.model === 'per_course' && coursePaymentRequired
+                                  ? perCourseCheckoutAvailable
+                                    ? 'Pay & Enroll'
+                                    : 'Payments disabled'
+                                  : studentAccountRequiresPayment &&
+                                      !canPreviewCourse &&
+                                      paymentSettings.model !== 'per_course'
+                                    ? 'View Plans'
+                                    : 'Enroll Now'
                             : isWaitlistApproved
                               ? 'Start Course'
                               : isWaitlistPending
@@ -254,11 +421,12 @@ export default function LearnCoursePage() {
                                   : enrolling
                                     ? 'Saving...'
                                     : 'Join Waiting List'}
-                    </button>
+                      </button>
+                    )
                   ) : (
                     <p className="text-sm text-muted-foreground">Only students can enroll in courses.</p>
                   )}
-                  {studentPaymentRequired && (
+                  {studentAccountRequiresPayment && paymentSettings.model !== 'per_course' && (
                     <Link
                       href="/#pricing"
                       className="px-4 py-2 rounded border border-accent text-accent inline-block"
