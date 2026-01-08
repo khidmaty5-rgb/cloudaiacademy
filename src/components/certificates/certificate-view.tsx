@@ -77,8 +77,11 @@ function SignatureMark(props: {
 export default function CertificateView({ certificate, verifyUrl }: CertificateViewProps) {
   const completedAt = toDateValue(certificate.completedAt);
   const completedLabel = completedAt ? format(completedAt, 'MMMM yyyy') : '-';
-  const instructorTitle = certificate.instructorTitle || 'Instructor / Director';
-  const authorizedTitle = certificate.authorizedByTitle || 'Authorized Signature';
+  const authorizedName = (certificate.authorizedByName || 'Fateh Adhnouss').trim() || 'Fateh Adhnouss';
+  const authorizedTitle = (certificate.authorizedByTitle || 'Authorized Signature').trim() || 'Authorized Signature';
+  const authorizedLabel = authorizedTitle.toLowerCase().includes(authorizedName.toLowerCase())
+    ? authorizedTitle
+    : `${authorizedTitle} – ${authorizedName}`;
   const recipientNameStyle = (certificate as any)?.recipientNameStyle as string | undefined;
   const isRevoked = certificate.status === 'REVOKED';
 
@@ -174,8 +177,8 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
           </p>
         </div>
 
-          <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-center gap-4">
+        <div className="mt-10 grid gap-8 md:grid-cols-3 md:items-end">
+          <div className="flex items-center justify-start">
             <div
               className={[
                 'grid h-20 w-20 place-items-center rounded-full border-4',
@@ -195,31 +198,23 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
                 />
               )}
             </div>
-            <div>
-              <SignatureMark
-                sources={['/images/signature_1.png', '/images/signature.png', '/images/signature1.png']}
-                fallbackText={certificate.instructorName}
-                imgClassName="h-10 w-auto max-w-[320px] translate-y-2 object-contain"
-                textClassName="font-signature text-3xl leading-none text-primary"
-                alt="Instructor signature"
-              />
-              <div className="mt-1 h-px w-56 bg-border" />
-              <p className="mt-2 text-sm text-muted-foreground">{instructorTitle}</p>
-            </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="text-right">
+          <div className="flex items-end justify-center">
+            <div className="text-center">
               <SignatureMark
                 sources={['/images/signature_2.png', '/images/signature.png', '/images/signature2.png']}
-                fallbackText={certificate.authorizedByName}
-                imgClassName="ml-auto h-8 w-auto max-w-[320px] translate-y-2 object-contain object-bottom"
+                fallbackText={authorizedName}
+                imgClassName="mx-auto h-8 w-auto max-w-[320px] translate-y-2 object-contain object-bottom"
                 textClassName="font-signature text-3xl leading-none text-primary"
                 alt="Authorized signature"
               />
-              <div className="mt-1 h-px w-56 bg-border" />
-              <p className="mt-2 text-sm text-muted-foreground">{authorizedTitle}</p>
+              <div className="mx-auto mt-1 h-px w-56 bg-border" />
+              <p className="mt-2 text-sm text-muted-foreground">{authorizedLabel}</p>
             </div>
+          </div>
+
+          <div className="flex items-end justify-center md:justify-end">
             <div className="grid h-24 w-24 place-items-center rounded-xl border border-border bg-white p-2">
               {verifyUrl ? (
                 <QRCode

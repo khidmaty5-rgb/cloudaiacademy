@@ -98,8 +98,7 @@ export default function AdminCertificatesPage() {
 
   const [completionDate, setCompletionDate] = useState<string>(asDateInputValue(new Date()));
   const [totalHours, setTotalHours] = useState<string>('');
-  const [instructorName, setInstructorName] = useState('');
-  const [authorizedByName, setAuthorizedByName] = useState('');
+  const [authorizedByName, setAuthorizedByName] = useState('Fateh Adhnouss');
   const [sequence, setSequence] = useState<string>('');
   const [sequenceAutoKey, setSequenceAutoKey] = useState<string>('');
   const [sequenceAutoLoading, setSequenceAutoLoading] = useState(false);
@@ -110,6 +109,9 @@ export default function AdminCertificatesPage() {
   const [deleteCertificateId, setDeleteCertificateId] = useState('');
   const [deleteStudentUid, setDeleteStudentUid] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<Set<string>>(() => new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ done: number; total: number } | null>(null);
   const [allCertificates, setAllCertificates] = useState<CertificateListItem[] | null>(null);
   const [allCertificatesLoading, setAllCertificatesLoading] = useState(false);
   const [allCertificatesError, setAllCertificatesError] = useState<string | null>(null);
@@ -181,11 +183,7 @@ export default function AdminCertificatesPage() {
     if (typeof selectedCourse.totalHours === 'number' && Number.isFinite(selectedCourse.totalHours)) {
       setTotalHours(String(selectedCourse.totalHours));
     }
-    if (!instructorName) {
-      // Best-effort default for the signature.
-      setInstructorName(user?.displayName || '');
-    }
-  }, [selectedCourse, instructorName, user?.displayName]);
+  }, [selectedCourse]);
 
   const courseCode = selectedCourse?.courseCode ? normalizeCourseCode(selectedCourse.courseCode) : '';
   const year = useMemo(() => {
@@ -319,8 +317,8 @@ export default function AdminCertificatesPage() {
     const completedAt = new Date(`${completionDate}T00:00:00`);
     if (!Number.isFinite(completedAt.getTime())) return null;
     if (!studentName.trim()) return null;
-    if (!authorizedByName.trim()) return null;
-    if (!instructorName.trim()) return null;
+    const signerName = authorizedByName.trim() || 'Fateh Adhnouss';
+    if (!signerName) return null;
 
       return {
         id: certificateIdPreview,
@@ -334,9 +332,8 @@ export default function AdminCertificatesPage() {
       completedAt,
       issuedAt: null,
       issuedBy: 'CloudAI Academy',
-      instructorName: instructorName.trim(),
-        instructorTitle: 'Instructor / Director',
-        authorizedByName: authorizedByName.trim(),
+      instructorName: signerName,
+        authorizedByName: signerName,
         authorizedByTitle: 'Authorized Signature',
         recipientNameStyle,
         status: 'ACTIVE',
@@ -348,7 +345,6 @@ export default function AdminCertificatesPage() {
       certificateIdPreview,
       completionDate,
       courseCode,
-      instructorName,
       recipientNameStyle,
       selectedCourse,
       studentEmail,
@@ -759,6 +755,127 @@ export default function AdminCertificatesPage() {
     }
   };
 
+  const clearBulkDeleteSelection = () => {
+    setBulkDeleteIds(new Set());
+    setBulkDeleteProgress(null);
+  };
+
+  const selectAllShownForBulkDelete = () => {
+    const ids = (filteredAllCertificates || []).map((c) => c.id).filter(Boolean);
+    if (ids.length === 0) return;
+    setBulkDeleteIds(new Set(ids));
+  };
+
+  const selectAllStudentCertificatesForBulkDelete = () => {
+    const ids = (deleteCandidates || []).map((c) => c.id).filter(Boolean);
+    if (ids.length === 0) return;
+    setBulkDeleteIds(new Set(ids));
+  };
+
+  const deleteSelectedCertificates = async () => {
+    const ids = Array.from(bulkDeleteIds)
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+
+    if (ids.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No certificates selected',
+        description: 'Select certificates to delete first.',
+      });
+      return;
+    }
+
+    const preview = ids.slice(0, 10).join('\n');
+    const more = ids.length > 10 ? `\n...and ${ids.length - 10} more` : '';
+    const ok = window.confirm(
+      `Delete ${ids.length} certificates?\n\n${preview}${more}\n\nThis cannot be undone.`,
+    );
+    if (!ok) return;
+
+    setIsBulkDeleting(true);
+    setBulkDeleteProgress({ done: 0, total: ids.length });
+    try {
+      if (!user) throw new Error('Unauthorized');
+
+      const token = await user.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const idsSet = new Set(ids);
+      const CHUNK_SIZE = 200;
+      let done = 0;
+
+      for (let start = 0; start < ids.length; start += CHUNK_SIZE) {
+        const chunk = ids.slice(start, start + CHUNK_SIZE);
+        const batch = writeBatch(firestore);
+        let hasWrites = false;
+
+        for (const id of chunk) {
+          const certRef = doc(firestore, 'certificates', id);
+          const snap = await getDoc(certRef);
+
+          if (snap.exists()) {
+            const data = snap.data() as any;
+            const studentUid = typeof data?.userId === 'string' ? data.userId : '';
+            const pdfPath = typeof data?.pdfPath === 'string' ? data.pdfPath : '';
+
+            if (studentUid || pdfPath) {
+              try {
+                await fetch('/api/certificates/delete-pdf', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    certificateId: id,
+                    studentUid,
+                    pdfPath: pdfPath || null,
+                  }),
+                });
+              } catch {
+                // ignore storage errors in bulk delete
+              }
+            }
+
+            batch.delete(certRef);
+            hasWrites = true;
+            if (studentUid) {
+              batch.delete(doc(firestore, 'users', studentUid, 'certificates', id));
+            }
+          }
+
+          done += 1;
+          setBulkDeleteProgress({ done, total: ids.length });
+        }
+
+        if (hasWrites) {
+          await batch.commit();
+        }
+      }
+
+      if (deleteCertificateId.trim() && idsSet.has(deleteCertificateId.trim())) {
+        setDeleteCertificateId('');
+      }
+      setAllCertificates((prev) => (prev ? prev.filter((c) => !idsSet.has(c.id)) : prev));
+      clearBulkDeleteSelection();
+
+      toast({
+        title: 'Certificates deleted',
+        description: `${ids.length} deleted.`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Bulk delete failed',
+        description: err?.message || 'Failed to delete certificates.',
+      });
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteProgress(null);
+    }
+  };
+
   if (isUserLoading || roleLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -1005,25 +1122,14 @@ export default function AdminCertificatesPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="instructorName">Instructor / Director name</Label>
-                      <Input
-                        id="instructorName"
-                        placeholder="e.g., John Smith"
-                        value={instructorName}
-                        onChange={(e) => setInstructorName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="authorizedByName">Authorized signature name</Label>
-                      <Input
-                        id="authorizedByName"
-                        placeholder="e.g., John Smith"
-                        value={authorizedByName}
-                        onChange={(e) => setAuthorizedByName(e.target.value)}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="authorizedByName">Authorized Signature name</Label>
+                    <Input
+                      id="authorizedByName"
+                      placeholder="e.g., Fateh Adhnouss"
+                      value={authorizedByName}
+                      onChange={(e) => setAuthorizedByName(e.target.value)}
+                    />
                   </div>
 
                   {verifyUrlPreview && (
@@ -1305,6 +1411,31 @@ export default function AdminCertificatesPage() {
                             </Button>
                           ) : null}
                         </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={selectAllShownForBulkDelete}
+                              disabled={isBulkDeleting || (filteredAllCertificates || []).length === 0}
+                            >
+                              Select all shown
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={clearBulkDeleteSelection}
+                              disabled={isBulkDeleting || bulkDeleteIds.size === 0}
+                            >
+                              Clear selection
+                            </Button>
+                          </div>
+                          {bulkDeleteIds.size ? (
+                            <p className="text-xs text-muted-foreground">Selected: {bulkDeleteIds.size}</p>
+                          ) : null}
+                        </div>
                       </>
                     ) : (
                       <p className="text-xs text-muted-foreground">Click “Load” to fetch the latest issued certificates.</p>
@@ -1343,7 +1474,18 @@ export default function AdminCertificatesPage() {
                       </div>
                     ) : deleteCandidates && deleteCandidates.length > 0 ? (
                       <div className="space-y-2">
-                        <Label htmlFor="deleteFromList">Choose from list</Label>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label htmlFor="deleteFromList">Choose from list</Label>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={selectAllStudentCertificatesForBulkDelete}
+                            disabled={isBulkDeleting}
+                          >
+                            Select all ({deleteCandidates.length})
+                          </Button>
+                        </div>
                         <select
                           id="deleteFromList"
                           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -1376,15 +1518,44 @@ export default function AdminCertificatesPage() {
                       </p>
                     </div>
                   </CardContent>
-                  <CardFooter>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={deleteCertificate}
-                      disabled={isDeleting || !deleteCertificateId.trim()}
-                    >
-                      {isDeleting ? 'Deleting...' : 'Delete Certificate'}
-                    </Button>
+                  <CardFooter className="flex flex-wrap items-center justify-between gap-2">
+                    {bulkDeleteProgress ? (
+                      <p className="text-xs text-muted-foreground">
+                        Deleting {bulkDeleteProgress.done}/{bulkDeleteProgress.total}...
+                      </p>
+                    ) : bulkDeleteIds.size ? (
+                      <p className="text-xs text-muted-foreground">Selected: {bulkDeleteIds.size}</p>
+                    ) : (
+                      <span />
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={clearBulkDeleteSelection}
+                        disabled={isBulkDeleting || bulkDeleteIds.size === 0}
+                      >
+                        Clear selection
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={deleteSelectedCertificates}
+                        disabled={isBulkDeleting || bulkDeleteIds.size === 0}
+                      >
+                        {isBulkDeleting && bulkDeleteProgress
+                          ? `Deleting ${bulkDeleteProgress.done}/${bulkDeleteProgress.total}...`
+                          : `Delete Selected (${bulkDeleteIds.size})`}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={deleteCertificate}
+                        disabled={isDeleting || isBulkDeleting || bulkDeleteIds.size > 0 || !deleteCertificateId.trim()}
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete Certificate'}
+                      </Button>
+                    </div>
                   </CardFooter>
                 </Card>
               </div>

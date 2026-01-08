@@ -160,14 +160,12 @@ export type CertificatePdfOptions = {
    */
   strictVerifiedStamp?: boolean;
   /**
-   * Optional signature image (PNG/JPG). When provided, it's used for both signatures unless overridden by
-   * `instructorSignatureImageUrl` or `authorizedSignatureImageUrl`.
+   * Optional signature image (PNG/JPG) for the Authorized Signature.
+   * When provided, it's used unless overridden by `authorizedSignatureImageUrl`.
    *
    * Recommended: a transparent PNG trimmed tightly around the signature.
    */
   signatureImageUrl?: string | null;
-  /** Optional signature image for the Instructor/Director signature. */
-  instructorSignatureImageUrl?: string | null;
   /** Optional signature image for the Authorized Signature. */
   authorizedSignatureImageUrl?: string | null;
 };
@@ -180,7 +178,6 @@ export async function generateCertificatePdfBytes({
   verifiedStampUrl = '/images/stamp.png',
   strictVerifiedStamp = false,
   signatureImageUrl = null,
-  instructorSignatureImageUrl = null,
   authorizedSignatureImageUrl = null,
 }: CertificatePdfOptions): Promise<Uint8Array> {
   let pdfDoc: PDFDocument;
@@ -283,13 +280,6 @@ export async function generateCertificatePdfBytes({
     return null;
   };
 
-  const instructorSignatureImage = await tryEmbedFirstImage([
-    instructorSignatureImageUrl,
-    signatureImageUrl,
-    '/images/signature_1.png',
-    '/images/signature.png',
-    '/images/signature1.png',
-  ]);
   const authorizedSignatureImage = await tryEmbedFirstImage([
     authorizedSignatureImageUrl,
     signatureImageUrl,
@@ -362,12 +352,9 @@ export async function generateCertificatePdfBytes({
     ? await renderRecipientNameTextImage(String(certificate.userName || ''))
     : null;
 
-  const instructorSignatureTextImage = instructorSignatureImage
-    ? null
-    : await renderSignatureTextImage(String(certificate.instructorName || ''));
   const authorizedSignatureTextImage = authorizedSignatureImage
     ? null
-    : await renderSignatureTextImage(String(certificate.authorizedByName || ''));
+    : await renderSignatureTextImage(String(certificate.authorizedByName || 'Fateh Adhnouss'));
 
   const logoImage = await tryEmbedImage(logoUrl);
   const verifiedStampImage = usingTemplate
@@ -543,37 +530,6 @@ export async function generateCertificatePdfBytes({
     if (isCloudAiTemplate) {
       // Detected from cert-template-img-000.png signature lines (y=842px from top).
       const sigNameY = toY(204);
-      const instructorMaxW = toX(270);
-      const instructorMaxH = toY(80) - toY(0);
-      const instructorSigImage = instructorSignatureImage || instructorSignatureTextImage;
-      if (instructorSigImage) {
-        const scale = Math.min(
-          instructorMaxW / instructorSigImage.width,
-          instructorMaxH / instructorSigImage.height,
-        );
-        const w = instructorSigImage.width * scale;
-        const h = instructorSigImage.height * scale;
-        page.drawImage(instructorSigImage, {
-          x: toX(401) - w / 2,
-          y: sigNameY,
-          width: w,
-          height: h,
-        });
-      } else {
-        const instructorSize = fitFontSizeToWidth({
-          text: certificate.instructorName,
-          font: sigFont,
-          maxWidth: instructorMaxW,
-          startSize: Math.round(18 * scaleY),
-          minSize: Math.round(12 * scaleY),
-        });
-        drawValueCenteredAt(String(certificate.instructorName || ''), toX(401), sigNameY, {
-          font: sigFont,
-          size: instructorSize,
-          color: borderColor,
-        });
-      }
-
       const authorizedMaxW = toX(270);
       const authorizedMaxH = toY(70) - toY(0);
       const authorizedSigImage = authorizedSignatureImage || authorizedSignatureTextImage;
@@ -592,27 +548,20 @@ export async function generateCertificatePdfBytes({
         });
       } else {
         const authorizedSize = fitFontSizeToWidth({
-          text: certificate.authorizedByName,
+          text: certificate.authorizedByName || 'Fateh Adhnouss',
           font: sigFont,
           maxWidth: authorizedMaxW,
           startSize: Math.round(18 * scaleY),
           minSize: Math.round(12 * scaleY),
         });
-        drawValueCenteredAt(String(certificate.authorizedByName || ''), toX(1148.5), sigNameY - 10 * scaleY, {
+        drawValueCenteredAt(String(certificate.authorizedByName || 'Fateh Adhnouss'), toX(1148.5), sigNameY - 10 * scaleY, {
           font: sigFont,
           size: authorizedSize,
           color: borderColor,
         });
       }
     } else {
-      page.drawText(String(certificate.instructorName || ''), {
-        x: toX(126),
-        y: toY(92),
-        size: Math.round(18 * scaleY),
-        font: serif,
-        color: borderColor,
-      });
-      page.drawText(String(certificate.authorizedByName || ''), {
+      page.drawText(String(certificate.authorizedByName || 'Fateh Adhnouss'), {
         x: toX(496),
         y: toY(92),
         size: Math.round(18 * scaleY),
@@ -976,10 +925,6 @@ export async function generateCertificatePdfBytes({
     const sigLineW = 240;
     const sigLineH = 1.2;
 
-    const leftLineX = safeLeft + 104;
-    const rightLineEnd = qrBoxX - 20;
-    const rightLineX = rightLineEnd - sigLineW;
-
     // Verified stamp / badge
     const badgeX = safeLeft + 34;
     const badgeCenterY = qrBoxY + qrBoxSize / 4 + 14;
@@ -1016,7 +961,7 @@ export async function generateCertificatePdfBytes({
       title: string;
       lineX: number;
       nameCenterX: number;
-      titleAlign: 'left' | 'right';
+      titleAlign: 'left' | 'right' | 'center';
       image: any | null;
       imageMaxH?: number;
       imageYOffset?: number;
@@ -1062,6 +1007,15 @@ export async function generateCertificatePdfBytes({
           font: sans,
           color: mutedText,
         });
+      } else if (options.titleAlign === 'center') {
+        const w = sans.widthOfTextAtSize(titleText, 10);
+        page.drawText(titleText, {
+          x: options.lineX + sigLineW / 2 - w / 2,
+          y: sigLineY - 8,
+          size: 10,
+          font: sans,
+          color: mutedText,
+        });
       } else {
         page.drawText(titleText, {
           x: options.lineX,
@@ -1073,27 +1027,20 @@ export async function generateCertificatePdfBytes({
       }
     };
 
-    // Left signature
-    const instructorName = String(certificate.instructorName || '');
-    await drawSignature({
-      name: instructorName,
-      title: String(certificate.instructorTitle || 'Instructor / Director'),
-      lineX: leftLineX,
-      nameCenterX: leftLineX + sigLineW / 2,
-      titleAlign: 'left',
-      image: instructorSignatureImage || instructorSignatureTextImage,
-      imageMaxH: 50,
-      imageYOffset: -12,
-    });
-
-    // Right signature
-    const authorizedName = String(certificate.authorizedByName || '');
+    // Single (authorized) signature, centered
+    const sigCenterX = centerX;
+    const sigLineX = sigCenterX - sigLineW / 2;
+    const authorizedName = String(certificate.authorizedByName || 'Fateh Adhnouss').trim() || 'Fateh Adhnouss';
+    const authorizedTitle = String(certificate.authorizedByTitle || 'Authorized Signature').trim() || 'Authorized Signature';
+    const authorizedLabel = authorizedTitle.toLowerCase().includes(authorizedName.toLowerCase())
+      ? authorizedTitle
+      : `${authorizedTitle} – ${authorizedName}`;
     await drawSignature({
       name: authorizedName,
-      title: String(certificate.authorizedByTitle || 'Authorized Signature'),
-      lineX: rightLineX,
-      nameCenterX: rightLineX + sigLineW / 2,
-      titleAlign: 'right',
+      title: authorizedLabel,
+      lineX: sigLineX,
+      nameCenterX: sigCenterX,
+      titleAlign: 'center',
       image: authorizedSignatureImage || authorizedSignatureTextImage,
       imageMaxH: 50,
       imageYOffset: -12,
