@@ -921,7 +921,8 @@ export async function generateCertificatePdfBytes({
     });
 
     // Footer: signatures + QR
-    const sigLineY = safeBottom;
+    const sigBlockOffsetY = 15;
+    const sigLineY = safeBottom + sigBlockOffsetY;
     const sigLineW = 240;
     const sigLineH = 1.2;
 
@@ -1043,7 +1044,7 @@ export async function generateCertificatePdfBytes({
       titleAlign: 'center',
       image: authorizedSignatureImage || authorizedSignatureTextImage,
       imageMaxH: 50,
-      imageYOffset: -12,
+      imageYOffset: -8,
     });
 
     // QR

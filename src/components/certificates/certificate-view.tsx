@@ -201,11 +201,11 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
           </div>
 
           <div className="flex items-end justify-center">
-            <div className="text-center">
+            <div className="text-center -translate-y-2">
               <SignatureMark
                 sources={['/images/signature_2.png', '/images/signature.png', '/images/signature2.png']}
                 fallbackText={authorizedName}
-                imgClassName="mx-auto h-8 w-auto max-w-[320px] translate-y-2 object-contain object-bottom"
+                imgClassName="mx-auto h-8 w-auto max-w-[320px] translate-y-1 object-contain object-bottom"
                 textClassName="font-signature text-3xl leading-none text-primary"
                 alt="Authorized signature"
               />
