@@ -29,8 +29,9 @@ function SignatureMark(props: {
   imgClassName?: string;
   textClassName?: string;
   trim?: boolean;
+  alt?: string;
 }) {
-  const { sources, fallbackText, imgClassName, textClassName, trim = true } = props;
+  const { sources, fallbackText, imgClassName, textClassName, trim = true, alt = 'Signature' } = props;
   const [idx, setIdx] = useState(0);
   const src = sources[idx];
   const [trimmedSrc, setTrimmedSrc] = useState<string | null>(null);
@@ -62,7 +63,7 @@ function SignatureMark(props: {
   return (
     <img
       src={trimmedSrc || src}
-      alt="Signature"
+      alt={alt}
       className={imgClassName}
       onError={() => {
         setTrimmedSrc(null);
@@ -173,24 +174,34 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
           </p>
         </div>
 
-        <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center gap-4">
             <div
               className={[
-                'grid h-16 w-16 place-items-center rounded-full border-4',
+                'grid h-20 w-20 place-items-center rounded-full border-4',
                 isRevoked ? 'border-destructive/70 bg-destructive/10' : 'border-accent/70 bg-accent/10',
               ].join(' ')}
             >
-              <span className={['text-xs font-bold', isRevoked ? 'text-destructive' : 'text-accent'].join(' ')}>
-                {isRevoked ? 'REVOKED' : 'VERIFIED'}
-              </span>
+              {isRevoked ? (
+                <span className="text-xs font-bold text-destructive">REVOKED</span>
+              ) : (
+                <SignatureMark
+                  sources={['/images/stamp.png', '/images/verified-stamp.png']}
+                  fallbackText="VERIFIED"
+                  imgClassName="h-16 w-16 object-contain"
+                  textClassName="text-xs font-bold text-accent"
+                  trim={false}
+                  alt="Verified stamp"
+                />
+              )}
             </div>
             <div>
               <SignatureMark
                 sources={['/images/signature_1.png', '/images/signature.png', '/images/signature1.png']}
                 fallbackText={certificate.instructorName}
-                imgClassName="h-24 w-auto max-w-[320px] object-contain"
+                imgClassName="h-10 w-auto max-w-[320px] translate-y-2 object-contain"
                 textClassName="font-signature text-3xl leading-none text-primary"
+                alt="Instructor signature"
               />
               <div className="mt-1 h-px w-56 bg-border" />
               <p className="mt-2 text-sm text-muted-foreground">{instructorTitle}</p>
@@ -202,8 +213,9 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
               <SignatureMark
                 sources={['/images/signature_2.png', '/images/signature.png', '/images/signature2.png']}
                 fallbackText={certificate.authorizedByName}
-                imgClassName="ml-auto h-20 w-auto max-w-[320px] translate-y-1 object-contain object-bottom"
+                imgClassName="ml-auto h-8 w-auto max-w-[320px] translate-y-2 object-contain object-bottom"
                 textClassName="font-signature text-3xl leading-none text-primary"
+                alt="Authorized signature"
               />
               <div className="mt-1 h-px w-56 bg-border" />
               <p className="mt-2 text-sm text-muted-foreground">{authorizedTitle}</p>

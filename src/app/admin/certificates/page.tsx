@@ -562,13 +562,15 @@ export default function AdminCertificatesPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+      const { userEmail: _omitUserEmail, ...publicPayload } = payload as any;
 
       const batch = writeBatch(firestore);
-      batch.set(certRef, payload, { merge: false });
+      batch.set(certRef, publicPayload, { merge: false });
       batch.set(userCertRef, payload, { merge: false });
       await batch.commit();
 
       if (generatePdfAfterIssue) {
+        let uploadedKey: string | null = null;
         try {
           const token = await user.getIdToken();
           if (!token) throw new Error('Unauthorized');
@@ -577,46 +579,35 @@ export default function AdminCertificatesPage() {
           const origin = site || (typeof window !== 'undefined' ? window.location.origin : '');
           const verifyUrl = origin ? `${origin}/verify/${encodeURIComponent(previewCertificate.id)}` : '';
 
-          const pdfBytes = await generateCertificatePdfBytes({
-            certificate: previewCertificate,
-            verifyUrl,
-            templatePdfUrl: useTemplatePdf ? '/CloudAI_Certificate1.pdf' : null,
-          });
+           const pdfBytes = await generateCertificatePdfBytes({
+             certificate: previewCertificate,
+             verifyUrl,
+             templatePdfUrl: useTemplatePdf ? '/CloudAI_Certificate1.pdf' : null,
+             verifiedStampUrl: '/images/stamp.png',
+           });
 
-          const presignResp = await fetch('/api/certificates/presign-upload', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              certificateId: previewCertificate.id,
-              studentUid: previewCertificate.userId,
-              contentType: 'application/pdf',
-            }),
-          });
-          const presignJson = await presignResp.json().catch(() => ({}));
-          if (!presignResp.ok) {
-            throw new Error(presignJson?.error || 'Failed to create upload URL');
-          }
+           const uploadEndpoint = `/api/certificates/upload-pdf?certificateId=${encodeURIComponent(previewCertificate.id)}&studentUid=${encodeURIComponent(previewCertificate.userId)}`;
+           const uploadResp = await fetch(uploadEndpoint, {
+             method: 'POST',
+             headers: {
+               'Content-Type': 'application/pdf',
+               Authorization: `Bearer ${token}`,
+             },
+             body: new Blob([pdfBytes], { type: 'application/pdf' }),
+           });
+           const uploadJson = await uploadResp.json().catch(() => ({}));
+           if (!uploadResp.ok) {
+             throw new Error(uploadJson?.error || 'PDF upload failed');
+           }
 
-          const uploadUrl = presignJson.url as string | undefined;
-          const key = presignJson.key as string | undefined;
-          if (!uploadUrl || !key) throw new Error('Invalid presign response');
+           const key = uploadJson.key as string | undefined;
+           if (!key) throw new Error('Invalid upload response');
+           uploadedKey = key;
 
-          const putResp = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/pdf' },
-            body: new Blob([pdfBytes], { type: 'application/pdf' }),
-          });
-          if (!putResp.ok) {
-            throw new Error(`PDF upload failed (${putResp.status})`);
-          }
-
-          const pdfUrl = `/api/certificates/${encodeURIComponent(previewCertificate.id)}/download`;
-          const patch = {
-            pdfPath: key,
-            pdfUrl,
+           const pdfUrl = `/api/certificates/${encodeURIComponent(previewCertificate.id)}/download`;
+           const patch = {
+             pdfPath: key,
+             pdfUrl,
             updatedAt: serverTimestamp(),
           };
           const after = writeBatch(firestore);
@@ -624,6 +615,26 @@ export default function AdminCertificatesPage() {
           after.update(userCertRef, patch);
           await after.commit();
         } catch (err: any) {
+          // If the PDF uploaded but Firestore update failed, try to delete the object to avoid orphans.
+          if (typeof uploadedKey === 'string' && uploadedKey) {
+            try {
+              const token = await user.getIdToken();
+              await fetch('/api/certificates/delete-pdf', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  certificateId: previewCertificate.id,
+                  studentUid: previewCertificate.userId,
+                  pdfPath: uploadedKey,
+                }),
+              });
+            } catch {
+              // ignore cleanup failures
+            }
+          }
           toast({
             variant: 'destructive',
             title: 'PDF generation/upload failed',
@@ -1210,11 +1221,13 @@ export default function AdminCertificatesPage() {
                             </Button>
                             {viewSelectedCertificate.pdfPath ? (
                               <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                                <Link
+                                <a
                                   href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
                                   Download PDF
-                                </Link>
+                                </a>
                               </Button>
                             ) : null}
                           </div>
@@ -1406,11 +1419,13 @@ export default function AdminCertificatesPage() {
                         </Button>
                         {viewSelectedCertificate.pdfPath ? (
                           <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                            <Link
+                            <a
                               href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
                               Download PDF
-                            </Link>
+                            </a>
                           </Button>
                         ) : null}
                       </div>

@@ -26,7 +26,7 @@ import LessonPdfSandbox from '@/components/learn/lesson-pdf-sandbox';
 import type { EnrollmentRequest, UserProfile } from '@/types/models';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
-import { startCourseCheckout } from '@/lib/course-checkout';
+import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
 
 export default function LessonPage() {
@@ -52,8 +52,10 @@ export default function LessonPage() {
     () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
     [paymentDoc],
   );
-  const perCourseCheckoutAvailable =
-    paymentSettings.enabled && paymentSettings.provider === 'stripe' && paymentSettings.model === 'per_course';
+  const perCoursePaymentAvailable =
+    paymentSettings.enabled &&
+    paymentSettings.model === 'per_course' &&
+    (paymentSettings.provider === 'stripe' || paymentSettings.provider === 'paypal');
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -240,15 +242,24 @@ export default function LessonPage() {
       toast({ title: 'This course is free.' });
       return;
     }
-    if (!perCourseCheckoutAvailable) {
+    if (!perCoursePaymentAvailable) {
       toast({
         variant: 'destructive',
         title: 'Payments are not enabled',
-        description: 'Ask an admin to enable Stripe per-course payments in /admin/payment.',
+        description: 'Ask an admin to enable payments (and select Stripe/PayPal) in /admin/payment.',
       });
       return;
     }
     try {
+      // Avoid double-charging: try to confirm an existing successful payment first.
+      if (paymentSettings.provider === 'stripe') {
+        try {
+          await confirmCoursePurchase((course as any).id);
+          toast({ title: 'Payment confirmed', description: 'Access unlocked.' });
+          router.refresh();
+          return;
+        } catch {}
+      }
       await startCourseCheckout((course as any).id);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Could not start checkout.';
@@ -462,7 +473,7 @@ export default function LessonPage() {
                 )}
                 {coursePaymentRequired &&
                   paymentSettings.model === 'per_course' &&
-                  !perCourseCheckoutAvailable && (
+                  !perCoursePaymentAvailable && (
                     <p className="text-sm text-destructive">
                       Payments are disabled or not configured. Ask an admin to enable payments in /admin/payment.
                     </p>
@@ -481,11 +492,11 @@ export default function LessonPage() {
                   {isStudent ? (
                     isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
                       <Button
-                        disabled={isWaitlistSaving || !perCourseCheckoutAvailable}
+                        disabled={isWaitlistSaving || !perCoursePaymentAvailable}
                         onClick={handlePayForCourse}
                         className="bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
                       >
-                        {perCourseCheckoutAvailable ? `Pay ${(course as any)?.price}` : 'Payments disabled'}
+                        {perCoursePaymentAvailable ? `Pay ${(course as any)?.price}` : 'Payments disabled'}
                       </Button>
                     ) : (
                       <Button
@@ -495,16 +506,16 @@ export default function LessonPage() {
                           (!courseIsFull &&
                             paymentSettings.model === 'per_course' &&
                             coursePaymentRequired &&
-                            !perCourseCheckoutAvailable)
+                            !perCoursePaymentAvailable)
                         }
                         onClick={handleWaitlist}
                         className="bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
                       >
                         {!courseIsFull
-                          ? isWaitlistSaving
-                            ? 'Enrolling...'
-                            : paymentSettings.model === 'per_course' && coursePaymentRequired
-                              ? perCourseCheckoutAvailable
+                            ? isWaitlistSaving
+                              ? 'Enrolling...'
+                              : paymentSettings.model === 'per_course' && coursePaymentRequired
+                              ? perCoursePaymentAvailable
                                 ? 'Pay & Enroll'
                                 : 'Payments disabled'
                               : studentAccountRequiresPayment &&

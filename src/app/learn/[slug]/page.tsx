@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
 import { roleFromClaims } from '@/lib/roles';
-import { startCourseCheckout } from '@/lib/course-checkout';
+import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
 
 export default function LearnCoursePage() {
@@ -44,8 +44,10 @@ export default function LearnCoursePage() {
     () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
     [paymentDoc],
   );
-  const perCourseCheckoutAvailable =
-    paymentSettings.enabled && paymentSettings.provider === 'stripe' && paymentSettings.model === 'per_course';
+  const perCoursePaymentAvailable =
+    paymentSettings.enabled &&
+    paymentSettings.model === 'per_course' &&
+    (paymentSettings.provider === 'stripe' || paymentSettings.provider === 'paypal');
   const studentAccountRequiresPayment =
     isStudent && studentRequiresPayment(paymentSettings, userProfile as any);
 
@@ -194,15 +196,24 @@ export default function LearnCoursePage() {
       toast({ title: 'This course is free.' });
       return;
     }
-    if (!perCourseCheckoutAvailable) {
+    if (!perCoursePaymentAvailable) {
       toast({
         variant: 'destructive',
         title: 'Payments are not enabled',
-        description: 'Ask an admin to enable Stripe per-course payments in /admin/payment.',
+        description: 'Ask an admin to enable payments (and select Stripe/PayPal) in /admin/payment.',
       });
       return;
     }
     try {
+      // Avoid double-charging: try to confirm an existing successful payment first.
+      if (paymentSettings.provider === 'stripe') {
+        try {
+          await confirmCoursePurchase((course as any).id);
+          toast({ title: 'Payment confirmed', description: 'Access unlocked.' });
+          router.refresh();
+          return;
+        } catch {}
+      }
       await startCourseCheckout((course as any).id);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Could not start checkout.';
@@ -360,7 +371,7 @@ export default function LearnCoursePage() {
                 )}
                 {coursePaymentRequired &&
                   paymentSettings.model === 'per_course' &&
-                  !perCourseCheckoutAvailable && (
+                  !perCoursePaymentAvailable && (
                     <p className="text-sm text-destructive">
                       Payments are disabled or not configured. Ask an admin to enable payments in /admin/payment.
                     </p>
@@ -379,11 +390,11 @@ export default function LearnCoursePage() {
                   {isStudent ? (
                     isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
                       <button
-                        disabled={enrolling || !perCourseCheckoutAvailable}
+                        disabled={enrolling || !perCoursePaymentAvailable}
                         onClick={handlePayForCourse}
                         className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
                       >
-                        {perCourseCheckoutAvailable ? `Pay ${(course as any)?.price}` : 'Payments disabled'}
+                        {perCoursePaymentAvailable ? `Pay ${(course as any)?.price}` : 'Payments disabled'}
                       </button>
                     ) : (
                       <button
@@ -393,7 +404,7 @@ export default function LearnCoursePage() {
                           (!courseIsFull &&
                             paymentSettings.model === 'per_course' &&
                             coursePaymentRequired &&
-                            !perCourseCheckoutAvailable)
+                            !perCoursePaymentAvailable)
                         }
                         onClick={handleWaitlist}
                         className="px-4 py-2 rounded bg-accent text-accent-foreground disabled:opacity-60"
@@ -404,7 +415,7 @@ export default function LearnCoursePage() {
                               ? enrolling
                                 ? 'Enrolling...'
                                 : paymentSettings.model === 'per_course' && coursePaymentRequired
-                                  ? perCourseCheckoutAvailable
+                                  ? perCoursePaymentAvailable
                                     ? 'Pay & Enroll'
                                     : 'Payments disabled'
                                   : studentAccountRequiresPayment &&

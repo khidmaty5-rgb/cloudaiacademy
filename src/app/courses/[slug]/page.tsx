@@ -23,7 +23,7 @@ import LiveSessionButton from '@/components/LiveSessionButton';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
 import { roleFromClaims } from '@/lib/roles';
-import { startCourseCheckout } from '@/lib/course-checkout';
+import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
 
 const courseCopy = {
@@ -77,8 +77,10 @@ export default function CourseDetailPage() {
     () => sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS),
     [paymentDoc],
   );
-  const perCourseCheckoutAvailable =
-    paymentSettings.enabled && paymentSettings.provider === 'stripe' && paymentSettings.model === 'per_course';
+  const perCoursePaymentAvailable =
+    paymentSettings.enabled &&
+    paymentSettings.model === 'per_course' &&
+    (paymentSettings.provider === 'stripe' || paymentSettings.provider === 'paypal');
 
   const isStudent = !!user && !roleLoading && role === 'student';
   const studentAccountRequiresPayment =
@@ -172,16 +174,26 @@ export default function CourseDetailPage() {
       toast({ title: 'This course is free.' });
       return;
     }
-    if (!perCourseCheckoutAvailable) {
+    if (!perCoursePaymentAvailable) {
       toast({
         variant: 'destructive',
         title: 'Payments are not enabled',
-        description: 'Ask an admin to enable Stripe per-course payments in /admin/payment.',
+        description: 'Ask an admin to enable payments (and select Stripe/PayPal) in /admin/payment.',
       });
       return;
     }
 
     try {
+      // If the student already paid but the purchase doc wasn't recorded (webhook delay/misconfig),
+      // confirm the payment first to avoid double-charging.
+      if (paymentSettings.provider === 'stripe') {
+        try {
+          await confirmCoursePurchase(course.id);
+          toast({ title: 'Payment confirmed', description: 'Access unlocked.' });
+          router.replace(`/learn/${slug}`);
+          return;
+        } catch {}
+      }
       await startCourseCheckout(course.id);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Could not start checkout.';
@@ -320,6 +332,9 @@ export default function CourseDetailPage() {
   // no teacher self-assign; admin assigns instructors in Admin > Courses
 
   const paymentStatus = searchParams.get('payment');
+  const paymentSessionId = searchParams.get('session_id');
+  const paymentProvider = searchParams.get('provider');
+  const paypalOrderId = searchParams.get('token');
 
   useEffect(() => {
     if (paymentStatus !== 'cancel') return;
@@ -330,9 +345,26 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (paymentStatus !== 'success') return;
     if (!user || !course) return;
-    if (!hasCoursePurchase) return;
 
     const run = async () => {
+      if (!hasCoursePurchase) {
+        try {
+          if (paymentProvider === 'paypal' || paypalOrderId) {
+            await confirmCoursePurchase(course.id, paypalOrderId || undefined, 'paypal');
+          } else {
+            await confirmCoursePurchase(course.id, paymentSessionId || undefined);
+          }
+        } catch (e) {
+          const message = e instanceof Error ? e.message : 'Could not confirm payment.';
+          toast({
+            variant: 'destructive',
+            title: 'Payment received',
+            description: message,
+          });
+          router.replace(`/courses/${slug}`);
+          return;
+        }
+      }
       if (!isEnrolled) {
         try {
           await enrollInCourse(user.uid, course.id);
@@ -344,7 +376,19 @@ export default function CourseDetailPage() {
       router.replace(`/learn/${slug}`);
     };
     void run();
-  }, [course, hasCoursePurchase, isEnrolled, paymentStatus, router, slug, toast, user]);
+  }, [
+    course,
+    hasCoursePurchase,
+    isEnrolled,
+    paymentProvider,
+    paymentSessionId,
+    paymentStatus,
+    paypalOrderId,
+    router,
+    slug,
+    toast,
+    user,
+  ]);
 
   if (isLoading) {
       return (
@@ -442,7 +486,7 @@ export default function CourseDetailPage() {
                 )}
                 {coursePaymentRequired &&
                   paymentSettings.model === 'per_course' &&
-                  !perCourseCheckoutAvailable && (
+                  !perCoursePaymentAvailable && (
                     <p className="mb-4 text-sm text-destructive">
                       Payments are disabled or not configured. Ask an admin to enable payments in /admin/payment.
                     </p>
@@ -476,10 +520,10 @@ export default function CourseDetailPage() {
                      <Button
                        onClick={handlePayForCourse}
                        size="lg"
-                       disabled={!perCourseCheckoutAvailable}
+                       disabled={!perCoursePaymentAvailable}
                        className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
                      >
-                       {perCourseCheckoutAvailable ? `Pay ${course.price}` : 'Payments disabled'}
+                       {perCoursePaymentAvailable ? `Pay ${course.price}` : 'Payments disabled'}
                      </Button>
                    ) : (
                      <Button
@@ -491,7 +535,7 @@ export default function CourseDetailPage() {
                          (!courseIsFull &&
                            paymentSettings.model === 'per_course' &&
                            coursePaymentRequired &&
-                           !perCourseCheckoutAvailable)
+                           !perCoursePaymentAvailable)
                        }
                        className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-60"
                      >
@@ -499,7 +543,7 @@ export default function CourseDetailPage() {
                            ? isWaitlistSaving
                              ? 'Enrolling...'
                              : paymentSettings.model === 'per_course' && coursePaymentRequired
-                               ? perCourseCheckoutAvailable
+                               ? perCoursePaymentAvailable
                                  ? 'Pay & Enroll'
                                  : 'Payments disabled'
                                : studentAccountRequiresPayment &&

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { doc, getFirestore } from 'firebase/firestore';
@@ -44,6 +43,7 @@ export default function VerifyCertificatePage() {
         certificate,
         verifyUrl,
         templatePdfUrl: null,
+        verifiedStampUrl: '/images/stamp.png',
       });
 
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -105,9 +105,13 @@ export default function VerifyCertificatePage() {
                   <p className="text-sm md:text-base">Download is disabled for revoked certificates.</p>
                 ) : certificate.pdfPath ? (
                   <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <Link href={`/api/certificates/${encodeURIComponent(certificate.id)}/download?disposition=attachment`}>
+                    <a
+                      href={`/api/certificates/${encodeURIComponent(certificate.id)}/download?disposition=attachment`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Download PDF
-                    </Link>
+                    </a>
                   </Button>
                 ) : (
                   <Button

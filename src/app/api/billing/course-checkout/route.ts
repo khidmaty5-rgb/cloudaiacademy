@@ -90,6 +90,65 @@ async function stripePost(pathname: string, params: URLSearchParams) {
   return json;
 }
 
+function paypalApiBase() {
+  const env = (process.env.PAYPAL_ENV || '').trim().toLowerCase();
+  if (env === 'live' || env === 'production') return 'https://api-m.paypal.com';
+  return 'https://api-m.sandbox.paypal.com';
+}
+
+async function paypalAccessToken(): Promise<string> {
+  const clientId = (process.env.PAYPAL_CLIENT_ID || '').trim();
+  const clientSecret = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) {
+    throw new Error('PayPal credentials are missing (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET).');
+  }
+
+  const resp = await fetch(`${paypalApiBase()}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`, 'utf8').toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  const json = (await resp.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!resp.ok) {
+    const msg = (json?.error_description as string | undefined) || `PayPal API error (${resp.status})`;
+    throw new Error(msg);
+  }
+  const token = (json?.access_token as string | undefined) || '';
+  if (!token) throw new Error('PayPal did not return an access token.');
+  return token;
+}
+
+async function paypalPostJson(pathname: string, body: Record<string, unknown>) {
+  const token = await paypalAccessToken();
+  const resp = await fetch(`${paypalApiBase()}${pathname}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const json = (await resp.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!resp.ok) {
+    let msg = `PayPal API error (${resp.status})`;
+    const detailsRaw = json?.details;
+    if (Array.isArray(detailsRaw) && detailsRaw.length) {
+      const first = detailsRaw[0];
+      if (first && typeof first === 'object') {
+        const desc = (first as Record<string, unknown>).description;
+        if (typeof desc === 'string' && desc.trim()) msg = desc;
+      }
+    }
+    const message = json?.message;
+    if (typeof message === 'string' && message.trim()) msg = message;
+    throw new Error(msg);
+  }
+  return json || {};
+}
+
 function isSafeId(id: string) {
   return /^[a-zA-Z0-9_-]+$/.test(id);
 }
@@ -151,15 +210,15 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    if (settings.provider !== 'stripe') {
-      return NextResponse.json(
-        { error: `Payments provider is set to \"${settings.provider}\". Set it to \"stripe\".` },
-        { status: 400 },
-      );
-    }
     if (settings.model !== 'per_course') {
       return NextResponse.json(
         { error: `Payments model is set to \"${settings.model}\". Set it to \"per_course\".` },
+        { status: 400 },
+      );
+    }
+    if (settings.provider !== 'stripe' && settings.provider !== 'paypal') {
+      return NextResponse.json(
+        { error: `Payments provider \"${settings.provider}\" is not supported.` },
         { status: 400 },
       );
     }
@@ -189,6 +248,45 @@ export async function POST(req: NextRequest) {
     const email = (userData?.email || decoded.email || '').trim();
     const existingCustomerId = (userData?.stripeCustomerId || '').trim();
 
+    if (settings.provider === 'paypal') {
+      const currency = String(settings.currency || 'CAD').toUpperCase();
+      const amount = (cents / 100).toFixed(2);
+      const courseTitle = String(course?.title || courseId).trim() || courseId;
+
+      try {
+        const order = await paypalPostJson('/v2/checkout/orders', {
+          intent: 'CAPTURE',
+          purchase_units: [
+            {
+              amount: { currency_code: currency, value: amount },
+              custom_id: `${uid}:${courseId}`,
+              description: courseTitle,
+            },
+          ],
+          application_context: {
+            return_url: `${origin}/courses/${courseId}?payment=success&provider=paypal`,
+            cancel_url: `${origin}/courses/${courseId}?payment=cancel&provider=paypal`,
+            brand_name: 'CloudAI Academy',
+            user_action: 'PAY_NOW',
+          },
+        });
+
+        const linksRaw = order.links;
+        const links = Array.isArray(linksRaw)
+          ? linksRaw.filter((l): l is Record<string, unknown> => !!l && typeof l === 'object')
+          : [];
+        const approve = links.find((l) => l.rel === 'approve');
+        const href = approve?.href;
+        const url = typeof href === 'string' ? href.trim() : '';
+        if (!url) return NextResponse.json({ error: 'PayPal did not return an approval URL.' }, { status: 500 });
+
+        return NextResponse.json({ url }, { status: 200 });
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Could not start PayPal checkout.';
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+    }
+
     let customerId = existingCustomerId;
     if (!customerId) {
       const params = new URLSearchParams();
@@ -206,7 +304,10 @@ export async function POST(req: NextRequest) {
 
     const sessionParams = new URLSearchParams();
     sessionParams.set('mode', 'payment');
-    sessionParams.set('success_url', `${origin}/courses/${courseId}?payment=success`);
+    sessionParams.set(
+      'success_url',
+      `${origin}/courses/${courseId}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+    );
     sessionParams.set('cancel_url', `${origin}/courses/${courseId}?payment=cancel`);
     sessionParams.set('client_reference_id', uid);
     sessionParams.set('metadata[firebaseUid]', uid);

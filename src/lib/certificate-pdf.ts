@@ -19,7 +19,8 @@ function toDateValue(v: any): Date | null {
 }
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
-  const resp = await fetch(url);
+  // Avoid stale 404s or cached assets while iterating on images in dev.
+  const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) {
     throw new Error(`Failed to fetch ${url} (${resp.status})`);
   }
@@ -148,6 +149,17 @@ export type CertificatePdfOptions = {
   templatePdfUrl?: string | null;
   logoUrl?: string;
   /**
+   * Optional stamp/seal image (PNG/JPG) for the "VERIFIED" badge area in the generated layout.
+   * Place it in `/public/images` and pass its public path, e.g. `/images/verified-stamp.png`.
+   * If omitted or the image can't be loaded, a simple vector badge is drawn instead.
+   */
+  verifiedStampUrl?: string | null;
+  /**
+   * When true, PDF generation throws if `verifiedStampUrl` is provided but can't be loaded/embedded.
+   * Useful for debugging missing static assets in dev.
+   */
+  strictVerifiedStamp?: boolean;
+  /**
    * Optional signature image (PNG/JPG). When provided, it's used for both signatures unless overridden by
    * `instructorSignatureImageUrl` or `authorizedSignatureImageUrl`.
    *
@@ -165,6 +177,8 @@ export async function generateCertificatePdfBytes({
   verifyUrl,
   templatePdfUrl = null,
   logoUrl = '/images/certificateLog.png',
+  verifiedStampUrl = '/images/stamp.png',
+  strictVerifiedStamp = false,
   signatureImageUrl = null,
   instructorSignatureImageUrl = null,
   authorizedSignatureImageUrl = null,
@@ -234,7 +248,7 @@ export async function generateCertificatePdfBytes({
   const completedAt = toDateValue(certificate.completedAt);
   const completedLabel = completedAt ? format(completedAt, 'MMMM yyyy') : '—';
 
-  const tryEmbedImage = async (src?: string | null) => {
+  const tryEmbedImage = async (src?: string | null, opts?: { label?: string; warnOnError?: boolean }) => {
     if (!src) return null;
     try {
       let effectiveSrc = src;
@@ -249,14 +263,21 @@ export async function generateCertificatePdfBytes({
       } catch {
         return await pdfDoc.embedJpg(bytes);
       }
-    } catch {
+    } catch (err: unknown) {
+      if (opts?.warnOnError && typeof console !== 'undefined') {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[certificate-pdf] failed to embed image${opts.label ? ` (${opts.label})` : ''}: ${src}`, msg);
+      }
       return null;
     }
   };
 
-  const tryEmbedFirstImage = async (sources: Array<string | null | undefined>) => {
+  const tryEmbedFirstImage = async (
+    sources: Array<string | null | undefined>,
+    opts?: { label?: string; warnOnError?: boolean },
+  ) => {
     for (const src of sources) {
-      const img = await tryEmbedImage(src);
+      const img = await tryEmbedImage(src, opts);
       if (img) return img;
     }
     return null;
@@ -349,6 +370,23 @@ export async function generateCertificatePdfBytes({
     : await renderSignatureTextImage(String(certificate.authorizedByName || ''));
 
   const logoImage = await tryEmbedImage(logoUrl);
+  const verifiedStampImage = usingTemplate
+    ? null
+    : await tryEmbedFirstImage(
+        [
+          verifiedStampUrl,
+          '/images/stamp.png',
+          '/images/verified-stamp.png',
+          '/images/cccc.png',
+        ],
+        { label: 'verifiedStamp', warnOnError: true },
+      );
+  if (!usingTemplate && strictVerifiedStamp && verifiedStampUrl && !verifiedStampImage) {
+    throw new Error(
+      `Verified stamp image could not be loaded at "${verifiedStampUrl}". ` +
+        `Place it under /public (e.g. public${verifiedStampUrl}) and confirm it opens in the browser.`,
+    );
+  }
 
   // Draw on top of a background template.
   if (usingTemplate) {
@@ -938,27 +976,40 @@ export async function generateCertificatePdfBytes({
     const sigLineW = 240;
     const sigLineH = 1.2;
 
-    const leftLineX = safeLeft + 84;
+    const leftLineX = safeLeft + 104;
     const rightLineEnd = qrBoxX - 20;
     const rightLineX = rightLineEnd - sigLineW;
 
-    // Verified badge
-    const badgeRadius = 26;
+    // Verified stamp / badge
     const badgeX = safeLeft + 34;
-    const badgeY = sigLineY + 10;
-    page.drawCircle({
-      x: badgeX,
-      y: badgeY,
-      size: badgeRadius,
-      borderColor: accentColor,
-      borderWidth: 3,
-      color: rgb(1, 1, 1),
-    });
-    drawCenteredAtX('VERIFIED', badgeX, badgeY - 4, {
-      font: sansBold,
-      size: 7.5,
-      color: accentColor,
-    });
+    const badgeCenterY = qrBoxY + qrBoxSize / 4 + 14;
+    if (verifiedStampImage) {
+      const maxSize = 120;
+      const scale = Math.min(maxSize / verifiedStampImage.width, maxSize / verifiedStampImage.height);
+      const w = Math.max(1, verifiedStampImage.width * scale);
+      const h = Math.max(1, verifiedStampImage.height * scale);
+      page.drawImage(verifiedStampImage, {
+        x: badgeX - w / 2,
+        y: badgeCenterY - h / 2,
+        width: w,
+        height: h,
+      });
+    } else {
+      const badgeRadius = 26;
+      page.drawCircle({
+        x: badgeX,
+        y: badgeCenterY,
+        size: badgeRadius,
+        borderColor: accentColor,
+        borderWidth: 3,
+        color: rgb(1, 1, 1),
+      });
+      drawCenteredAtX('VERIFIED', badgeX, badgeCenterY - 4, {
+        font: sansBold,
+        size: 7.5,
+        color: accentColor,
+      });
+    }
 
     const drawSignature = async (options: {
       name: string;
@@ -1031,6 +1082,8 @@ export async function generateCertificatePdfBytes({
       nameCenterX: leftLineX + sigLineW / 2,
       titleAlign: 'left',
       image: instructorSignatureImage || instructorSignatureTextImage,
+      imageMaxH: 50,
+      imageYOffset: -12,
     });
 
     // Right signature
@@ -1042,8 +1095,8 @@ export async function generateCertificatePdfBytes({
       nameCenterX: rightLineX + sigLineW / 2,
       titleAlign: 'right',
       image: authorizedSignatureImage || authorizedSignatureTextImage,
-      imageMaxH: 90,
-      imageYOffset: -4,
+      imageMaxH: 50,
+      imageYOffset: -12,
     });
 
     // QR
