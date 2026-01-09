@@ -9,6 +9,7 @@ import {
   UserCog,
   Shield,
   FileText,
+  QrCode,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -470,13 +471,12 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         {!isAppVariant && (
         <nav className="hidden items-center gap-8 md:flex">
           {/* Always show public nav */}
-           {visibleLinks.map((link) => (
+           {visibleLinks.filter((link) => link.id !== 'qr').map((link) => (
              <Link
                key={link.id}
                href={link.href}
                className={[
                  'font-medium text-primary-foreground/80 transition-colors hover:text-accent',
-                 link.id === 'qr' ? 'rounded-full bg-accent/15 px-3 py-1 text-accent hover:bg-accent/20 hover:text-accent' : '',
                  pathname === link.href ? 'font-semibold text-accent' : '',
                ].join(' ')}
              >
@@ -522,6 +522,18 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         )}
 
         <div className="flex items-center gap-2">
+          {!isAppVariant ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="hidden md:inline-flex rounded-full bg-accent/15 text-accent hover:bg-accent/20 hover:text-accent"
+            >
+              <Link href="/print/qr" aria-label={navLabel('qr')} title={navLabel('qr')}>
+                <QrCode className="h-5 w-5" />
+              </Link>
+            </Button>
+          ) : null}
           <LangToggle className="hidden md:flex" />
           <ThemeToggle className="hidden md:flex" />
           <UserProfileMenu
