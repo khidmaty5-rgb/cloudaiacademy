@@ -109,6 +109,7 @@ export default function AdminCertificatesPage() {
   const [deleteCertificateId, setDeleteCertificateId] = useState('');
   const [deleteStudentUid, setDeleteStudentUid] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<Set<string>>(() => new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ done: number; total: number } | null>(null);
@@ -658,6 +659,46 @@ export default function AdminCertificatesPage() {
 
   const clearViewedCertificate = () => {
     setViewCertificateId('');
+  };
+
+  const downloadCertificatePdf = async (certificateId: string) => {
+    const id = String(certificateId || '').trim();
+    if (!id) return;
+
+    setIsDownloadingPdf(true);
+    try {
+      if (!user) throw new Error('Unauthorized');
+
+      const token = await user.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const resp = await fetch(`/api/certificates/${encodeURIComponent(id)}/download?disposition=attachment`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}));
+        throw new Error(json?.error || resp.statusText || 'Download failed');
+      }
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Download failed',
+        description: err?.message || 'Failed to download the PDF.',
+      });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   const deleteCertificate = async () => {
@@ -1326,14 +1367,14 @@ export default function AdminCertificatesPage() {
                               <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
                             </Button>
                             {viewSelectedCertificate.pdfPath ? (
-                              <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                                <a
-                                  href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  Download PDF
-                                </a>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                                onClick={() => downloadCertificatePdf(viewSelectedCertificate.id)}
+                                disabled={isDownloadingPdf}
+                              >
+                                {isDownloadingPdf ? 'Downloading...' : 'Download PDF'}
                               </Button>
                             ) : null}
                           </div>
@@ -1589,14 +1630,14 @@ export default function AdminCertificatesPage() {
                           <Link href={`/verify/${encodeURIComponent(viewSelectedCertificate.id)}`}>Open verify</Link>
                         </Button>
                         {viewSelectedCertificate.pdfPath ? (
-                          <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                            <a
-                              href={`/api/certificates/${encodeURIComponent(viewSelectedCertificate.id)}/download?disposition=attachment`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Download PDF
-                            </a>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                            onClick={() => downloadCertificatePdf(viewSelectedCertificate.id)}
+                            disabled={isDownloadingPdf}
+                          >
+                            {isDownloadingPdf ? 'Downloading...' : 'Download PDF'}
                           </Button>
                         ) : null}
                       </div>

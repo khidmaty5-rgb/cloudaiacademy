@@ -5,13 +5,14 @@ import { useParams } from 'next/navigation';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { doc, getFirestore } from 'firebase/firestore';
-import { useDoc, useMemoFirebase } from '@/firebase';
+import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import CertificateView from '@/components/certificates/certificate-view';
 import { generateCertificatePdfBytes } from '@/lib/certificate-pdf';
 import type { Certificate } from '@/types/models';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function VerifyCertificatePage() {
   const params = useParams<{ certificateId: string }>();
@@ -19,6 +20,8 @@ export default function VerifyCertificatePage() {
   const certificateId = decodeURIComponent(raw);
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
+  const { user } = useUser();
+  const { isAdmin } = useCurrentRole();
 
   const firestore = getFirestore();
   const certDocRef = useMemoFirebase(() => {
@@ -34,6 +37,50 @@ export default function VerifyCertificatePage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     return `${origin}/verify/${encodeURIComponent(certificateId)}`;
   }, [certificateId]);
+
+  const downloadStoredPdf = async (certificate: Certificate) => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Login required',
+        description: 'Please login to download this certificate.',
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const token = await user.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+
+      const resp = await fetch(
+        `/api/certificates/${encodeURIComponent(certificate.id)}/download?disposition=attachment`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}));
+        throw new Error(json?.error || resp.statusText || 'Download failed');
+      }
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${certificate.id || 'certificate'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Download failed',
+        description: err?.message || 'Failed to download the PDF.',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const downloadGeneratedPdf = async (certificate: Certificate) => {
     if (!verifyUrl) return;
@@ -89,6 +136,11 @@ export default function VerifyCertificatePage() {
             </div>
           ) : (
             <div className="space-y-6">
+              {(() => {
+                const ownerUid = typeof certificate?.userId === 'string' ? certificate.userId : '';
+                const canDownload = !!user && !isRevoked && (isAdmin || (ownerUid && user.uid === ownerUid));
+
+                return (
               <div
                 className={[
                   'flex flex-col gap-3 rounded-md border p-4 md:flex-row md:items-center md:justify-between',
@@ -103,27 +155,23 @@ export default function VerifyCertificatePage() {
                 </div>
                 {isRevoked ? (
                   <p className="text-sm md:text-base">Download is disabled for revoked certificates.</p>
-                ) : certificate.pdfPath ? (
-                  <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <a
-                      href={`/api/certificates/${encodeURIComponent(certificate.id)}/download?disposition=attachment`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Download PDF
-                    </a>
-                  </Button>
-                ) : (
+                ) : canDownload ? (
                   <Button
                     type="button"
                     disabled={isDownloading}
-                    onClick={() => downloadGeneratedPdf(certificate)}
+                    onClick={() =>
+                      certificate.pdfPath ? downloadStoredPdf(certificate) : downloadGeneratedPdf(certificate)
+                    }
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
                   >
-                    {isDownloading ? 'Generating...' : 'Download PDF'}
+                    {isDownloading ? 'Preparing...' : 'Download PDF'}
                   </Button>
+                ) : (
+                  <p className="text-sm md:text-base">Download is available to the certificate owner or admins.</p>
                 )}
               </div>
+                );
+              })()}
               <CertificateView certificate={certificate} verifyUrl={verifyUrl} />
             </div>
           )}
