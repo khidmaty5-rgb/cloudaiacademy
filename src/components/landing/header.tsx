@@ -457,9 +457,24 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     : effectiveRole === 'teacher' ? '/teacher/dashboard'
     : '/dashboard';
 
+  const isActiveHref = (href: string) => {
+    if (!pathname) return false;
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const navPillClassName = (active: boolean) =>
+    [
+      'inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
+      active
+        ? 'bg-accent/20 text-accent hover:bg-accent/25'
+        : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground',
+    ].join(' ');
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
-      <div className={`${isAppVariant ? 'w-full px-4' : 'container'} flex ${isAppVariant ? 'h-16' : 'h-20'} items-center justify-between`}>
+      <div className={`${isAppVariant ? 'w-full px-4' : 'container'} flex ${isAppVariant ? 'h-16' : 'h-20'} items-center gap-3`}>
         <button
           type="button"
           onClick={handleLogoClick}
@@ -469,16 +484,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         </button>
 
         {!isAppVariant && (
-        <nav className="hidden items-center gap-8 md:flex">
+        <div className="hidden flex-1 justify-center md:flex">
+        <nav className="flex items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
           {/* Always show public nav */}
            {visibleLinks.filter((link) => link.id !== 'qr').map((link) => (
              <Link
                key={link.id}
                href={link.href}
-               className={[
-                 'font-medium text-primary-foreground/80 transition-colors hover:text-accent',
-                 pathname === link.href ? 'font-semibold text-accent' : '',
-               ].join(' ')}
+                className={navPillClassName(isActiveHref(link.href))}
              >
                {navLabel(link.id)}
              </Link>
@@ -487,14 +500,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             <>
               <Link
                 href={preferredDashboardHref}
-                className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
+                className={navPillClassName(isActiveHref(preferredDashboardHref))}
               >
                 {t('dashboard')}
               </Link>
               {!canAccessAdmin && !roleLoading && (
                 <Link
                   href="/learning-path"
-                  className="font-medium text-primary-foreground/80 transition-colors hover:text-accent"
+                  className={navPillClassName(isActiveHref('/learning-path'))}
                 >
                   {t('learningPath')}
                 </Link>
@@ -505,7 +518,13 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
           {canAccessAdmin && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="font-medium text-primary-foreground/80 hover:text-accent">
+                <Button
+                  variant="ghost"
+                  className={[
+                    navPillClassName(isActiveHref('/admin') || isActiveHref('/teacher')),
+                    "relative pr-7 after:absolute after:right-3 after:top-1/2 after:-translate-y-1/2 after:content-['v'] after:text-xs after:opacity-70",
+                  ].join(' ')}
+                >
                   {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
                 </Button>
               </DropdownMenuTrigger>
@@ -519,9 +538,10 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             </DropdownMenu>
           )}
         </nav>
+        </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {!isAppVariant ? (
             <Button
               asChild
