@@ -90,7 +90,15 @@ export default function LiveRoomPage({ params }: PageProps) {
   const canJoinLive = !!(isAdmin || isInstructor || isEnrolled);
 
   const dashboardHref =
-    role === 'admin' ? '/admin/dashboard' : role === 'teacher' ? '/teacher/dashboard' : role === 'editor' ? '/admin/journal' : '/dashboard';
+    role === 'admin'
+      ? '/admin/dashboard'
+      : role === 'teacher'
+        ? '/teacher/dashboard'
+        : role === 'editor'
+          ? '/admin/journal'
+          : role === 'reviewer'
+            ? '/reviewer'
+            : '/dashboard';
 
   if (!canJoinLive) {
     return (

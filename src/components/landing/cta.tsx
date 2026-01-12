@@ -9,8 +9,8 @@ export default function Cta() {
   const heading = lang === 'ar' ? 'هل أنت جاهز لرفع مهاراتك؟' : 'Ready to Elevate Your Skills?';
   const sub =
     lang === 'ar'
-      ? 'انضم إلى آلاف المهنيين الذين سرّعوا مسيرتهم المهنية مع CloudAI Academy.'
-      : 'Join thousands of professionals who have accelerated their careers with CloudAI Academy.';
+      ? 'انضم إلى مجتمع متنامٍ من المتعلمين والمهنيين وطوّر مهاراتك عبر دورات عملية ومشاريع تطبيقية.'
+      : 'Join a growing community building real skills through hands-on courses and projects.';
   const btn = lang === 'ar' ? 'ابدأ الآن' : 'Get Started Now';
   return (
     <section

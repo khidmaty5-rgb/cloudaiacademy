@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLang } from '@/components/i18n/lang';
 import { useUser } from '@/firebase';
 import { getAuth } from 'firebase/auth';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 type Assignment = {
   id: string;
@@ -35,6 +36,9 @@ type Assignment = {
   authors: string;
   status: string;
   language: string;
+  manuscriptVersion?: number | null;
+  reviewRound?: number | null;
+  reviewManuscriptVersion?: number | null;
   createdAt?: any;
 };
 
@@ -88,6 +92,7 @@ export default function ReviewerDashboardPage() {
   const { toast } = useToast();
   const { lang } = useLang();
   const t = copy[lang];
+  const { isReviewer, isEditor, loading: roleLoading } = useCurrentRole();
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,14 +124,18 @@ export default function ReviewerDashboardPage() {
   };
 
   useEffect(() => {
-    if (isUserLoading) return;
+    if (isUserLoading || roleLoading) return;
     if (!user) {
-      router.push('/login');
+      router.push('/login?next=/reviewer');
+      return;
+    }
+    if (!isReviewer && !isEditor) {
+      router.replace('/dashboard');
       return;
     }
     void fetchAssignments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isUserLoading]);
+  }, [user, isUserLoading, roleLoading, isReviewer, isEditor]);
 
   const fetchPdfUrl = async (articleId: string, disposition: 'inline' | 'attachment') => {
     const token = await getAuth().currentUser?.getIdToken();
@@ -285,6 +294,20 @@ export default function ReviewerDashboardPage() {
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="rounded-full bg-muted px-3 py-1 uppercase">{a.status}</span>
                       <span className="rounded-full bg-muted px-3 py-1 uppercase">{a.language}</span>
+                      {a.reviewRound ? (
+                        <span className="rounded-full bg-muted px-3 py-1">
+                          {lang === 'ar' ? 'الجولة' : 'Round'} {a.reviewRound}
+                        </span>
+                      ) : null}
+                      {a.reviewManuscriptVersion ? (
+                        <span className="rounded-full bg-muted px-3 py-1">
+                          v{a.reviewManuscriptVersion}
+                        </span>
+                      ) : a.manuscriptVersion ? (
+                        <span className="rounded-full bg-muted px-3 py-1">
+                          v{a.manuscriptVersion}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" onClick={() => handlePreview(a.id, a.title)}>
@@ -293,8 +316,20 @@ export default function ReviewerDashboardPage() {
                       <Button variant="outline" onClick={() => handleDownload(a.id)}>
                         {t.download}
                       </Button>
-                      <Button onClick={() => void openReview(a.id, a.title)}>{t.review}</Button>
+                      <Button
+                        onClick={() => void openReview(a.id, a.title)}
+                        disabled={a.status !== 'UNDER_REVIEW'}
+                      >
+                        {t.review}
+                      </Button>
                     </div>
+                    {a.status !== 'UNDER_REVIEW' ? (
+                      <p className="text-xs text-muted-foreground">
+                        {lang === 'ar'
+                          ? 'المقالة ليست في مرحلة التحكيم بعد.'
+                          : 'This paper is not in the review stage yet.'}
+                      </p>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}
@@ -413,4 +448,3 @@ export default function ReviewerDashboardPage() {
     </div>
   );
 }
-

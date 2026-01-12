@@ -99,6 +99,11 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getFirestore(app);
+
+    const uiSnap = await db.doc('settings/ui').get();
+    const journalEnabled = !uiSnap.exists || (uiSnap.data() as any)?.showJournalNav !== false;
+    if (!journalEnabled) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
     const docRef = db.doc(`journalArticles/${articleId}`);
     const now = FieldValue.serverTimestamp();
 
@@ -136,10 +141,23 @@ export async function POST(req: NextRequest) {
         codeUrl: codeUrl || null,
         pdfPath,
         pdfUrl,
+        manuscriptVersion: 1,
+        manuscripts: [
+          {
+            version: 1,
+            pdfPath,
+            uploadedAt: now,
+            uploadedBy: uid,
+            note: '',
+          },
+        ],
         status: 'SUBMITTED',
         createdBy: uid,
         createdByEmail,
         createdByName,
+        reviewRound: 0,
+        reviewRoundStartedAt: null,
+        reviewManuscriptVersion: null,
         issueId: null,
         createdAt: now,
         updatedAt: now,

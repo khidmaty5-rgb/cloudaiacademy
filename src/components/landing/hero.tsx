@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useLang } from '@/components/i18n/lang';
-import { CheckCircle2, QrCode, Sparkles } from 'lucide-react';
+import { CheckCircle2, FlaskConical, QrCode, Sparkles } from 'lucide-react';
 import { doc, getFirestore } from 'firebase/firestore';
 import { DEFAULT_HERO, sanitizeHeroConfig } from '@/lib/landing-hero';
 
@@ -110,7 +110,7 @@ export default function Hero() {
             )}
 
             <div
-              className={`mt-10 flex flex-col sm:flex-row justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}
+              className={`mt-10 flex flex-col sm:flex-row sm:flex-wrap justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}
             >
               <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                 <Link href="/courses">{content.explore}</Link>
@@ -125,6 +125,18 @@ export default function Hero() {
                 <Link href="/print/qr" className={isRTL ? 'flex-row-reverse' : ''}>
                   <QrCode className="h-4 w-4" />
                   <span dir="auto">{lang === 'ar' ? '\u0637\u0628\u0627\u0639\u0629 QR' : 'Print QR'}</span>
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-accent/40 bg-accent/10 text-primary-foreground hover:bg-accent/15 hover:text-primary-foreground"
+              >
+                <Link href="/research" className={isRTL ? 'flex-row-reverse' : ''}>
+                  <FlaskConical className="h-4 w-4" />
+                  <span dir="auto">{lang === 'ar' ? 'استكشف الأبحاث' : 'Explore Research'}</span>
                 </Link>
               </Button>
 

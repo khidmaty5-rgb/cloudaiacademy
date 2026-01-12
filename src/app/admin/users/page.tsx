@@ -10,7 +10,7 @@ import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { Shield, BookOpen, GraduationCap } from 'lucide-react';
+import { Shield, BookOpen, GraduationCap, FileText } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -38,6 +38,7 @@ const usersText = {
     noPermission: 'You do not have permission to view this page.',
     student: 'Student',
     teacher: 'Teacher',
+    reviewer: 'Reviewer',
     editor: 'Editor',
     admin: 'Admin',
     selectRolePlaceholder: 'Select role',
@@ -59,6 +60,7 @@ const usersText = {
     noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     student: 'طالب',
     teacher: 'معلم',
+    reviewer: 'مراجع',
     editor: 'محرر',
     admin: 'مشرف',
     selectRolePlaceholder: 'اختر الدور',
@@ -87,13 +89,21 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
     const { lang } = useLang();
     const t = usersText[lang];
 
-    const handleRoleChange = async (newRole: 'student' | 'teacher' | 'editor' | 'admin') => {
+    const handleRoleChange = async (newRole: 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin') => {
         try {
             await updateUserRole(userId, newRole);
             toast({
                 title: t.roleUpdatedTitle,
                 description: t.roleUpdatedDesc(
-                  newRole === 'student' ? t.student : newRole === 'teacher' ? t.teacher : newRole === 'editor' ? t.editor : t.admin,
+                  newRole === 'student'
+                    ? t.student
+                    : newRole === 'teacher'
+                      ? t.teacher
+                      : newRole === 'reviewer'
+                        ? t.reviewer
+                        : newRole === 'editor'
+                          ? t.editor
+                          : t.admin,
                 ),
             });
         } catch (error: any) {
@@ -113,6 +123,7 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
             <SelectContent>
                 <SelectItem value="student">{t.student}</SelectItem>
                 <SelectItem value="teacher">{t.teacher}</SelectItem>
+                <SelectItem value="reviewer">{t.reviewer}</SelectItem>
                 <SelectItem value="editor">{t.editor}</SelectItem>
                 <SelectItem value="admin">{t.admin}</SelectItem>
             </SelectContent>
@@ -134,14 +145,15 @@ function UserList() {
     const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
 
     const grouped = useMemo(() => {
-      const g: Record<'admin' | 'teacher' | 'editor' | 'student', any[]> = {
+      const g: Record<'admin' | 'teacher' | 'reviewer' | 'editor' | 'student', any[]> = {
         admin: [],
         teacher: [],
+        reviewer: [],
         editor: [],
         student: [],
       };
       for (const u of users || []) {
-        const r = (u.role as 'admin' | 'teacher' | 'editor' | 'student') || 'student';
+        const r = (u.role as 'admin' | 'teacher' | 'reviewer' | 'editor' | 'student') || 'student';
         if (g[r]) g[r].push(u);
       }
       return g;
@@ -169,7 +181,7 @@ function UserList() {
       );
     }
 
-    const roleStyles: Record<'admin' | 'teacher' | 'editor' | 'student', {
+    const roleStyles: Record<'admin' | 'teacher' | 'reviewer' | 'editor' | 'student', {
       border: string;
       bg: string;
       Icon: (props: any) => JSX.Element;
@@ -178,11 +190,12 @@ function UserList() {
     }> = {
       admin: { border: 'border-red-500', bg: 'bg-red-500/10', Icon: Shield as any, iconColor: 'text-red-500', title: t.admin },
       teacher: { border: 'border-blue-500', bg: 'bg-blue-500/10', Icon: BookOpen as any, iconColor: 'text-blue-500', title: t.teacher },
+      reviewer: { border: 'border-amber-500', bg: 'bg-amber-500/10', Icon: FileText as any, iconColor: 'text-amber-600', title: t.reviewer },
       editor: { border: 'border-purple-500', bg: 'bg-purple-500/10', Icon: Shield as any, iconColor: 'text-purple-500', title: t.editor },
       student: { border: 'border-green-500', bg: 'bg-green-500/10', Icon: GraduationCap as any, iconColor: 'text-green-500', title: t.student },
     };
 
-    const renderCard = (role: 'admin' | 'teacher' | 'editor' | 'student', title: string) => {
+    const renderCard = (role: 'admin' | 'teacher' | 'reviewer' | 'editor' | 'student', title: string) => {
       const S = roleStyles[role];
       const Icon = S.Icon;
       return (
@@ -215,9 +228,10 @@ function UserList() {
     };
 
     return (
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-5">
         {renderCard('admin', t.admin)}
         {renderCard('teacher', t.teacher)}
+        {renderCard('reviewer', t.reviewer)}
         {renderCard('editor', t.editor)}
         {renderCard('student', t.student)}
       </div>

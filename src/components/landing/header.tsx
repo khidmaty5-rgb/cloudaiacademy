@@ -40,11 +40,12 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 const navLinks = [
   { href: '/', id: 'home' as const },
   { href: '/courses', id: 'courses' as const },
+  { href: '/research', id: 'research' as const },
   { href: '/journal', id: 'journal' as const },
   { href: '/print/qr', id: 'qr' as const },
 ];
 
-type Role = 'student' | 'teacher' | 'editor' | 'admin' | null;
+type Role = 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin' | null;
 
 type HeaderVariant = 'public' | 'app';
 type HeaderProps = {
@@ -151,7 +152,15 @@ function UserProfileMenu({
   }
 
   const effectiveAdminLabel =
-    role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : role === 'editor' ? 'Editor' : null;
+    role === 'admin'
+      ? 'Admin'
+      : role === 'teacher'
+        ? 'Teacher'
+        : role === 'editor'
+          ? 'Editor'
+          : role === 'reviewer'
+            ? 'Reviewer'
+            : null;
 
   return (
     <DropdownMenu>
@@ -190,7 +199,19 @@ function UserProfileMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={role === 'admin' ? '/admin/dashboard' : role === 'editor' ? '/admin/journal' : role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}>
+          <Link
+            href={
+              role === 'admin'
+                ? '/admin/dashboard'
+                : role === 'editor'
+                  ? '/admin/journal'
+                  : role === 'teacher'
+                    ? '/teacher/dashboard'
+                    : role === 'reviewer'
+                      ? '/reviewer'
+                      : '/dashboard'
+            }
+          >
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
           </Link>
@@ -203,12 +224,14 @@ function UserProfileMenu({
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          <Link href="/reviewer">
-            <FileText className="mr-2 h-4 w-4" />
-            Reviewer Dashboard
-          </Link>
-        </DropdownMenuItem>
+        {(role === 'reviewer' || role === 'admin' || role === 'editor') && (
+          <DropdownMenuItem asChild>
+            <Link href="/reviewer">
+              <FileText className="mr-2 h-4 w-4" />
+              Reviewer Dashboard
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/profile">
             <UserCog className="mr-2 h-4 w-4" />
@@ -225,7 +248,7 @@ function UserProfileMenu({
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleJournalNav}>
-            {showJournalNav ? 'Hide Journal from Nav' : 'Show Journal in Nav'}
+            {showJournalNav ? 'Hide Journal' : 'Show Journal'}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
@@ -275,7 +298,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const router = useRouter();
   const { lang } = useLang();
   const firestore = getFirestore();
-  const { isAdmin, isTeacher, isEditor, loading: roleLoading } = useCurrentRole();
+  const { isAdmin, isTeacher, isReviewer, isEditor, loading: roleLoading } = useCurrentRole();
   const isAppVariant = variant === 'app';
 
   const userDocRef = useMemoFirebase(() => {
@@ -287,7 +310,15 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
 
   // Prefer claims for gating; fall back to profile when claims are unavailable
   const effectiveRole: Role = user
-    ? (isAdmin ? 'admin' : isEditor ? 'editor' : isTeacher ? 'teacher' : ((userProfile?.role as Role) ?? 'student'))
+    ? (isAdmin
+        ? 'admin'
+        : isEditor
+          ? 'editor'
+          : isTeacher
+            ? 'teacher'
+            : isReviewer
+              ? 'reviewer'
+              : ((userProfile?.role as Role) ?? 'student'))
     : null;
   const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'editor' || effectiveRole === 'teacher';
   const isAdminRoute = !!pathname && pathname.startsWith('/admin');
@@ -302,7 +333,11 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const showPricing = uiSettings?.showPricing !== false;
   const showFaq = uiSettings?.showFaq !== false;
 
-  const visibleLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
+  const baseLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
+  const visibleLinks =
+    effectiveRole === 'editor' || effectiveRole === 'reviewer'
+      ? baseLinks.filter((l) => l.id === 'home' || l.id === 'journal')
+      : baseLinks;
 
   const toggleJournalNav = async () => {
     const next = !showJournalNav;
@@ -333,13 +368,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     await setDoc(settingsDocRef as any, { showFaq: next }, { merge: true });
   };
 
-  const navLabel = (id: 'home' | 'courses' | 'journal' | 'qr') => {
+  const navLabel = (id: 'home' | 'courses' | 'research' | 'journal' | 'qr') => {
+    if (id === 'research') return lang === 'ar' ? 'الأبحاث' : 'Research';
     if (id === 'qr') return lang === 'ar' ? 'طباعة QR' : 'Print QR';
     const map: Record<'en' | 'ar', Record<'home' | 'courses' | 'journal', string>> = {
       en: { home: 'Home', courses: 'Courses', journal: 'Journal' },
       ar: { home: 'الرئيسية', courses: 'الدورات', journal: 'المجلة' },
     };
-    return map[lang][id];
+    return map[lang][id as 'home' | 'courses' | 'journal'];
   };
 
   const t = (key: 'dashboard' | 'learningPath' | 'admin') => {
@@ -455,6 +491,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     effectiveRole === 'admin' ? '/admin/dashboard'
     : effectiveRole === 'editor' ? '/admin/journal'
     : effectiveRole === 'teacher' ? '/teacher/dashboard'
+    : effectiveRole === 'reviewer' ? '/reviewer'
     : '/dashboard';
 
   const isActiveHref = (href: string) => {
@@ -547,7 +584,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
               asChild
               variant="ghost"
               size="icon"
-              className="hidden md:inline-flex rounded-full bg-accent/15 text-accent hover:bg-accent/20 hover:text-accent"
+              className="hidden md:inline-flex h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-accent hover:bg-primary-foreground/10 hover:text-accent focus-visible:ring-accent/60"
             >
               <Link href="/print/qr" aria-label={navLabel('qr')} title={navLabel('qr')}>
                 <QrCode className="h-5 w-5" />
@@ -555,7 +592,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             </Button>
           ) : null}
           <LangToggle className="hidden md:flex" />
-          <ThemeToggle className="hidden md:flex" />
+          <ThemeToggle className="hidden md:inline-flex h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60" />
           <UserProfileMenu
             role={effectiveRole}
             canAccessAdmin={canAccessAdmin}
@@ -601,7 +638,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                 </SheetHeader>
                 <nav className="grid gap-4 p-4">
                   <LangToggle className="mb-2" />
-                  <ThemeToggle className="mb-2" />
+                  <ThemeToggle className="mb-2 h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60" />
                   {!isAdminRoute && !isAppVariant && (
                     <>
                        {visibleLinks.map((link) => (

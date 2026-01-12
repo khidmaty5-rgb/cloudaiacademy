@@ -114,6 +114,20 @@ export async function GET(req: NextRequest) {
     if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = getFirestore(app);
+
+    // Restrict this endpoint to reviewer/editor/admin accounts (journal-only staff).
+    let effectiveRole = (decoded as any)?.role as string | undefined;
+    try {
+      const userSnap = await db.doc(`users/${uid}`).get();
+      const profileRole = userSnap.exists ? ((userSnap.data() as any)?.role as string | undefined) : undefined;
+      if (profileRole) effectiveRole = profileRole;
+    } catch {}
+    const isStaff = effectiveRole === 'admin' || effectiveRole === 'editor';
+    const isReviewer = effectiveRole === 'reviewer';
+    if (!isStaff && !isReviewer) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const snap = await db
       .collection('journalArticles')
       .where('reviewerIds', 'array-contains', uid)
@@ -127,6 +141,9 @@ export async function GET(req: NextRequest) {
         authors: data.authors || '',
         status: data.status || '',
         language: data.language || '',
+        manuscriptVersion: data.manuscriptVersion || null,
+        reviewRound: data.reviewRound || null,
+        reviewManuscriptVersion: data.reviewManuscriptVersion || null,
         createdAt: data.createdAt || null,
         updatedAt: data.updatedAt || null,
         acceptedAt: data.acceptedAt || null,
@@ -141,4 +158,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

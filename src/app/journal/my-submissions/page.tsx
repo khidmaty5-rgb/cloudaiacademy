@@ -3,9 +3,10 @@
 import Header from "@/components/landing/header";
 import Footer from "@/components/landing/footer";
 import { useLang } from "@/components/i18n/lang";
-import { useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import {
   collection,
+  doc,
   getFirestore,
   orderBy,
   query,
@@ -36,6 +37,7 @@ type Article = WithId<{
   license?: string;
   acceptedAt?: any;
   publishedAt?: any;
+  manuscriptVersion?: number;
 }>;
 
 function toDateValue(v: any): Date | null {
@@ -56,6 +58,18 @@ export default function JournalMySubmissionsPage() {
   const router = useRouter();
   const firestore = getFirestore();
   const { toast } = useToast();
+
+  const settingsDocRef = useMemoFirebase(
+    () => doc(firestore, "settings", "ui"),
+    [firestore],
+  );
+  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
+  const journalEnabled = ui?.showJournalNav !== false;
+
+  useEffect(() => {
+    if (isUiLoading) return;
+    if (!journalEnabled) router.replace("/");
+  }, [isUiLoading, journalEnabled, router]);
 
   const t = {
     en: {
@@ -91,21 +105,22 @@ export default function JournalMySubmissionsPage() {
   }[lang];
 
   useEffect(() => {
+    if (isUiLoading || !journalEnabled) return;
     if (!isUserLoading && !user) {
       router.push("/login");
     }
-  }, [user, isUserLoading, router]);
+  }, [isUiLoading, journalEnabled, user, isUserLoading, router]);
 
   const submissionsQuery = useMemoFirebase(
     () =>
-      user
+      user && journalEnabled
         ? query(
             collection(firestore, "journalArticles"),
             where("createdBy", "==", user.uid),
             orderBy("createdAt", "desc"),
           )
         : null,
-    [firestore, user],
+    [firestore, user, journalEnabled],
   );
 
   const { data: submissions, isLoading } =
@@ -144,6 +159,8 @@ export default function JournalMySubmissionsPage() {
       });
     }
   };
+
+  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -218,13 +235,27 @@ export default function JournalMySubmissionsPage() {
                             {article.title}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenPdf(article.id)}
-                            >
-                              Open
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenPdf(article.id)}
+                              >
+                                Open
+                              </Button>
+                              {(article.status === "REVISION_REQUIRED_MINOR" ||
+                                article.status === "REVISION_REQUIRED_MAJOR") && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() =>
+                                    router.push(`/journal/revise/${article.id}`)
+                                  }
+                                >
+                                  Upload revision
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{article.status}</TableCell>
                           <TableCell>

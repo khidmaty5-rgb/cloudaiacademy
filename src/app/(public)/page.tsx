@@ -11,6 +11,7 @@ import Pricing from '@/components/landing/pricing';
 import Stats from '@/components/landing/stats';
 import Testimonials from '@/components/landing/testimonials';
 import Courses from '@/components/landing/courses';
+import Research from '@/components/landing/research';
  
 
 export default function Home() {
@@ -22,6 +23,7 @@ export default function Home() {
         <Stats />
         <Features />
         <Courses />
+        <Research />
         <Pricing />
         <Testimonials />
         <Faq />

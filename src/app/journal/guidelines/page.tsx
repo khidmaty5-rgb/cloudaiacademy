@@ -1,10 +1,14 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { doc, getFirestore } from 'firebase/firestore';
 
 const copy = {
   en: {
@@ -103,6 +107,19 @@ export default function JournalGuidelinesPage() {
   const { lang, dir } = useLang();
   const t = copy[lang];
   const templateHref = '/templates/cloudai-technical-report-template.md';
+  const router = useRouter();
+
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
+  const journalEnabled = ui?.showJournalNav !== false;
+
+  useEffect(() => {
+    if (isUiLoading) return;
+    if (!journalEnabled) router.replace('/');
+  }, [isUiLoading, journalEnabled, router]);
+
+  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted">
@@ -153,4 +170,3 @@ export default function JournalGuidelinesPage() {
     </div>
   );
 }
-

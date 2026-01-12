@@ -3,7 +3,7 @@
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import { useLang } from '@/components/i18n/lang';
-import { useUser } from '@/firebase';
+import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getAuth } from 'firebase/auth';
+import { doc, getFirestore } from 'firebase/firestore';
 
 export default function JournalSubmitPage() {
   const { lang, dir } = useLang();
@@ -32,6 +33,16 @@ export default function JournalSubmitPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const firestore = getFirestore();
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
+  const journalEnabled = ui?.showJournalNav !== false;
+
+  useEffect(() => {
+    if (isUiLoading) return;
+    if (!journalEnabled) router.replace('/');
+  }, [isUiLoading, journalEnabled, router]);
 
   const t = {
     en: {
@@ -95,6 +106,7 @@ export default function JournalSubmitPage() {
   }[lang];
 
   useEffect(() => {
+    if (isUiLoading || !journalEnabled) return;
     if (!isUserLoading && !user) {
       toast({
         variant: 'destructive',
@@ -102,7 +114,7 @@ export default function JournalSubmitPage() {
       });
       router.push('/login');
     }
-  }, [isUserLoading, user, router, toast, t.mustLogin]);
+  }, [isUiLoading, journalEnabled, isUserLoading, user, router, toast, t.mustLogin]);
 
   const [form, setForm] = useState({
     title: '',
@@ -228,6 +240,8 @@ export default function JournalSubmitPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   setDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { JournalArticle, JournalIssue, JournalArticleStatus } from '@/types/models';
@@ -48,9 +49,22 @@ export async function submitJournalArticle(
     codeUrl: data.codeUrl,
     keywords: data.keywords || [],
     license: data.license || 'CC BY 4.0',
+    manuscriptVersion: 1,
+    manuscripts: [
+      {
+        version: 1,
+        pdfPath: data.pdfPath,
+        uploadedAt: serverTimestamp() as any,
+        uploadedBy: createdBy,
+        note: '',
+      },
+    ],
     status: 'SUBMITTED',
     createdBy,
     issueId: null,
+    reviewRound: 0,
+    reviewRoundStartedAt: null,
+    reviewManuscriptVersion: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     acceptedAt: null,
@@ -67,22 +81,48 @@ export async function updateJournalArticleStatusAndIssue(
 ) {
   if (!articleId) throw new Error('Article ID is required.');
   const ref = doc(firestore, 'journalArticles', articleId);
-  const update: Record<string, any> = {
-    status,
-    issueId: issueId || null,
-    updatedAt: serverTimestamp(),
-  };
-  if (status === 'PUBLISHED') {
-    update.publishedAt = serverTimestamp();
-    update.acceptedAt = serverTimestamp();
-  } else if (status === 'ACCEPTED') {
-    update.acceptedAt = serverTimestamp();
-    update.publishedAt = null;
-  } else {
-    update.acceptedAt = null;
-    update.publishedAt = null;
-  }
-  await updateDoc(ref, update);
+
+  await runTransaction(firestore as any, async (tx) => {
+    const snap = await tx.get(ref as any);
+    if (!snap.exists()) throw new Error('Article not found.');
+    const current = snap.data() as any;
+    const prevStatus = current?.status as string | undefined;
+
+    const update: Record<string, any> = {
+      status,
+      issueId: issueId || null,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (status === 'PUBLISHED') {
+      update.publishedAt = serverTimestamp();
+      if (!current?.acceptedAt) {
+        update.acceptedAt = serverTimestamp();
+      }
+    } else if (status === 'ACCEPTED') {
+      update.publishedAt = null;
+      if (!current?.acceptedAt) {
+        update.acceptedAt = serverTimestamp();
+      }
+    } else {
+      update.acceptedAt = null;
+      update.publishedAt = null;
+    }
+
+    const enteringUnderReview = status === 'UNDER_REVIEW' && prevStatus !== 'UNDER_REVIEW';
+    if (enteringUnderReview) {
+      const currentRound = Number(current?.reviewRound);
+      const baseRound = Number.isFinite(currentRound) && currentRound >= 0 ? currentRound : 0;
+      const nextRound = baseRound + 1;
+      const mv = Number(current?.manuscriptVersion);
+      const manuscriptVersion = Number.isFinite(mv) && mv > 0 ? mv : 1;
+      update.reviewRound = nextRound;
+      update.reviewRoundStartedAt = serverTimestamp();
+      update.reviewManuscriptVersion = manuscriptVersion;
+    }
+
+    tx.update(ref as any, update);
+  });
 }
 
 export type JournalIssueInput = Pick<JournalIssue, 'id' | 'label' | 'year'>;

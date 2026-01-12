@@ -64,6 +64,10 @@ export async function GET(
 
     // Public published access (no Firebase Admin credentials required)
     if (!idToken) {
+      const ui = await fetchPublicFirestoreDoc('settings/ui');
+      const journalEnabled = (ui?.data as any)?.showJournalNav !== false;
+      if (!journalEnabled) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
       const pub = await fetchPublicFirestoreDoc(`journalArticles/${id}`);
       if (!pub) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const article = pub.data as any;

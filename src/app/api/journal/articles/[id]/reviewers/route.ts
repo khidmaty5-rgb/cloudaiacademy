@@ -141,6 +141,21 @@ export async function POST(
     }
 
     const db = getFirestore(app);
+
+    // Enforce dedicated reviewer accounts (role=reviewer) when assigning.
+    if (action === 'add') {
+      const reviewerProfileSnap = await db.doc(`users/${targetUid}`).get();
+      const reviewerRole = reviewerProfileSnap.exists
+        ? ((reviewerProfileSnap.data() as any)?.role as string | undefined)
+        : undefined;
+      if (reviewerRole !== 'reviewer') {
+        return NextResponse.json(
+          { error: 'Reviewer must be an account with role "reviewer". Create it in Admin > Users first.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const ref = db.doc(`journalArticles/${id}`);
     const snap = await ref.get();
     if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -181,4 +196,3 @@ export async function POST(
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

@@ -39,6 +39,8 @@ function LoginContent() {
       }
       if (role === 'admin') {
         router.push('/admin/dashboard');
+      } else if (role === 'reviewer') {
+        router.push('/reviewer');
       } else if (role === 'editor') {
         router.push('/admin/journal');
       } else if (role === 'teacher') {

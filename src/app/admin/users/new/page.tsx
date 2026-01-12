@@ -41,7 +41,7 @@ const newUserSchema = z.object({
   fullName: z.string().min(3, 'Full name is required.'),
   email: z.string().email('Invalid email address.'),
   password: z.string().min(6, 'Password must be at least 6 characters long.'),
-  role: z.enum(['student', 'teacher', 'admin']),
+  role: z.enum(['student', 'teacher', 'reviewer', 'editor', 'admin']),
 });
 
 type NewUserFormValues = z.infer<typeof newUserSchema>;
@@ -65,6 +65,8 @@ export default function NewUserPage() {
       role: 'Role',
       student: 'Student',
       teacher: 'Teacher',
+      reviewer: 'Reviewer',
+      editor: 'Editor',
       admin: 'Admin',
       createButton: 'Create User',
       creatingButton: 'Creating User...',
@@ -87,6 +89,8 @@ export default function NewUserPage() {
       role: 'الدور',
       student: 'طالب',
       teacher: 'معلم',
+      reviewer: 'مُراجع',
+      editor: 'محرر',
       admin: 'مشرف',
       createButton: 'إنشاء المستخدم',
       creatingButton: 'جارٍ إنشاء المستخدم...',
@@ -119,7 +123,15 @@ export default function NewUserPage() {
         title: t.createdTitle,
         description: t.createdDesc(
           data.fullName,
-          data.role === 'student' ? t.student : data.role === 'teacher' ? t.teacher : t.admin,
+          data.role === 'student'
+            ? t.student
+            : data.role === 'teacher'
+              ? t.teacher
+              : data.role === 'reviewer'
+                ? t.reviewer
+                : data.role === 'editor'
+                  ? t.editor
+                  : t.admin,
         ),
       });
       router.push('/admin/users');
@@ -228,6 +240,8 @@ export default function NewUserPage() {
                               <SelectContent>
                                 <SelectItem value="student">{t.student}</SelectItem>
                                 <SelectItem value="teacher">{t.teacher}</SelectItem>
+                                <SelectItem value="reviewer">{t.reviewer}</SelectItem>
+                                <SelectItem value="editor">{t.editor}</SelectItem>
                                 <SelectItem value="admin">{t.admin}</SelectItem>
                               </SelectContent>
                             </Select>

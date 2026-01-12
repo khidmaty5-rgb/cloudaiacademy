@@ -8,6 +8,7 @@ import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { useCurrentRole } from "@/hooks/useCurrentRole";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   collection,
   doc,
@@ -143,6 +144,7 @@ export default function JournalPage() {
   const isArabic = lang === "ar";
   const { user } = useUser();
   const { isAdmin, isEditor } = useCurrentRole();
+  const router = useRouter();
   const guidelinesUrl =
     process.env.NEXT_PUBLIC_JOURNAL_GUIDELINES_URL ||
     "/journal/guidelines";
@@ -153,6 +155,19 @@ export default function JournalPage() {
   const listTextClass = isArabic ? "text-[15px] leading-relaxed" : "text-sm";
 
   const firestore = getFirestore();
+
+  const settingsDocRef = useMemoFirebase(
+    () => doc(firestore, "settings", "ui"),
+    [firestore],
+  );
+  const { data: uiSettings, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
+  const journalEnabled = uiSettings?.showJournalNav !== false;
+
+  useEffect(() => {
+    if (isUiLoading) return;
+    if (!journalEnabled) router.replace("/");
+  }, [isUiLoading, journalEnabled, router]);
+
   const userDocRef = useMemoFirebase(
     () => (user ? doc(firestore, "users", user.uid) : null),
     [firestore, user],
@@ -202,7 +217,7 @@ export default function JournalPage() {
     isLoading: isArticlesLoadingPrimary,
     error: publishedArticlesErrorPrimary,
   } = useCollection<JournalArticle>(
-    forcePublishedFallback ? null : (publishedArticlesPrimaryQuery as any),
+    !journalEnabled || forcePublishedFallback ? null : (publishedArticlesPrimaryQuery as any),
   );
 
   useEffect(() => {
@@ -217,7 +232,11 @@ export default function JournalPage() {
     isLoading: isArticlesLoadingFallback,
     error: publishedArticlesErrorFallback,
   } = useCollection<JournalArticle>(
-    forcePublishedFallback ? (publishedArticlesFallbackQuery as any) : null,
+    !journalEnabled
+      ? null
+      : forcePublishedFallback
+        ? (publishedArticlesFallbackQuery as any)
+        : null,
   );
 
   const publishedArticles = forcePublishedFallback
@@ -235,7 +254,7 @@ export default function JournalPage() {
     () => collection(firestore, "journalIssues"),
     [firestore],
   );
-  const { data: issues } = useCollection<JournalIssue>(issuesQuery as any);
+  const { data: issues } = useCollection<JournalIssue>(journalEnabled ? (issuesQuery as any) : null);
 
   const sortedPublishedArticles = useMemo(() => {
     if (!publishedArticles || publishedArticles.length === 0) return [];
@@ -272,6 +291,8 @@ export default function JournalPage() {
 
     return groups;
   }, [sortedPublishedArticles, issues, t.issuesGroupUnassigned]);
+
+  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted">

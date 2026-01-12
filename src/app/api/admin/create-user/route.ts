@@ -68,13 +68,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    const assignedRole = typeof role === 'string' && role.length ? role : 'student';
+    if (!['student', 'teacher', 'reviewer', 'editor', 'admin'].includes(assignedRole)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
+
     const userRecord = await getAuth(app).createUser({
       email,
       password,
       displayName: fullName,
     });
 
-    const assignedRole = role || 'student';
     await getAuth(app).setCustomUserClaims(userRecord.uid, { role: assignedRole });
 
     const parts = (fullName || '').trim().split(' ');

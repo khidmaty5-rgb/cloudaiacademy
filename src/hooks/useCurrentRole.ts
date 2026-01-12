@@ -10,7 +10,7 @@ const CLAIMS_REFRESH_KEY = 'cloudai:claimsRefreshedAt';
 const CLAIMS_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 
 function normalizeRole(raw: unknown): UserRole | null {
-  return raw === 'admin' || raw === 'teacher' || raw === 'editor' || raw === 'student'
+  return raw === 'admin' || raw === 'teacher' || raw === 'editor' || raw === 'reviewer' || raw === 'student'
     ? (raw as UserRole)
     : null;
 }
@@ -20,6 +20,7 @@ function mergeRoleClaimsAndProfile(claimRole: UserRole, profileRole: UserRole) {
   if (claimRole === 'admin' || profileRole === 'admin') return 'admin' as const;
   if (claimRole === 'editor' || profileRole === 'editor') return 'editor' as const;
   if (claimRole === 'teacher' || profileRole === 'teacher') return 'teacher' as const;
+  if (claimRole === 'reviewer' || profileRole === 'reviewer') return 'reviewer' as const;
   return 'student' as const;
 }
 
@@ -141,6 +142,7 @@ export function useCurrentRole() {
     isAdmin: role === 'admin',
     isTeacher: role === 'teacher',
     isEditor: role === 'editor' || role === 'admin',
+    isReviewer: role === 'reviewer' || role === 'admin',
     isStudent: role === 'student',
   } as const;
 }

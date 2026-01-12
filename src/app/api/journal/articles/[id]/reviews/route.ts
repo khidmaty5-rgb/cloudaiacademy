@@ -128,14 +128,32 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const roundRaw = Number(article?.reviewRound);
+    const round = Number.isFinite(roundRaw) && roundRaw >= 1 ? roundRaw : 1;
+    const mvRaw = Number(article?.reviewManuscriptVersion ?? article?.manuscriptVersion);
+    const manuscriptVersion = Number.isFinite(mvRaw) && mvRaw >= 1 ? mvRaw : 1;
+    const reviewDocId = `${round}_${uid}`;
+
     if (isStaff) {
       const reviewsSnap = await articleRef.collection('reviews').get();
       const reviews = reviewsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       return NextResponse.json({ ok: true, reviews }, { status: 200 });
     }
 
-    const own = await articleRef.collection('reviews').doc(uid).get();
-    return NextResponse.json({ ok: true, review: own.exists ? { id: own.id, ...(own.data() as any) } : null }, { status: 200 });
+    const own = await articleRef.collection('reviews').doc(reviewDocId).get();
+    if (own.exists) {
+      return NextResponse.json(
+        { ok: true, review: { id: own.id, ...(own.data() as any), round, manuscriptVersion } },
+        { status: 200 },
+      );
+    }
+
+    // Backward-compatible: legacy docs were stored under reviewer uid.
+    const legacy = await articleRef.collection('reviews').doc(uid).get();
+    return NextResponse.json(
+      { ok: true, review: legacy.exists ? { id: legacy.id, ...(legacy.data() as any) } : null },
+      { status: 200 },
+    );
   } catch (e: any) {
     console.error('journal reviews GET error:', e);
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
@@ -189,8 +207,18 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    if (!isStaff && article?.status !== 'UNDER_REVIEW') {
+      return NextResponse.json({ error: 'Article is not accepting reviews right now' }, { status: 400 });
+    }
+
+    const roundRaw = Number(article?.reviewRound);
+    const round = Number.isFinite(roundRaw) && roundRaw >= 1 ? roundRaw : 1;
+    const mvRaw = Number(article?.reviewManuscriptVersion ?? article?.manuscriptVersion);
+    const manuscriptVersion = Number.isFinite(mvRaw) && mvRaw >= 1 ? mvRaw : 1;
+    const reviewDocId = `${round}_${uid}`;
+
     const now = FieldValue.serverTimestamp();
-    const reviewRef = articleRef.collection('reviews').doc(uid);
+    const reviewRef = articleRef.collection('reviews').doc(reviewDocId);
     const existing = await reviewRef.get();
     const createdAt = existing.exists ? (existing.data() as any)?.createdAt || now : now;
 
@@ -201,6 +229,8 @@ export async function POST(
         recommendation,
         commentsToAuthor: commentsToAuthor.trim(),
         commentsToEditor: commentsToEditor ? commentsToEditor.trim() : '',
+        round,
+        manuscriptVersion,
         createdAt,
         updatedAt: now,
         submittedAt: now,
@@ -214,4 +244,3 @@ export async function POST(
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

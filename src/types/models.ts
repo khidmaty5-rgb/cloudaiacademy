@@ -1,7 +1,7 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type FirestoreTimestamp = Timestamp | FieldValue | Date | null;
-export type UserRole = 'student' | 'teacher' | 'editor' | 'admin';
+export type UserRole = 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
 export type CourseStatus = 'DRAFT' | 'PUBLISHED';
@@ -155,7 +155,17 @@ export interface Certificate {
   updatedAt?: FirestoreTimestamp;
 }
 
-export type JournalArticleStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'PUBLISHED';
+export type JournalArticleStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'REVISION_REQUIRED_MINOR'
+  | 'REVISION_REQUIRED_MAJOR'
+  | 'REVISED_SUBMITTED'
+  | 'ACCEPTED'
+  | 'PUBLISHED'
+  | 'REJECTED'
+  | 'WITHDRAWN';
 
 export type JournalReviewRecommendation =
   | 'ACCEPT'
@@ -170,9 +180,19 @@ export interface JournalReview {
   recommendation: JournalReviewRecommendation;
   commentsToAuthor: string;
   commentsToEditor?: string;
+  round?: number;
+  manuscriptVersion?: number;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;
   submittedAt?: FirestoreTimestamp;
+}
+
+export interface JournalManuscriptVersion {
+  version: number;
+  pdfPath: string;
+  uploadedAt?: FirestoreTimestamp;
+  uploadedBy?: string;
+  note?: string;
 }
 
 export interface JournalArticle {
@@ -187,12 +207,17 @@ export interface JournalArticle {
   codeUrl?: string;
   keywords?: string[];
   license?: string;
+  manuscriptVersion?: number;
+  manuscripts?: JournalManuscriptVersion[];
   status: JournalArticleStatus;
   createdBy: string;
   createdByEmail?: string | null;
   createdByName?: string | null;
   reviewerIds?: string[];
   reviewerEmails?: string[];
+  reviewRound?: number;
+  reviewRoundStartedAt?: FirestoreTimestamp | null;
+  reviewManuscriptVersion?: number | null;
   issueId: string | null;
   createdAt?: FirestoreTimestamp;
   updatedAt?: FirestoreTimestamp;

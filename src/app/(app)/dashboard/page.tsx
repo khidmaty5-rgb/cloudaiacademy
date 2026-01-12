@@ -17,6 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import AnnouncementsFeed from '@/components/dashboard/announcements-feed';
 import type { Course, Enrollment, LearningPath } from '@/types/models';
 import { useLang } from '@/components/i18n/lang';
+import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 type DashboardText = {
   noEnrollments: string;
@@ -277,6 +278,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { lang } = useLang();
   const t = dashboardCopy[lang];
+  const { role, loading: roleLoading } = useCurrentRole();
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -285,31 +287,26 @@ export default function DashboardPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    if (isUserLoading || !user) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const tr = await user.getIdTokenResult();
-        const role = (tr.claims as any)?.role;
-        if (cancelled) return;
-        if (role === 'admin') {
-          router.replace('/admin/dashboard');
-          return;
-        }
-        if (role === 'teacher') {
-          router.replace('/teacher/dashboard');
-          return;
-        }
-        if (role === 'editor') {
-          router.replace('/admin/journal');
-          return;
-        }
-      } catch {}
-    })();
-    return () => { cancelled = true };
-  }, [user, isUserLoading, router]);
+    if (isUserLoading || roleLoading || !user) return;
+    if (role === 'admin') {
+      router.replace('/admin/dashboard');
+      return;
+    }
+    if (role === 'teacher') {
+      router.replace('/teacher/dashboard');
+      return;
+    }
+    if (role === 'editor') {
+      router.replace('/admin/journal');
+      return;
+    }
+    if (role === 'reviewer') {
+      router.replace('/reviewer');
+      return;
+    }
+  }, [user, isUserLoading, role, roleLoading, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || roleLoading || !user) {
     return (
       <div className="w-full max-w-6xl px-4 py-10 md:px-6">
         <div className="space-y-4">

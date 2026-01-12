@@ -14,6 +14,11 @@ async function fetchArticle(id: string) {
   return { id: doc.id, ...doc.data } as any;
 }
 
+async function isJournalEnabled(): Promise<boolean> {
+  const ui = await fetchPublicFirestoreDoc('settings/ui');
+  return (ui?.data as any)?.showJournalNav !== false;
+}
+
 function resolvePdfLinks(
   id: string,
   article: any,
@@ -49,6 +54,9 @@ function resolvePdfLinks(
 export async function generateMetadata(context: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
+  if (!(await isJournalEnabled())) {
+    return { title: 'Article not found - CloudAI Journal' };
+  }
   const { id } = await context.params;
   const article = await fetchArticle(id);
   if (!article || article.status !== 'PUBLISHED') {
@@ -111,6 +119,7 @@ export async function generateMetadata(context: {
 export default async function JournalArticlePage(context: {
   params: Promise<{ id: string }>;
 }) {
+  if (!(await isJournalEnabled())) return notFound();
   const { id } = await context.params;
   const article = await fetchArticle(id);
   if (!article || article.status !== 'PUBLISHED') return notFound();

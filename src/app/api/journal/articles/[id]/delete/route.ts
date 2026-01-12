@@ -77,15 +77,24 @@ export async function POST(
     if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const data = snap.data() as any;
+    const keys = new Set<string>();
     const key = data?.pdfPath as string | undefined;
+    if (key && typeof key === 'string') keys.add(key);
+    const manuscripts = Array.isArray(data?.manuscripts) ? data.manuscripts : [];
+    for (const m of manuscripts) {
+      const k = (m as any)?.pdfPath;
+      if (k && typeof k === 'string') keys.add(k);
+    }
 
     let deletedPdf = false;
-    if (key && typeof key === 'string') {
+    if (keys.size) {
       const bucket = (process.env.S3_BUCKET_JOURNAL || '').trim();
       if (!bucket) return NextResponse.json({ error: 'S3 bucket not configured' }, { status: 500 });
       try {
         const s3 = getS3Client();
-        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+        for (const k of keys) {
+          await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: k }));
+        }
         deletedPdf = true;
       } catch {
         // continue and still delete the Firestore record
@@ -99,4 +108,3 @@ export async function POST(
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

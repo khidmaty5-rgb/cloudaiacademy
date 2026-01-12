@@ -74,14 +74,19 @@ export function useLang() {
 export function LangToggle({ className = '' }: { className?: string }) {
   const { lang, setLang } = useLang();
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
+    <div
+      className={`inline-flex h-9 items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1 ${className}`}
+      role="group"
+      aria-label="Language"
+    >
       <button
         type="button"
         onClick={() => setLang('en')}
-        className={`rounded-full border px-2 py-1 text-xs font-medium transition ${
+        aria-pressed={lang === 'en'}
+        className={`h-7 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
           lang === 'en'
-            ? 'bg-accent text-accent-foreground border-accent'
-            : 'bg-background text-foreground hover:bg-muted'
+            ? 'bg-accent text-accent-foreground shadow-sm'
+            : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground'
         }`}
       >
         English
@@ -89,10 +94,11 @@ export function LangToggle({ className = '' }: { className?: string }) {
       <button
         type="button"
         onClick={() => setLang('ar')}
-        className={`rounded-full border px-2 py-1 text-xs font-medium transition ${
+        aria-pressed={lang === 'ar'}
+        className={`h-7 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
           lang === 'ar'
-            ? 'bg-accent text-accent-foreground border-accent'
-            : 'bg-background text-foreground hover:bg-muted'
+            ? 'bg-accent text-accent-foreground shadow-sm'
+            : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground'
         }`}
       >
         العربية

@@ -65,8 +65,13 @@ type WithId<T> = T & { id: string };
 const statusOptions: JournalArticleStatus[] = [
   'SUBMITTED',
   'UNDER_REVIEW',
+  'REVISION_REQUIRED_MINOR',
+  'REVISION_REQUIRED_MAJOR',
+  'REVISED_SUBMITTED',
   'ACCEPTED',
   'PUBLISHED',
+  'REJECTED',
+  'WITHDRAWN',
 ];
 
 export default function AdminJournalPage() {
@@ -188,6 +193,7 @@ export default function AdminJournalPage() {
 
   const [reviewerEmail, setReviewerEmail] = useState('');
   const [reviewerSaving, setReviewerSaving] = useState(false);
+  const [decisionSaving, setDecisionSaving] = useState(false);
 
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
@@ -257,12 +263,43 @@ export default function AdminJournalPage() {
     try {
       await updateJournalArticleStatusAndIssue(articleId, newStatus, newIssueId);
       toast({ title: t.toastArticleSaved });
+      setDetailsArticle((prev: WithId<any> | null) =>
+        prev && prev.id === articleId
+          ? ({ ...prev, status: newStatus, issueId: newIssueId } as any)
+          : prev,
+      );
     } catch (err: any) {
       toast({
         variant: 'destructive',
         title: t.toastArticleError,
         description: err?.message || String(err),
       });
+    }
+  };
+
+  const handleDecision = async (nextStatus: JournalArticleStatus) => {
+    if (!detailsArticle?.id) return;
+    setDecisionSaving(true);
+    try {
+      await updateJournalArticleStatusAndIssue(
+        detailsArticle.id,
+        nextStatus,
+        (detailsArticle as any).issueId ?? null,
+      );
+      toast({
+        title: lang === 'ar' ? 'تم حفظ القرار.' : 'Decision saved.',
+      });
+      setDetailsArticle((prev: WithId<any> | null) =>
+        prev && prev.id === detailsArticle.id ? ({ ...prev, status: nextStatus } as any) : prev,
+      );
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: lang === 'ar' ? 'فشل حفظ القرار' : 'Decision failed',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setDecisionSaving(false);
     }
   };
 
@@ -733,6 +770,8 @@ export default function AdminJournalPage() {
                       <TableHead>Title</TableHead>
                       <TableHead>{t.language}</TableHead>
                       <TableHead>{t.status}</TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead>Round</TableHead>
                       <TableHead>{t.issueSelectLabel}</TableHead>
                       <TableHead>{t.createdAt}</TableHead>
                       <TableHead>Accepted</TableHead>
@@ -772,6 +811,10 @@ export default function AdminJournalPage() {
                           article.issueId && issuesById.get(article.issueId);
                         const acceptedAt = (article as any).acceptedAt?.toDate?.() ?? (article as any).acceptedAt;
                         const publishedAt = (article as any).publishedAt?.toDate?.() ?? (article as any).publishedAt;
+                        const mvRaw = Number((article as any).manuscriptVersion);
+                        const manuscriptVersion = Number.isFinite(mvRaw) && mvRaw > 0 ? mvRaw : 1;
+                        const rrRaw = Number((article as any).reviewRound);
+                        const reviewRound = Number.isFinite(rrRaw) && rrRaw > 0 ? rrRaw : null;
                         return (
                           <TableRow key={article.id}>
                             <TableCell className="max-w-xs">
@@ -813,6 +856,12 @@ export default function AdminJournalPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              v{manuscriptVersion}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {reviewRound ? `R${reviewRound}` : '—'}
                             </TableCell>
                             <TableCell>
                               <Select
@@ -920,7 +969,7 @@ export default function AdminJournalPage() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center text-sm">
+                        <TableCell colSpan={12} className="text-center text-sm">
                           No submissions yet.
                         </TableCell>
                       </TableRow>
@@ -1029,6 +1078,66 @@ export default function AdminJournalPage() {
                           <div>
                             <span className="font-medium">License:</span>{' '}
                             {(detailsArticle as any).license || '—'}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">
+                            {lang === 'ar' ? 'قرار التحرير' : 'Editorial decision'}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => void handleDecision('ACCEPTED')}
+                              disabled={
+                                decisionSaving ||
+                                ['PUBLISHED', 'WITHDRAWN'].includes((detailsArticle as any).status) ||
+                                (detailsArticle as any).status === 'ACCEPTED'
+                              }
+                            >
+                              {lang === 'ar' ? 'قبول' : 'Accept'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleDecision('REVISION_REQUIRED_MINOR')}
+                              disabled={
+                                decisionSaving ||
+                                ['PUBLISHED', 'WITHDRAWN'].includes((detailsArticle as any).status) ||
+                                (detailsArticle as any).status === 'REVISION_REQUIRED_MINOR'
+                              }
+                            >
+                              {lang === 'ar' ? 'مراجعة طفيفة' : 'Minor revision'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleDecision('REVISION_REQUIRED_MAJOR')}
+                              disabled={
+                                decisionSaving ||
+                                ['PUBLISHED', 'WITHDRAWN'].includes((detailsArticle as any).status) ||
+                                (detailsArticle as any).status === 'REVISION_REQUIRED_MAJOR'
+                              }
+                            >
+                              {lang === 'ar' ? 'مراجعة كبيرة' : 'Major revision'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => void handleDecision('REJECTED')}
+                              disabled={
+                                decisionSaving ||
+                                ['PUBLISHED', 'WITHDRAWN'].includes((detailsArticle as any).status) ||
+                                (detailsArticle as any).status === 'REJECTED'
+                              }
+                            >
+                              {lang === 'ar' ? 'رفض' : 'Reject'}
+                            </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {lang === 'ar'
+                              ? 'بعد طلب المراجعة، يمكن للمؤلف رفع نسخة PDF جديدة من صفحة \"مشاركاتي\".'
+                              : 'After requesting revision, the author can upload a new PDF from \"My submissions\".'}
                           </div>
                         </div>
 
@@ -1230,6 +1339,18 @@ export default function AdminJournalPage() {
                                       <div className="text-xs font-semibold uppercase">
                                         {r?.recommendation || '—'}
                                       </div>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                      {r?.round ? (
+                                        <span className="rounded-full bg-muted px-2 py-0.5">
+                                          R{r.round}
+                                        </span>
+                                      ) : null}
+                                      {r?.manuscriptVersion ? (
+                                        <span className="rounded-full bg-muted px-2 py-0.5">
+                                          v{r.manuscriptVersion}
+                                        </span>
+                                      ) : null}
                                     </div>
                                     {submitted ? (
                                       <div className="mt-1 text-xs text-muted-foreground">

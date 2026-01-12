@@ -3,10 +3,12 @@
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
-import { Printer } from 'lucide-react';
+import { Globe, Mail, Phone, Printer } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
 const FALLBACK_SITE = 'https://www.cloudaiacademy.ca';
+const FALLBACK_EMAIL = 'info@cloudaiacademy.ca';
+const FALLBACK_PHONE = '+1 (519) 694-2661';
 
 function normalizeSiteUrl(value: string) {
   const trimmed = (value || '').trim();
@@ -14,58 +16,92 @@ function normalizeSiteUrl(value: string) {
   return trimmed.replace(/\/+$/, '');
 }
 
+function normalizePhoneHref(value: string) {
+  return (value || '').trim().replace(/[^\d+]/g, '');
+}
+
 export default function PrintableQrFlyerPage() {
   const { lang, dir } = useLang();
   const isRTL = dir === 'rtl';
 
   const site = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE);
+  const email = (process.env.NEXT_PUBLIC_CONTACT_EMAIL || FALLBACK_EMAIL).trim();
+  const phone = (process.env.NEXT_PUBLIC_CONTACT_PHONE || FALLBACK_PHONE).trim();
+  const phoneHref = normalizePhoneHref(phone);
+
   const printCopies = 10;
 
   const t = {
     en: {
-      title: 'Printable QR Flyer',
+      title: 'QR Business Cards',
       print: 'Print',
-      share: 'Share',
-      openSite: 'Open website',
-      hint: 'Scan the QR code to visit:',
-      copied: 'Link copied',
-      alt: 'CloudAI Academy flyer background',
+      org: 'CloudAI Academy',
+      tagline: 'Cloud + AI courses, labs, and launch-phase research programs.',
+      scan: 'Scan the QR to visit.',
+      websiteLabel: 'Website',
+      emailLabel: 'Email',
+      phoneLabel: 'Phone',
     },
     ar: {
-      title: 'صفحة QR للطباعة',
+      title: 'بطاقات QR',
       print: 'طباعة',
-      share: 'مشاركة',
-      openSite: 'فتح الموقع',
-      hint: 'امسح رمز الاستجابة السريعة لزيارة:',
-      copied: 'تم نسخ الرابط',
-      alt: 'خلفية ملصق CloudAI Academy',
+      org: 'CloudAI Academy',
+      tagline: 'دورات ومختبرات في السحابة والذكاء الاصطناعي + مبادرات بحثية (إطلاق).',
+      scan: 'امسح رمز QR لزيارة الموقع.',
+      websiteLabel: 'الموقع',
+      emailLabel: 'البريد',
+      phoneLabel: 'الهاتف',
     },
   }[lang];
 
-  const PrintCard = () => (
+  const BusinessCard = () => (
     <div
       className={[
-        'qr-business-card grid w-full gap-4 overflow-hidden rounded-2xl border bg-white shadow-sm',
-        isRTL ? 'grid-cols-[auto_1fr]' : 'grid-cols-[1fr_auto]',
+        'qr-business-card grid w-full gap-4 overflow-hidden rounded-2xl border border-accent/20 border-t-4 border-t-accent bg-white shadow-sm',
+        'grid-cols-[1fr_auto]',
       ].join(' ')}
       dir={dir}
     >
-      <div className="flex min-w-0 flex-col justify-between gap-3 p-4">
+      <div className="flex min-w-0 flex-col gap-3 p-4">
         <div className="flex items-center gap-2">
           <Logo size={30} hideText />
           <div className="min-w-0">
-            <div className="truncate font-headline text-sm font-bold text-foreground">
-              CloudAI Academy
+            <div className="font-headline text-sm font-bold text-foreground">
+              <bdi dir="ltr">{t.org}</bdi>
             </div>
             <div className="text-[10px] text-muted-foreground" dir="auto">
-              {t.hint}
+              {t.tagline}
             </div>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <div className="text-[11px] font-semibold leading-tight text-foreground">
-            <bdi dir="ltr">{site}</bdi>
+        <div className="mt-auto space-y-1">
+          <div className="flex items-center gap-2 text-[11px] font-semibold leading-tight text-foreground">
+            <Globe className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+            <a href={site} target="_blank" rel="noreferrer noopener" className="hover:underline">
+              <span className="sr-only">{t.websiteLabel}</span>
+              <bdi dir="ltr">{site}</bdi>
+            </a>
+          </div>
+
+          <div className="flex items-center gap-2 text-[10px] leading-tight text-muted-foreground">
+            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+            <a href={`mailto:${email}`} className="hover:underline">
+              <span className="sr-only">{t.emailLabel}</span>
+              <bdi dir="ltr">{email}</bdi>
+            </a>
+          </div>
+
+          <div className="flex items-center gap-2 text-[10px] leading-tight text-muted-foreground">
+            <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+            <a href={`tel:${phoneHref}`} className="hover:underline">
+              <span className="sr-only">{t.phoneLabel}</span>
+              <bdi dir="ltr">{phone}</bdi>
+            </a>
+          </div>
+
+          <div className="text-[10px] leading-tight text-muted-foreground" dir="auto">
+            {t.scan}
           </div>
         </div>
       </div>
@@ -159,53 +195,13 @@ export default function PrintableQrFlyerPage() {
       </div>
 
       <div className="mx-auto w-full max-w-2xl px-4 print:hidden">
-        <div
-          className={[
-            'qr-business-card grid w-full gap-4 overflow-hidden rounded-2xl border bg-white shadow-sm',
-            isRTL ? 'grid-cols-[auto_1fr]' : 'grid-cols-[1fr_auto]',
-          ].join(' ')}
-          dir={dir}
-        >
-          <div className="flex min-w-0 flex-col justify-between gap-3 p-4">
-            <div className="flex items-center gap-2">
-              <Logo size={30} hideText />
-              <div className="min-w-0">
-                <div className="truncate font-headline text-sm font-bold text-foreground">
-                  CloudAI Academy
-                </div>
-                <div className="text-[10px] text-muted-foreground" dir="auto">
-                  {t.hint}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-[11px] font-semibold leading-tight text-foreground">
-                <bdi dir="ltr">{site}</bdi>
-              </div>
-              <div className="text-[10px] leading-tight text-muted-foreground" dir="auto">
-                {lang === 'ar' ? 'امسح رمز الاستجابة السريعة.' : 'Scan the QR code.'}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center p-4">
-            <div className="qr-business-card__qr rounded-lg border bg-white p-2">
-              <QRCode
-                value={site}
-                style={{ height: '100%', width: '100%' }}
-                viewBox="0 0 256 256"
-                title={site}
-              />
-            </div>
-          </div>
-        </div>
+        <BusinessCard />
       </div>
 
       <div className="hidden print:block">
         <div className="print-grid">
           {Array.from({ length: printCopies }).map((_, idx) => (
-            <PrintCard key={idx} />
+            <BusinessCard key={idx} />
           ))}
         </div>
       </div>

@@ -14,7 +14,7 @@ export const DEFAULT_HERO: Record<SupportedLang, HeroConfig> = {
   en: {
     title: 'Unlock Your Potential in Cloud & AI',
     desc:
-      "Join thousands of professionals advancing their careers with our industry-leading courses and hands-on projects.",
+      'Build real cloud and AI skills through hands-on courses, labs, and projects.',
     explore: 'Explore Courses',
     dashboard: 'Go to Dashboard',
     trial: 'Create Free Account',
@@ -51,4 +51,3 @@ export function sanitizeHeroConfig(input: unknown, fallback: HeroConfig): HeroCo
 
   return { title, desc, explore, dashboard, trial, badge, highlights };
 }
-

@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const db = getFirestore(app);
     const { userId, role } = (await req.json()) as { userId?: string; role?: string };
     const hasRole = typeof role === 'string' && role.length > 0;
-    if (!userId || (hasRole && !['student', 'teacher', 'editor', 'admin'].includes(role))) {
+    if (!userId || (hasRole && !['student', 'teacher', 'reviewer', 'editor', 'admin'].includes(role))) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
