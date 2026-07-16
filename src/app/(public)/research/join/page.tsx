@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { ArrowRight, CheckCircle2, Mail, Users } from 'lucide-react';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
@@ -55,7 +56,7 @@ const tracks = [
   },
 ] as const;
 
-export default function ResearchJoinPage() {
+function ResearchJoinContent() {
   const { lang } = useLang();
   const searchParams = useSearchParams();
   const initiativeParam = searchParams.get('initiative')?.trim() || '';
@@ -243,5 +244,13 @@ export default function ResearchJoinPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+export default function ResearchJoinPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResearchJoinContent />
+    </Suspense>
   );
 }
