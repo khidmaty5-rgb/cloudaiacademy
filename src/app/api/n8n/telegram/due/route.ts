@@ -1,27 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { getFirebaseAdminApp } from '@/server/firebase-admin';
 
 export const runtime = 'nodejs';
-
-function getAdminApp(): App {
-  const name = 'adminAppN8nTelegramDue';
-  const existing = getApps().find((a) => a.name === name);
-  if (existing) return existing;
-  const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
-  const usingEmulators = !!(
-    process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST
-  );
-  if (!process.env.GOOGLE_CLOUD_PROJECT) process.env.GOOGLE_CLOUD_PROJECT = projectId;
-  if (!process.env.GCLOUD_PROJECT) process.env.GCLOUD_PROJECT = projectId;
-  if (usingEmulators) return initializeApp({ projectId }, name);
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
-  const privateKey = rawKey ? rawKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '').replace(/^'|'$/g, '') : undefined;
-  if (projectId && clientEmail && privateKey) return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }, name);
-  return initializeApp({ credential: applicationDefault(), projectId }, name);
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,7 +14,7 @@ export async function GET(req: NextRequest) {
     const limitStr = url.searchParams.get('limit');
     const limit = Math.min(Math.max(parseInt(limitStr || '50', 10) || 50, 1), 100);
 
-    const app = getAdminApp();
+    const app = getFirebaseAdminApp();
     const db = getFirestore(app);
     const now = new Date();
 

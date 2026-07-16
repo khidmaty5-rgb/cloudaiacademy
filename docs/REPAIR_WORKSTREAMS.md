@@ -34,6 +34,8 @@ Current status: inventory, root CI, and the separate Firebase Functions CI job a
 6. Define role demotion and token-revocation behavior.
 7. Add role-transition audit logs and tests.
 
+Current checkpoint: the shared server-only Firebase Admin initializer is implemented with emulator, environment service-account, local service-account file, and Application Default Credentials support. The legacy `getAdminAuth` wrapper and the n8n Telegram due-jobs route now use it as a bounded proof migration. Other API routes still have local initializers and will be migrated incrementally; authorization behavior has not changed in this checkpoint.
+
 ## W2 — Payments and entitlements
 
 1. Define the entitlement model for free, subscription, one-time, per-course, and offline access.
