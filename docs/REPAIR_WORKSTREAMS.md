@@ -22,6 +22,8 @@ This roadmap turns the feature catalog into bounded, reviewable units. Each work
 5. Add Firestore emulator rule tests.
 6. Record release and rollback commits.
 
+Current status: inventory, root CI, and the separate Firebase Functions CI job are implemented. Test-framework, Firestore-rule-test, and release-record work remains pending.
+
 ## W1 — Shared authentication and authorization
 
 1. Create one shared Firebase Admin initializer.
