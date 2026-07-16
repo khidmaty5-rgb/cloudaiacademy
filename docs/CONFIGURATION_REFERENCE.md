@@ -13,7 +13,9 @@ This document records configuration names and ownership. It intentionally contai
 | `firestore.indexes.json` | Composite and collection-group indexes | Course, journal, and enrollment-request indexes |
 | `next.config.ts` | Next.js build, images, and development origins | Build errors are enforced; remote image hosts are restricted |
 | `tsconfig.json` | TypeScript compilation | Strict mode; Functions excluded from root compilation |
-| `.eslintrc.json` | Current lint configuration | Next core-web-vitals and TypeScript presets |
+| `eslint.config.mjs` | Root lint configuration | Next core-web-vitals and TypeScript presets through the ESLint CLI |
+| `functions/eslint.config.mjs` | Firebase Functions lint configuration | TypeScript and ESLint recommended rules scoped to Functions source |
+| `.github/workflows/ci.yml` | Continuous integration | Root checks on Node 22 and a separate Functions lint/build job on its declared Node 18 runtime |
 | `tailwind.config.ts` | Design system and Tailwind scanning | Application styling configuration |
 | `components.json` | shadcn component configuration | UI component aliases and styling |
 | `package.json` | Root dependencies and scripts | Next.js application commands |
