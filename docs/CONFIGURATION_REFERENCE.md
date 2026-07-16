@@ -58,6 +58,8 @@ Values prefixed with `NEXT_PUBLIC_` are embedded in browser code and must not co
 | `FIRESTORE_EMULATOR_HOST` | Local development | Firestore emulator host |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Local development | Authentication emulator host |
 
+The shared server initializer resolves the project ID from `FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, then `GCLOUD_PROJECT`. It selects credentials in this order: emulator project configuration when an emulator host is set; complete project ID/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` values; a service-account JSON from `FIREBASE_SERVICE_ACCOUNT_PATH` or the ignored local `config/serviceAccount.local.json`; then Google Application Default Credentials. It reuses one named Admin app per server process and never logs credential values or file contents.
+
 Known current limitation: the initial-admin branches in the role-update route are unreachable because the self-sync branch returns first. Do not rely on bootstrap behavior until that workstream is repaired and tested.
 
 ## AI configuration
