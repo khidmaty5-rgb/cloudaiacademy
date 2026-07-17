@@ -204,15 +204,18 @@ service cloud.firestore {
             : request.resource.data.requirePayment != true
         )
       );
-      // Owners can update their profile only if sensitive fields are unchanged; admins can update any
+      // Owners can update only editable profile fields; admins can update any field.
+      // A changed-field allowlist also works for older profiles that do not contain
+      // optional sensitive fields such as requirePayment.
       allow update: if (
         (
           isExistingOwner(userId) &&
-          request.resource.data.id == resource.data.id &&
-          request.resource.data.email == resource.data.email &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.requirePayment == resource.data.requirePayment &&
-          request.resource.data.dateJoined == resource.data.dateJoined
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'firstName',
+            'lastName'
+          ]) &&
+          request.resource.data.firstName is string &&
+          request.resource.data.lastName is string
         ) || isAdmin()
       );
       // Owners can delete themselves; admins can delete any user
