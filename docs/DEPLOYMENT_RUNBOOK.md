@@ -21,6 +21,7 @@ The checked-in Firebase default project is `studio-3170120655-4bab7`. Confirm th
 6. Confirm S3 bucket names, access policy, CORS, encryption, and lifecycle settings.
 7. Run root validation:
    - `npm ci`
+   - `npm run test:firestore-rules`
    - `npm run typecheck`
    - `npm run lint`
    - `npm run build`
@@ -35,8 +36,8 @@ The checked-in Firebase default project is `studio-3170120655-4bab7`. Confirm th
 
 Current caveats:
 
-- There are no automated tests or CI workflows yet.
-- The root lint script uses the deprecated `next lint` command and should migrate to the ESLint CLI.
+- GitHub Actions validate the root application, Firestore profile rules, and Firebase Functions.
+- Automated Firestore coverage currently focuses on user-profile ownership and sensitive-field restrictions; broader rule and integration coverage remains pending.
 - Functions dependencies are not installed by the root `npm ci`.
 - The root production build removes `.next` before building.
 

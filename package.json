@@ -10,6 +10,7 @@
     "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && cross-env NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint src",
+    "test:firestore-rules": "firebase emulators:exec --config firebase.test.json --only firestore \"node --test tests/firestore/user-profile.rules.test.mjs\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.3",
+    "@firebase/rules-unit-testing": "4.0.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
