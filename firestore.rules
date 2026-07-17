@@ -377,6 +377,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // The Journal is enabled unless settings/ui explicitly disables its navigation.
+    // Keep the default enabled when the document or field has not been created yet.
+    function journalEnabled() {
+      return !exists(/databases/$(database)/documents/settings/ui)
+        || get(/databases/$(database)/documents/settings/ui).data.get('showJournalNav', true) != false;
+    }
+
     match /journalArticles/{articleId} {
       // Create: signed-in author can create their own submission
       allow create: if isSignedIn()
@@ -422,12 +429,13 @@ service cloud.firestore {
         && (request.resource.data.acceptedAt == null)
         && (request.resource.data.publishedAt == null);
 
-      // Read: public can read PUBLISHED; author can read own; editors/admins can read all
+      // Read: public can read PUBLISHED while the Journal is enabled; author can read
+      // their own; editors/admins/teachers can read all even while it is hidden.
       allow read: if (
         isEditor()
         || isAdminOrTeacher()
         || (isSignedIn() && resource.data.createdBy == request.auth.uid)
-        || (resource != null && resource.data.status == 'PUBLISHED')
+        || (journalEnabled() && resource != null && resource.data.status == 'PUBLISHED')
       );
 
       // Update rules
@@ -444,7 +452,7 @@ service cloud.firestore {
     }
 
     match /journalIssues/{issueId} {
-      allow get, list: if true;
+      allow get, list: if journalEnabled() || isEditor() || isAdminOrTeacher();
       allow create, update, delete: if isEditor();
     }
   }
