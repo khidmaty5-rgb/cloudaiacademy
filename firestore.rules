@@ -65,7 +65,7 @@ service cloud.firestore {
     }
 
     function roleIsStaff(role) {
-      return role == 'admin' || role == 'teacher' || role == 'reviewer' || role == 'editor';
+      return role == 'admin' || role == 'teacher' || role == 'editor';
     }
 
     function roleIsAdminOrEditor(role) {
@@ -372,13 +372,6 @@ service cloud.firestore {
         allow create, update, delete: if isAdmin();
     }
 
-    // Journal visibility flag stored in /settings/ui.showJournalNav (default: enabled).
-    function journalEnabled() {
-      return exists(/databases/$(database)/documents/settings/ui)
-        ? get(/databases/$(database)/documents/settings/ui).data.showJournalNav != false
-        : true;
-    }
-
     match /settings/{docId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
@@ -388,6 +381,32 @@ service cloud.firestore {
       // Create: signed-in author can create their own submission
       allow create: if isSignedIn()
         && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'title',
+          'abstract',
+          'authors',
+          'affiliations',
+          'language',
+          'pdfUrl',
+          'pdfPath',
+          'codeUrl',
+          'keywords',
+          'license',
+          'manuscriptVersion',
+          'manuscripts',
+          'status',
+          'createdBy',
+          'createdByEmail',
+          'createdByName',
+          'reviewRound',
+          'reviewRoundStartedAt',
+          'reviewManuscriptVersion',
+          'issueId',
+          'createdAt',
+          'updatedAt',
+          'acceptedAt',
+          'publishedAt'
+        ])
         && (request.resource.data.title is string)
         && (request.resource.data.abstract is string)
         && (request.resource.data.authors is string)
@@ -397,6 +416,9 @@ service cloud.firestore {
         // Prevent users from self-publishing or assigning issues via client writes.
         && (request.resource.data.status == 'SUBMITTED')
         && (request.resource.data.issueId == null)
+        && (request.resource.data.get('reviewRound', 0) == 0)
+        && (request.resource.data.get('reviewRoundStartedAt', null) == null)
+        && (request.resource.data.get('reviewManuscriptVersion', null) == null)
         && (request.resource.data.acceptedAt == null)
         && (request.resource.data.publishedAt == null);
 
@@ -405,7 +427,7 @@ service cloud.firestore {
         isEditor()
         || isAdminOrTeacher()
         || (isSignedIn() && resource.data.createdBy == request.auth.uid)
-        || (journalEnabled() && resource != null && resource.data.status == 'PUBLISHED')
+        || (resource != null && resource.data.status == 'PUBLISHED')
       );
 
       // Update rules
@@ -422,7 +444,7 @@ service cloud.firestore {
     }
 
     match /journalIssues/{issueId} {
-      allow get, list: if journalEnabled() || isEditor() || isAdminOrTeacher();
+      allow get, list: if true;
       allow create, update, delete: if isEditor();
     }
   }

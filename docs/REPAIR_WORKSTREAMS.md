@@ -75,6 +75,12 @@ Current checkpoint: the shared server-only Firebase Admin initializer is impleme
 6. Test issue assignment and publication.
 7. Test public versus private PDF access.
 
+Current isolated rules coverage:
+
+- Direct article creation is limited to the authenticated author, that author's PDF namespace, `SUBMITTED` status, an unassigned issue, empty publication timestamps, and an initial review round.
+- Author-controlled reviewer assignments and unexpected workflow fields are denied at creation.
+- Reviewer-as-global-staff behavior and `settings/ui.showJournalNav` read gating remain separate workstreams and must not be bundled into the article-creation deployment.
+
 ## W6 — AI functions
 
 1. Require an authenticated eligible user.

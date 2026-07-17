@@ -55,6 +55,8 @@ Client emulator usage also depends on `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` and t
 
 Review `firestore.rules` and `firestore.indexes.json` before deployment. Use the Firebase CLI with an explicitly confirmed project.
 
+Journal rules are being reconciled with production one behavior at a time. The current verified first scope is direct article creation: author ownership, PDF namespace, initial workflow state, and reviewer-assignment protection. Treat reviewer-as-global-staff behavior and `settings/ui.showJournalNav` read gating as separate, undeployed workstreams until each has focused tests. Before a rules deployment, compare the candidate with the active production ruleset and reject any unrelated Journal/Reviewer delta.
+
 Typical scoped deployment:
 
 ```text
@@ -71,6 +73,7 @@ After deployment, test at minimum:
 - Purchase-document restrictions
 - Certificate public lookup without list access
 - Journal author, reviewer, editor, and public boundaries
+- Direct journal creation cannot self-publish, assign an issue or reviewers, or pre-populate review state
 
 ## Firebase Functions deployment
 
