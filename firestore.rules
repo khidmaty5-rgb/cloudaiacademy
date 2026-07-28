@@ -438,17 +438,9 @@ service cloud.firestore {
         || (journalEnabled() && resource != null && resource.data.status == 'PUBLISHED')
       );
 
-      // Update rules
-      // Editors/admins can update anything
-      allow update, delete: if isEditor()
-        || (
-          // Authors may update their own while in DRAFT or SUBMITTED (metadata only)
-          isSignedIn() && resource.data.createdBy == request.auth.uid
-          && (resource.data.status in ['DRAFT', 'SUBMITTED'])
-          // Authors cannot change status in rules (editor moves it forward)
-          && (request.resource.data.status == resource.data.status)
-          // After UNDER_REVIEW, only editors can modify (enforced by first condition)
-        );
+      // Client updates/deletes are editor/admin only. Author submissions and revisions
+      // use authenticated server APIs, which validate ownership and workflow state.
+      allow update, delete: if isEditor();
     }
 
     match /journalIssues/{issueId} {

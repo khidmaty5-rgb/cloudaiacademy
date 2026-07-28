@@ -80,6 +80,7 @@ Current isolated rules coverage:
 - Direct article creation is limited to the authenticated author, that author's PDF namespace, `SUBMITTED` status, an unassigned issue, empty publication timestamps, and an initial review round.
 - Author-controlled reviewer assignments and unexpected workflow fields are denied at creation.
 - `settings/ui.showJournalNav` defaults to enabled. When explicitly disabled, public article and issue reads are denied while owners and editorial staff retain their existing access.
+- Direct client updates and deletes of Journal articles are editor/admin only. Author submissions and requested revisions go through authenticated server APIs that validate ownership, workflow status, and PDF storage state.
 - Reviewer-as-global-staff behavior remains a separate workstream and is not included in either isolated deployment.
 
 ## W6 — AI functions
