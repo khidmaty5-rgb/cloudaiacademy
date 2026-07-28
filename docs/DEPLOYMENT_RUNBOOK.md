@@ -55,7 +55,7 @@ Client emulator usage also depends on `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` and t
 
 Review `firestore.rules` and `firestore.indexes.json` before deployment. Use the Firebase CLI with an explicitly confirmed project.
 
-Journal rules are being reconciled with production one behavior at a time. Verified scopes include direct article creation (author ownership, PDF namespace, initial workflow state, and reviewer-assignment protection) and `settings/ui.showJournalNav` read gating. When the Journal is disabled, public article and issue reads are denied while article owners and editorial staff retain their existing access. Reviewer-as-global-staff behavior remains a separate, undeployed workstream. Before a rules deployment, compare the candidate with the active production ruleset and reject any unrelated Journal/Reviewer delta.
+Journal rules are being reconciled with production one behavior at a time. Verified scopes include direct article creation (author ownership, PDF namespace, initial workflow state, and reviewer-assignment protection), `settings/ui.showJournalNav` read gating, and author client-write isolation. When the Journal is disabled, public article and issue reads are denied while article owners and editorial staff retain their existing access. Author submissions and revisions use authenticated server APIs; direct Firestore article updates and deletes are limited to editors and administrators. Reviewer-as-global-staff behavior remains a separate, undeployed workstream. Before a rules deployment, compare the candidate with the active production ruleset and reject any unrelated Journal/Reviewer delta.
 
 Typical scoped deployment:
 
@@ -75,6 +75,7 @@ After deployment, test at minimum:
 - Journal author, reviewer, editor, and public boundaries
 - Direct journal creation cannot self-publish, assign an issue or reviewers, or pre-populate review state
 - Journal visibility defaults to enabled and blocks public article and issue reads only when explicitly disabled
+- Author article updates and revisions use authenticated server APIs; direct client updates and deletes are editor/admin only
 
 ## Firebase Functions deployment
 
