@@ -3,6 +3,10 @@ import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import {
+  getEffectiveJournalRole,
+  isJournalEditorialStaff,
+} from '@/server/journal-access';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -105,8 +109,12 @@ export async function POST(
 
     const app = getAdminApp();
     const decoded: any = await verifyIdTokenOrDecode(app, token);
-    const requesterRole = (decoded as any)?.role as string | undefined;
-    if (requesterRole !== 'admin' && requesterRole !== 'editor') {
+    const uid = decoded.uid || decoded.user_id || decoded.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const db = getFirestore(app);
+    const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
+    if (!isJournalEditorialStaff(effectiveRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -139,8 +147,6 @@ export async function POST(
     if (!targetUid) {
       return NextResponse.json({ error: 'Unable to resolve reviewer uid' }, { status: 400 });
     }
-
-    const db = getFirestore(app);
 
     // Enforce dedicated reviewer accounts (role=reviewer) when assigning.
     if (action === 'add') {
