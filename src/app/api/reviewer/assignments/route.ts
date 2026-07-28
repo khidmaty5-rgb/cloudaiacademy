@@ -3,6 +3,10 @@ import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import {
+  getEffectiveJournalRole,
+  isJournalEditorialStaff,
+} from '@/server/journal-access';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -115,14 +119,9 @@ export async function GET(req: NextRequest) {
 
     const db = getFirestore(app);
 
-    // Restrict this endpoint to reviewer/editor/admin accounts (journal-only staff).
-    let effectiveRole = (decoded as any)?.role as string | undefined;
-    try {
-      const userSnap = await db.doc(`users/${uid}`).get();
-      const profileRole = userSnap.exists ? ((userSnap.data() as any)?.role as string | undefined) : undefined;
-      if (profileRole) effectiveRole = profileRole;
-    } catch {}
-    const isStaff = effectiveRole === 'admin' || effectiveRole === 'editor';
+    // The current profile is authoritative so stale token claims cannot preserve access.
+    const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
+    const isStaff = isJournalEditorialStaff(effectiveRole);
     const isReviewer = effectiveRole === 'reviewer';
     if (!isStaff && !isReviewer) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

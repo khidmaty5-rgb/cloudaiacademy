@@ -53,7 +53,7 @@ See `docs/CONFIGURATION_REFERENCE.md` for the complete variable inventory and `d
 
 - Main application TypeScript check passes.
 - Direct ESLint execution reports no errors but currently reports many warnings.
-- GitHub Actions validate the application and Firebase Functions; focused Firestore profile, journal-submission, Journal visibility, and author-update boundary tests run in the application job.
+- GitHub Actions validate the application and Firebase Functions; focused Firestore profile and Journal boundary tests plus reviewer API access-policy tests run in the application job.
 - Broader unit, integration, and acceptance-test coverage remains pending.
 - Firebase Functions require their own dependency installation before they can be built.
 

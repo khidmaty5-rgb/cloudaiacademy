@@ -3,6 +3,11 @@ import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import {
+  getEffectiveJournalRole,
+  isAssignedJournalReviewer,
+  isJournalEditorialStaff,
+} from '@/server/journal-access';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -91,10 +96,6 @@ async function verifyIdTokenOrDecode(app: App, idToken: string) {
 
 const allowedRecommendations = new Set(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']);
 
-function isStaffRole(role: any): boolean {
-  return role === 'admin' || role === 'editor';
-}
-
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -111,7 +112,6 @@ export async function GET(
     const decoded: any = await verifyIdTokenOrDecode(app, token);
     const uid = decoded.uid || decoded.user_id || decoded.sub;
     if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const role = (decoded as any)?.role as string | undefined;
 
     const db = getFirestore(app);
     const articleRef = db.doc(`journalArticles/${id}`);
@@ -119,10 +119,14 @@ export async function GET(
     if (!articleSnap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const article = articleSnap.data() as any;
 
-    const reviewerIds: string[] = Array.isArray(article?.reviewerIds) ? article.reviewerIds : [];
-    const isReviewer = reviewerIds.includes(uid);
-    const isStaff = isStaffRole(role);
     const isOwner = !!(article?.createdBy && article.createdBy === uid);
+    let isReviewer = false;
+    let isStaff = false;
+    if (!isOwner) {
+      const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
+      isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+      isStaff = isJournalEditorialStaff(effectiveRole);
+    }
 
     if (!isStaff && !isReviewer && !isOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -176,7 +180,6 @@ export async function POST(
     const decoded: any = await verifyIdTokenOrDecode(app, token);
     const uid = decoded.uid || decoded.user_id || decoded.sub;
     if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const role = (decoded as any)?.role as string | undefined;
 
     const body = await req.json().catch(() => ({}));
     const recommendation = body?.recommendation as string | undefined;
@@ -194,14 +197,14 @@ export async function POST(
     }
 
     const db = getFirestore(app);
+    const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
     const articleRef = db.doc(`journalArticles/${id}`);
     const articleSnap = await articleRef.get();
     if (!articleSnap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const article = articleSnap.data() as any;
 
-    const reviewerIds: string[] = Array.isArray(article?.reviewerIds) ? article.reviewerIds : [];
-    const isReviewer = reviewerIds.includes(uid);
-    const isStaff = isStaffRole(role);
+    const isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+    const isStaff = isJournalEditorialStaff(effectiveRole);
 
     if (!isReviewer && !isStaff) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

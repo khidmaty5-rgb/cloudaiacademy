@@ -81,7 +81,9 @@ Current isolated rules coverage:
 - Author-controlled reviewer assignments and unexpected workflow fields are denied at creation.
 - `settings/ui.showJournalNav` defaults to enabled. When explicitly disabled, public article and issue reads are denied while owners and editorial staff retain their existing access.
 - Direct client updates and deletes of Journal articles are editor/admin only. Author submissions and requested revisions go through authenticated server APIs that validate ownership, workflow status, and PDF storage state.
-- Reviewer-as-global-staff behavior remains a separate workstream and is not included in either isolated deployment.
+- Reviewer assignment, review, and unpublished-PDF APIs use the current profile role rather than stale token claims. Reviewer access requires both the current `reviewer` role and assignment to the article; direct reviewer Firestore access remains denied.
+- Reviewer identity fields currently stored on owner-readable article documents require a separate data-model migration before single-blind anonymity can be considered complete.
+- Whether reviewer accounts should inherit non-Journal staff/paywall behavior remains a separate workstream.
 
 ## W6 — AI functions
 

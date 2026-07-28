@@ -7,6 +7,11 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
 import { fetchPublicFirestoreDoc } from '@/lib/firestore-public';
+import {
+  getEffectiveJournalRole,
+  isAssignedJournalReviewer,
+  isJournalEditorialStaff,
+} from '@/server/journal-access';
 
 export const runtime = 'nodejs';
 
@@ -115,11 +120,15 @@ export async function GET(
     const isPublished = article.status === 'PUBLISHED';
     if (!isPublished) {
       const uid = caller.uid || caller.user_id || caller.sub;
-      const role = caller.role as string | undefined;
-      const isStaff = role === 'admin' || role === 'editor';
+      if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       const isOwner = !!(uid && article.createdBy && uid === article.createdBy);
-      const reviewerIds: string[] = Array.isArray(article?.reviewerIds) ? article.reviewerIds : [];
-      const isReviewer = !!(uid && reviewerIds.includes(uid));
+      let isStaff = false;
+      let isReviewer = false;
+      if (!isOwner) {
+        const effectiveRole = await getEffectiveJournalRole(db, uid, caller.role);
+        isStaff = isJournalEditorialStaff(effectiveRole);
+        isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+      }
       if (!isStaff && !isOwner && !isReviewer) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
