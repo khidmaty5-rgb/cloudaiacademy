@@ -9,9 +9,9 @@ import { firebaseConfig } from '@/firebase/config';
 import { fetchPublicFirestoreDoc } from '@/lib/firestore-public';
 import {
   getEffectiveJournalRole,
-  isAssignedJournalReviewer,
   isJournalEditorialStaff,
 } from '@/server/journal-access';
+import { hasJournalReviewerAssignment } from '@/server/journal-reviewer-assignments';
 
 export const runtime = 'nodejs';
 
@@ -127,7 +127,9 @@ export async function GET(
       if (!isOwner) {
         const effectiveRole = await getEffectiveJournalRole(db, uid, caller.role);
         isStaff = isJournalEditorialStaff(effectiveRole);
-        isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+        isReviewer =
+          effectiveRole === 'reviewer' &&
+          (await hasJournalReviewerAssignment(db, id, uid));
       }
       if (!isStaff && !isOwner && !isReviewer) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

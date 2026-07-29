@@ -7,6 +7,7 @@ import {
   getEffectiveJournalRole,
   isJournalEditorialStaff,
 } from '@/server/journal-access';
+import { listJournalReviewerAssignmentsForReviewer } from '@/server/journal-reviewer-assignments';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -127,12 +128,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const snap = await db
-      .collection('journalArticles')
-      .where('reviewerIds', 'array-contains', uid)
-      .get();
+    const assignments = await listJournalReviewerAssignmentsForReviewer(db, uid);
+    const articleIds = [...new Set(assignments.map((assignment) => assignment.articleId))];
+    const articleSnapshots = articleIds.length
+      ? await db.getAll(...articleIds.map((articleId) => db.doc(`journalArticles/${articleId}`)))
+      : [];
 
-    const items = snap.docs.map((d) => {
+    const items = articleSnapshots.filter((snapshot) => snapshot.exists).map((d) => {
       const data = d.data() as any;
       return {
         id: d.id,

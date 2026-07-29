@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import {
   getEffectiveJournalRole,
   isJournalEditorialStaff,
 } from '@/server/journal-access';
+import {
+  journalReviewerAssignmentRef,
+  listJournalReviewerAssignmentsForArticle,
+} from '@/server/journal-reviewer-assignments';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -95,6 +99,78 @@ async function verifyIdTokenOrDecode(app: App, idToken: string) {
 
 type Action = 'add' | 'remove';
 
+type EditorialContext = {
+  app: App;
+  db: Firestore;
+  uid: string;
+};
+
+async function requireEditorialContext(
+  req: NextRequest,
+): Promise<{ context?: EditorialContext; response?: NextResponse }> {
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  if (!token) {
+    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  const app = getAdminApp();
+  let decoded: any;
+  try {
+    decoded = await verifyIdTokenOrDecode(app, token);
+  } catch {
+    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+  const uid = decoded.uid || decoded.user_id || decoded.sub;
+  if (!uid) {
+    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  const db = getFirestore(app);
+  const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
+  if (!isJournalEditorialStaff(effectiveRole)) {
+    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+
+  return { context: { app, db, uid } };
+}
+
+function reviewerResponse(
+  assignments: Awaited<ReturnType<typeof listJournalReviewerAssignmentsForArticle>>,
+) {
+  return assignments
+    .map((assignment) => ({
+      uid: assignment.reviewerId,
+      email: assignment.reviewerEmail,
+    }))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await context.params;
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+    const authorization = await requireEditorialContext(req);
+    if (authorization.response) return authorization.response;
+
+    const assignments = await listJournalReviewerAssignmentsForArticle(
+      authorization.context!.db,
+      id,
+    );
+    return NextResponse.json(
+      { ok: true, reviewers: reviewerResponse(assignments) },
+      { status: 200 },
+    );
+  } catch (e: any) {
+    console.error('journal reviewers GET error:', e);
+    return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
+  }
+}
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -103,20 +179,9 @@ export async function POST(
     const { id } = await context.params;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const app = getAdminApp();
-    const decoded: any = await verifyIdTokenOrDecode(app, token);
-    const uid = decoded.uid || decoded.user_id || decoded.sub;
-    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const db = getFirestore(app);
-    const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
-    if (!isJournalEditorialStaff(effectiveRole)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const authorization = await requireEditorialContext(req);
+    if (authorization.response) return authorization.response;
+    const { app, db, uid } = authorization.context!;
 
     const body = await req.json().catch(() => ({}));
     const action = body?.action as Action | undefined;
@@ -139,13 +204,19 @@ export async function POST(
       const user = await getAuth(app).getUserByEmail(targetEmail);
       targetUid = user.uid;
       targetEmail = (user.email || targetEmail).toLowerCase();
-    } else if (targetUid && !targetEmail) {
+    } else if (targetUid && !targetEmail && action === 'add') {
       const user = await getAuth(app).getUser(targetUid);
       targetEmail = (user.email || '').toLowerCase();
     }
 
     if (!targetUid) {
       return NextResponse.json({ error: 'Unable to resolve reviewer uid' }, { status: 400 });
+    }
+    if (action === 'add' && !targetEmail) {
+      return NextResponse.json(
+        { error: 'Reviewer account must have an email address' },
+        { status: 400 },
+      );
     }
 
     // Enforce dedicated reviewer accounts (role=reviewer) when assigning.
@@ -165,38 +236,41 @@ export async function POST(
     const ref = db.doc(`journalArticles/${id}`);
     const snap = await ref.get();
     if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const data = snap.data() as any;
-    const currentIds: string[] = Array.isArray(data?.reviewerIds) ? data.reviewerIds : [];
-    const currentEmails: string[] = Array.isArray(data?.reviewerEmails) ? data.reviewerEmails : [];
-
-    const idToEmail = new Map<string, string>();
-    for (let i = 0; i < currentIds.length; i += 1) {
-      const rid = currentIds[i];
-      if (typeof rid !== 'string' || !rid) continue;
-      const em = currentEmails[i];
-      if (typeof em === 'string' && em) idToEmail.set(rid, em);
-      else if (!idToEmail.has(rid)) idToEmail.set(rid, '');
-    }
-
+    const assignmentRef = journalReviewerAssignmentRef(db, id, targetUid);
+    const batch = db.batch();
     if (action === 'add') {
-      idToEmail.set(targetUid, targetEmail || idToEmail.get(targetUid) || '');
+      batch.set(
+        assignmentRef,
+        {
+          articleId: id,
+          reviewerId: targetUid,
+          reviewerEmail: targetEmail || '',
+          assignedAt: FieldValue.serverTimestamp(),
+          assignedBy: uid,
+        },
+        { merge: true },
+      );
     } else {
-      idToEmail.delete(targetUid);
+      batch.delete(assignmentRef);
     }
 
-    const nextIds = Array.from(idToEmail.keys());
-    const nextEmails = nextIds.map((rid) => idToEmail.get(rid) || '');
-
-    await ref.set(
+    // Remove any legacy reviewer identity fields from the author-readable article.
+    batch.set(
+      ref,
       {
-        reviewerIds: nextIds,
-        reviewerEmails: nextEmails,
+        reviewerIds: FieldValue.delete(),
+        reviewerEmails: FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
     );
+    await batch.commit();
 
-    return NextResponse.json({ ok: true, reviewerIds: nextIds, reviewerEmails: nextEmails }, { status: 200 });
+    const assignments = await listJournalReviewerAssignmentsForArticle(db, id);
+    return NextResponse.json(
+      { ok: true, reviewers: reviewerResponse(assignments) },
+      { status: 200 },
+    );
   } catch (e: any) {
     console.error('journal reviewers error:', e);
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });

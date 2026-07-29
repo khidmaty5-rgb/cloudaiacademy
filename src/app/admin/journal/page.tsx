@@ -193,6 +193,9 @@ export default function AdminJournalPage() {
 
   const [reviewerEmail, setReviewerEmail] = useState('');
   const [reviewerSaving, setReviewerSaving] = useState(false);
+  const [assignedReviewers, setAssignedReviewers] = useState<Array<{ uid: string; email: string }>>([]);
+  const [reviewersLoading, setReviewersLoading] = useState(false);
+  const [reviewersError, setReviewersError] = useState<string | null>(null);
   const [decisionSaving, setDecisionSaving] = useState(false);
 
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -372,19 +375,47 @@ export default function AdminJournalPage() {
     setPdfDialogOpen(true);
   };
 
+  const loadAssignedReviewers = async (articleId: string) => {
+    setReviewersLoading(true);
+    setReviewersError(null);
+    try {
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Unauthorized');
+      const resp = await fetch(`/api/journal/articles/${articleId}/reviewers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || 'Failed to load reviewers');
+      setAssignedReviewers(Array.isArray(j?.reviewers) ? j.reviewers : []);
+    } catch (err: any) {
+      setAssignedReviewers([]);
+      setReviewersError(err?.message || String(err));
+    } finally {
+      setReviewersLoading(false);
+    }
+  };
+
   const openDetailsDialog = (article: WithId<any>) => {
     setDetailsArticle(article);
     setDetailsOpen(true);
     setReviewerEmail('');
+    setAssignedReviewers([]);
+    setReviewersError(null);
     setReviews(null);
     setReviewsError(null);
     setReviewsLoading(false);
+    void loadAssignedReviewers(article.id);
   };
 
-  const updateReviewers = async (action: 'add' | 'remove', email: string) => {
+  const updateReviewers = async (
+    action: 'add' | 'remove',
+    email: string,
+    reviewerUid?: string,
+  ) => {
     if (!detailsArticle?.id) return;
     const normalizedEmail = (email || '').trim().toLowerCase();
-    if (!normalizedEmail) return;
+    if (action === 'add' && !normalizedEmail) return;
+    if (action === 'remove' && !reviewerUid && !normalizedEmail) return;
 
     setReviewerSaving(true);
     try {
@@ -397,17 +428,18 @@ export default function AdminJournalPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action, email: normalizedEmail }),
+        body: JSON.stringify({
+          action,
+          ...(action === 'remove' && reviewerUid
+            ? { uid: reviewerUid }
+            : { email: normalizedEmail }),
+        }),
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         throw new Error(j?.error || 'Failed to update reviewers');
       }
-      setDetailsArticle((prev: WithId<any> | null) =>
-        prev && prev.id === detailsArticle.id
-          ? ({ ...prev, reviewerIds: j.reviewerIds, reviewerEmails: j.reviewerEmails } as any)
-          : prev,
-      );
+      setAssignedReviewers(Array.isArray(j?.reviewers) ? j.reviewers : []);
       if (action === 'add') setReviewerEmail('');
       toast({ title: action === 'add' ? 'Reviewer assigned.' : 'Reviewer removed.' });
     } catch (err: any) {
@@ -1035,6 +1067,9 @@ export default function AdminJournalPage() {
                     if (!open) {
                       setDetailsArticle(null);
                       setReviewerEmail('');
+                      setAssignedReviewers([]);
+                      setReviewersError(null);
+                      setReviewersLoading(false);
                       setReviews(null);
                       setReviewsError(null);
                       setReviewsLoading(false);
@@ -1228,27 +1263,30 @@ export default function AdminJournalPage() {
                           <div className="text-sm font-medium">
                             {lang === 'ar' ? 'المحكّمون' : 'Reviewers'}
                           </div>
-                          {Array.isArray((detailsArticle as any).reviewerEmails) &&
-                          (detailsArticle as any).reviewerEmails.filter(Boolean).length ? (
+                          {reviewersLoading ? (
+                            <div className="text-sm text-muted-foreground">Loading reviewers...</div>
+                          ) : reviewersError ? (
+                            <div className="text-sm text-destructive">{reviewersError}</div>
+                          ) : assignedReviewers.length ? (
                             <div className="flex flex-wrap gap-2">
-                              {(detailsArticle as any).reviewerEmails
-                                .filter(Boolean)
-                                .map((em: string) => (
-                                  <div
-                                    key={em}
+                              {assignedReviewers.map((reviewer) => (
+                                <div
+                                    key={reviewer.uid}
                                     className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs"
                                   >
-                                    <span className="max-w-[220px] truncate">{em}</span>
+                                    <span className="max-w-[220px] truncate">{reviewer.email}</span>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => void updateReviewers('remove', em)}
+                                    onClick={() =>
+                                      void updateReviewers('remove', reviewer.email, reviewer.uid)
+                                    }
                                       disabled={reviewerSaving}
                                     >
                                       {lang === 'ar' ? 'إزالة' : 'Remove'}
                                     </Button>
-                                  </div>
-                                ))}
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             <div className="text-sm text-muted-foreground">

@@ -213,8 +213,6 @@ export interface JournalArticle {
   createdBy: string;
   createdByEmail?: string | null;
   createdByName?: string | null;
-  reviewerIds?: string[];
-  reviewerEmails?: string[];
   reviewRound?: number;
   reviewRoundStartedAt?: FirestoreTimestamp | null;
   reviewManuscriptVersion?: number | null;
