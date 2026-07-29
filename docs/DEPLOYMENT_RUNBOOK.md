@@ -55,7 +55,7 @@ Client emulator usage also depends on `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` and t
 
 Review `firestore.rules` and `firestore.indexes.json` before deployment. Use the Firebase CLI with an explicitly confirmed project.
 
-Journal rules are being reconciled with production one behavior at a time. Verified scopes include direct article creation (author ownership, PDF namespace, initial workflow state, and reviewer-assignment protection), `settings/ui.showJournalNav` read gating, and author client-write isolation. When the Journal is disabled, public article and issue reads are denied while article owners and editorial staff retain their existing access. Author submissions and revisions use authenticated server APIs; direct Firestore article updates and deletes are limited to editors and administrators. Reviewer assignment, review, and unpublished-PDF APIs use the current profile role as authoritative; reviewer access additionally requires assignment to the article. Reviewers do not receive direct Firestore access to unpublished articles. Reviewer identity storage and reviewer treatment outside the Journal remain separate workstreams. Before a rules deployment, compare the candidate with the active production ruleset and reject any unrelated Journal/Reviewer delta.
+Journal rules are being reconciled with production one behavior at a time. Verified scopes include direct article creation (author ownership, PDF namespace, initial workflow state, and reviewer-assignment protection), `settings/ui.showJournalNav` read gating, and author client-write isolation. When the Journal is disabled, public article and issue reads are denied while article owners and editorial staff retain their existing access. Author submissions and revisions use authenticated server APIs; direct Firestore article updates and deletes are limited to editors and administrators. Reviewer assignment, review, and unpublished-PDF APIs use the current profile role as authoritative; reviewer access additionally requires assignment to the article. Reviewer identities are stored only in the server-managed `journalReviewerAssignments` collection and protected review subcollections, not on author-readable article documents. Reviewers do not receive direct Firestore access to unpublished articles or private assignment records. Reviewer treatment outside the Journal remains a separate workstream. Before a rules deployment, compare the candidate with the active production ruleset and reject any unrelated Journal/Reviewer delta.
 
 Typical scoped deployment:
 
@@ -78,6 +78,7 @@ After deployment, test at minimum:
 - Author article updates and revisions use authenticated server APIs; direct client updates and deletes are editor/admin only
 - Reviewer APIs reject stale privileged token roles and require the current reviewer profile role plus article assignment
 - Assigned reviewers cannot bypass the APIs with direct Firestore reads, updates, or deletes
+- Article documents do not contain reviewer IDs or emails; assignment records remain unreadable through client Firestore
 
 ## Firebase Functions deployment
 

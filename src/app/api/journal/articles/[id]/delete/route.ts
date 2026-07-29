@@ -5,6 +5,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
+import { deleteJournalReviewerAssignmentsForArticle } from '@/server/journal-reviewer-assignments';
 
 export const runtime = 'nodejs';
 
@@ -101,6 +102,7 @@ export async function POST(
       }
     }
 
+    await deleteJournalReviewerAssignmentsForArticle(db, id);
     await ref.delete();
 
     return NextResponse.json({ ok: true, deletedPdf }, { status: 200 });

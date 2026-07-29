@@ -211,7 +211,7 @@ User interfaces: `/journal/*`, `/reviewer`, `/admin/journal`, and `/research/*`.
 
 Server routes: `/api/journal/*`, `/api/reviewer/assignments`, and `/api/s3/presign-upload`.
 
-Data: `journalArticles`, article review subcollections, `journalIssues`, and `settings/ui`.
+Data: `journalArticles`, server-only `journalReviewerAssignments`, article review subcollections, `journalIssues`, and `settings/ui`. Reviewer identity is not stored on author-readable article documents.
 
 ## F9 — Announcements, Telegram, n8n, and live sessions
 

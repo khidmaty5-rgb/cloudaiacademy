@@ -5,9 +5,9 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import {
   getEffectiveJournalRole,
-  isAssignedJournalReviewer,
   isJournalEditorialStaff,
 } from '@/server/journal-access';
+import { hasJournalReviewerAssignment } from '@/server/journal-reviewer-assignments';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -124,7 +124,9 @@ export async function GET(
     let isStaff = false;
     if (!isOwner) {
       const effectiveRole = await getEffectiveJournalRole(db, uid, (decoded as any)?.role);
-      isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+      isReviewer =
+        effectiveRole === 'reviewer' &&
+        (await hasJournalReviewerAssignment(db, id, uid));
       isStaff = isJournalEditorialStaff(effectiveRole);
     }
 
@@ -203,7 +205,9 @@ export async function POST(
     if (!articleSnap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const article = articleSnap.data() as any;
 
-    const isReviewer = isAssignedJournalReviewer(effectiveRole, article?.reviewerIds, uid);
+    const isReviewer =
+      effectiveRole === 'reviewer' &&
+      (await hasJournalReviewerAssignment(db, id, uid));
     const isStaff = isJournalEditorialStaff(effectiveRole);
 
     if (!isReviewer && !isStaff) {

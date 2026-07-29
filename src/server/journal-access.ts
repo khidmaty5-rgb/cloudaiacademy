@@ -39,15 +39,3 @@ export async function getEffectiveJournalRole(
 export function isJournalEditorialStaff(role: unknown): boolean {
   return role === 'admin' || role === 'editor';
 }
-
-export function isAssignedJournalReviewer(
-  role: unknown,
-  reviewerIds: unknown,
-  uid: string,
-): boolean {
-  return (
-    role === 'reviewer' &&
-    Array.isArray(reviewerIds) &&
-    reviewerIds.some((reviewerId) => reviewerId === uid)
-  );
-}

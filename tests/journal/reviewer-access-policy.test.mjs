@@ -77,25 +77,6 @@ describe('Journal reviewer access policy', () => {
     assert.equal(policy.isJournalEditorialStaff('student'), false);
   });
 
-  it('requires both the current reviewer role and assignment to the paper', () => {
-    assert.equal(
-      policy.isAssignedJournalReviewer('reviewer', ['assigned-reviewer'], 'assigned-reviewer'),
-      true,
-    );
-    assert.equal(
-      policy.isAssignedJournalReviewer('student', ['assigned-reviewer'], 'assigned-reviewer'),
-      false,
-    );
-    assert.equal(
-      policy.isAssignedJournalReviewer('reviewer', ['another-reviewer'], 'assigned-reviewer'),
-      false,
-    );
-    assert.equal(
-      policy.isAssignedJournalReviewer('reviewer', null, 'assigned-reviewer'),
-      false,
-    );
-  });
-
   it('fails closed when the authoritative profile lookup fails', async () => {
     await assert.rejects(
       policy.getEffectiveJournalRole(

@@ -18,6 +18,10 @@ function articleRef(db, articleId = 'article-1') {
   return doc(db, 'journalArticles', articleId);
 }
 
+function assignmentRef(db, assignmentId = 'private-assignment') {
+  return doc(db, 'journalReviewerAssignments', assignmentId);
+}
+
 function article(overrides = {}) {
   return {
     title: 'Article under review',
@@ -27,8 +31,6 @@ function article(overrides = {}) {
     pdfPath: `journal/articles/${AUTHOR_ID}/article-1/manuscript.pdf`,
     status: 'UNDER_REVIEW',
     createdBy: AUTHOR_ID,
-    reviewerIds: [REVIEWER_ID],
-    reviewerEmails: ['reviewer@example.com'],
     reviewRound: 1,
     manuscriptVersion: 1,
     reviewManuscriptVersion: 1,
@@ -44,6 +46,16 @@ function article(overrides = {}) {
 async function seedArticle(articleId = 'article-1', overrides = {}) {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(articleRef(context.firestore(), articleId), article(overrides));
+  });
+}
+
+async function seedAssignment() {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(assignmentRef(context.firestore()), {
+      articleId: 'article-1',
+      reviewerId: REVIEWER_ID,
+      reviewerEmail: 'reviewer@example.com',
+    });
   });
 }
 
@@ -90,5 +102,18 @@ describe('Journal reviewer direct Firestore boundaries', () => {
     await assertSucceeds(getDoc(articleRef(userDb(AUTHOR_ID, 'student'))));
     await assertSucceeds(getDoc(articleRef(userDb('editor-user', 'editor'))));
     await assertSucceeds(getDoc(articleRef(userDb('admin-user', 'admin'))));
+  });
+
+  it('keeps private assignment documents unreadable to all client roles', async () => {
+    await seedAssignment();
+
+    for (const [uid, role] of [
+      [AUTHOR_ID, 'student'],
+      [REVIEWER_ID, 'reviewer'],
+      ['editor-user', 'editor'],
+      ['admin-user', 'admin'],
+    ]) {
+      await assertFails(getDoc(assignmentRef(userDb(uid, role))));
+    }
   });
 });
