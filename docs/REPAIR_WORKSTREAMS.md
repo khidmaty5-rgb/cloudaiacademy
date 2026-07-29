@@ -84,7 +84,9 @@ Current isolated rules coverage:
 - Reviewer assignment, review, and unpublished-PDF APIs use the current profile role rather than stale token claims. Reviewer access requires both the current `reviewer` role and assignment to the article; direct reviewer Firestore access remains denied.
 - Reviewer identities are isolated in the server-only `journalReviewerAssignments` collection and protected review subcollections. Author-readable article documents no longer store reviewer IDs or emails.
 - The pre-change production inventory contained zero Journal articles, assignments, or reviews, so no existing production identity records required migration.
-- Whether reviewer accounts should inherit non-Journal staff/paywall behavior remains a separate workstream.
+- Reviewer accounts are learner-equivalent outside the Journal. They may use their own enrollment, purchase, progress, and certificate records, while payment requirements still apply and no teacher/admin course privileges are inherited.
+- Current user profiles are authoritative over stale token roles in the shared client role resolver and reviewer-sensitive billing/PDF APIs. Missing profiles may fall back to valid token claims.
+- The pre-change production inventory contained zero reviewer profiles or reviewer enrollment/payment records, so no production data migration was required.
 
 ## W6 — AI functions
 

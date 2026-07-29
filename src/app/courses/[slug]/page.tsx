@@ -22,7 +22,7 @@ import { useLang } from '@/components/i18n/lang';
 import LiveSessionButton from '@/components/LiveSessionButton';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
-import { roleFromClaims } from '@/lib/roles';
+import { isLearnerRole, roleFromClaims } from '@/lib/roles';
 import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
 
@@ -32,7 +32,7 @@ const courseCopy = {
     goToCourse: 'Go to Course',
     enrollNow: 'Enroll Now',
     enrollNotAllowed: 'Enrollment not available',
-    enrollNotAllowedDesc: 'Only student accounts can enroll in courses.',
+    enrollNotAllowedDesc: 'Only learner accounts (student or reviewer) can enroll in courses.',
     enrollSuccess: 'Successfully Enrolled!',
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
@@ -44,7 +44,7 @@ const courseCopy = {
     goToCourse: 'Go to Course',
     enrollNow: 'Enroll Now',
     enrollNotAllowed: 'Enrollment not available',
-    enrollNotAllowedDesc: 'Only student accounts can enroll in courses.',
+    enrollNotAllowedDesc: 'Only learner accounts (student or reviewer) can enroll in courses.',
     enrollSuccess: 'Successfully Enrolled!',
     enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
     enrollFailed: 'Enrollment Failed',
@@ -82,9 +82,9 @@ export default function CourseDetailPage() {
     paymentSettings.model === 'per_course' &&
     (paymentSettings.provider === 'stripe' || paymentSettings.provider === 'paypal');
 
-  const isStudent = !!user && !roleLoading && role === 'student';
+  const isLearner = !!user && !roleLoading && isLearnerRole(role);
   const studentAccountRequiresPayment =
-    isStudent && studentRequiresPayment(paymentSettings, userProfile as any);
+    isLearner && studentRequiresPayment(paymentSettings, userProfile as any);
    
 
   const courseDocRef = useMemoFirebase(() => {
@@ -137,7 +137,7 @@ export default function CourseDetailPage() {
     !roleLoading && !isProfileLoading && !isPaymentLoading && !isEnrollmentLoading && !isPurchaseLoading;
   const courseIsFree = !!(course && isPriceFree(course.price));
   const coursePaymentRequired = !!(
-    isStudent &&
+    isLearner &&
     !canPreviewCourse &&
     paymentSettings.paywall.enabled &&
     studentAccountRequiresPayment &&
@@ -219,7 +219,7 @@ export default function CourseDetailPage() {
       const tr = await user.getIdTokenResult(true);
       const tokenRole = roleFromClaims(tr.claims);
       tokenRoleHint = tokenRole;
-      if (tokenRole !== 'student') {
+      if (!isLearnerRole(tokenRole)) {
         toast({ title: t.enrollNotAllowed, description: t.enrollNotAllowedDesc });
         return;
       }
@@ -228,7 +228,7 @@ export default function CourseDetailPage() {
       console.warn('[Enroll] Failed to refresh token claims', e);
     }
 
-    if (!isStudent) {
+    if (!isLearner) {
       toast({ title: t.enrollNotAllowed, description: t.enrollNotAllowedDesc });
       return;
     }
@@ -311,10 +311,10 @@ export default function CourseDetailPage() {
           description:
             studentAccountRequiresPayment && !canPreviewCourse && paymentSettings.model !== 'per_course'
               ? 'Payment is required to enroll.'
-              : profileRoleHint && profileRoleHint !== 'student'
-              ? `Permission denied. Your profile role is "${profileRoleHint}". Only student accounts can enroll.${debug}`
-              : roleHint !== 'student'
-              ? `Permission denied. Your role is "${roleHint}". Only student accounts can enroll.${debug}`
+              : profileRoleHint && !isLearnerRole(profileRoleHint)
+              ? `Permission denied. Your profile role is "${profileRoleHint}". Only learner accounts can enroll.${debug}`
+              : !isLearnerRole(roleHint)
+              ? `Permission denied. Your role is "${roleHint}". Only learner accounts can enroll.${debug}`
               : `Permission denied by Firestore rules.${debug}`,
         });
         return;
@@ -515,7 +515,7 @@ export default function CourseDetailPage() {
                     >
                       {t.goToCourse}
                     </Button>
-                 ) : isStudent ? (
+                 ) : isLearner ? (
                    isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
                      <Button
                        onClick={handlePayForCourse}

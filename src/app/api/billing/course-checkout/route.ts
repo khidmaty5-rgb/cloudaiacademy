@@ -6,6 +6,8 @@ import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import { isLearnerRole } from '@/lib/roles';
+import { normalizeUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -187,10 +189,6 @@ export async function POST(req: NextRequest) {
 
     const tokenRoleRaw = (decoded as Record<string, unknown>).role;
     const tokenRole = typeof tokenRoleRaw === 'string' ? tokenRoleRaw : null;
-    if (tokenRole && tokenRole !== 'student') {
-      return NextResponse.json({ error: 'Only student accounts can checkout.' }, { status: 403 });
-    }
-
     const body = (await req.json().catch(() => ({}))) as CourseCheckoutBody;
     const courseId = (typeof body.courseId === 'string' ? body.courseId : '').trim();
     if (!courseId || !isSafeId(courseId)) {
@@ -227,9 +225,14 @@ export async function POST(req: NextRequest) {
     const userSnap = await userRef.get();
     const userData = userSnap.exists ? (userSnap.data() as any) : {};
 
-    const profileRole = String(userData?.role || '').trim().toLowerCase();
-    if (profileRole && profileRole !== 'student') {
-      return NextResponse.json({ error: 'Only student accounts can checkout.' }, { status: 403 });
+    const effectiveRole = userSnap.exists
+      ? normalizeUserRole(userData?.role)
+      : normalizeUserRole(tokenRole);
+    if (!isLearnerRole(effectiveRole)) {
+      return NextResponse.json(
+        { error: 'Only learner accounts (student or reviewer) can checkout.' },
+        { status: 403 },
+      );
     }
 
     const courseSnap = await db.doc(`courses/${courseId}`).get();

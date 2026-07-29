@@ -7,6 +7,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
 import { isPriceFree } from '@/lib/course-price';
+import { isLearnerRole } from '@/lib/roles';
+import { getEffectiveUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -87,9 +89,9 @@ export async function GET(
 
     const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
     if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const role = (decoded?.role as string | undefined) || 'student';
-
     const db = getFirestore(app);
+    const role = await getEffectiveUserRole(db, String(uid), decoded?.role);
+    if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const courseSnap = await db.doc(`courses/${courseId}`).get();
     if (!courseSnap.exists) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     const course = courseSnap.data() as any;
@@ -100,9 +102,9 @@ export async function GET(
 
     let allowed = isAdmin || isTeacherInstructor;
     if (!allowed) {
-      // Student access: must be enrolled AND either the course is free, the course was purchased,
-      // or the student's account is not paywalled (e.g. subscription active / paywall off).
-      if (role !== 'student') {
+      // Learner access: must be enrolled AND either the course is free, the course was purchased,
+      // or the learner's account is not paywalled (e.g. subscription active / paywall off).
+      if (!isLearnerRole(role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 

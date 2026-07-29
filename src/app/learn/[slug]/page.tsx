@@ -19,7 +19,7 @@ import type { EnrollmentRequest } from '@/types/models';
 import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
-import { roleFromClaims } from '@/lib/roles';
+import { isLearnerRole, roleFromClaims } from '@/lib/roles';
 import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
 
@@ -37,7 +37,7 @@ export default function LearnCoursePage() {
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
   const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
-  const isStudent = !!user && !roleLoading && role === 'student';
+  const isLearner = !!user && !roleLoading && isLearnerRole(role);
   const paymentDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
   const { data: paymentDoc, isLoading: isPaymentLoading } = useDoc(paymentDocRef);
   const paymentSettings = useMemo(
@@ -49,7 +49,7 @@ export default function LearnCoursePage() {
     paymentSettings.model === 'per_course' &&
     (paymentSettings.provider === 'stripe' || paymentSettings.provider === 'paypal');
   const studentAccountRequiresPayment =
-    isStudent && studentRequiresPayment(paymentSettings, userProfile as any);
+    isLearner && studentRequiresPayment(paymentSettings, userProfile as any);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!slug) return null;
@@ -88,7 +88,7 @@ export default function LearnCoursePage() {
     !roleLoading && !isProfileLoading && !isPaymentLoading && !isEnrollmentLoading && !isPurchaseLoading;
   const courseIsFree = !!(course && isPriceFree((course as any)?.price));
   const coursePaymentRequired = !!(
-    isStudent &&
+    isLearner &&
     !canPreviewCourse &&
     paymentSettings.paywall.enabled &&
     studentAccountRequiresPayment &&
@@ -238,10 +238,10 @@ export default function LearnCoursePage() {
       const tr = await user.getIdTokenResult(true);
       const tokenRole = roleFromClaims(tr.claims);
       tokenRoleHint = tokenRole;
-      if (tokenRole !== 'student') {
+      if (!isLearnerRole(tokenRole)) {
         toast({
           title: 'Enrollment not available',
-          description: 'Only student accounts can enroll in courses.',
+          description: 'Only learner accounts (student or reviewer) can enroll in courses.',
         });
         return;
       }
@@ -249,10 +249,10 @@ export default function LearnCoursePage() {
       console.warn('[Enroll] Failed to refresh token claims', e);
     }
 
-    if (!isStudent) {
+    if (!isLearner) {
       toast({
         title: 'Enrollment not available',
-        description: 'Only student accounts can enroll in courses.',
+        description: 'Only learner accounts (student or reviewer) can enroll in courses.',
       });
       return;
     }
@@ -322,11 +322,11 @@ export default function LearnCoursePage() {
           variant: 'destructive',
           title: 'Enrollment failed',
           description:
-            profileRoleHint && profileRoleHint !== 'student'
-              ? `Permission denied. Your profile role is "${profileRoleHint}". Only student accounts can enroll.${debug}`
+            profileRoleHint && !isLearnerRole(profileRoleHint)
+              ? `Permission denied. Your profile role is "${profileRoleHint}". Only learner accounts can enroll.${debug}`
               :
-            roleHint !== 'student'
-              ? `Permission denied. Your role is "${roleHint}". Only student accounts can enroll.${debug}`
+            !isLearnerRole(roleHint)
+              ? `Permission denied. Your role is "${roleHint}". Only learner accounts can enroll.${debug}`
               : `Permission denied by Firestore rules.${debug}`,
         });
         return;
@@ -387,7 +387,7 @@ export default function LearnCoursePage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  {isStudent ? (
+                  {isLearner ? (
                     isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
                       <button
                         disabled={enrolling || !perCoursePaymentAvailable}
@@ -435,7 +435,9 @@ export default function LearnCoursePage() {
                       </button>
                     )
                   ) : (
-                    <p className="text-sm text-muted-foreground">Only students can enroll in courses.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Only learner accounts (student or reviewer) can enroll in courses.
+                    </p>
                   )}
                   {studentAccountRequiresPayment && paymentSettings.model !== 'per_course' && (
                     <Link

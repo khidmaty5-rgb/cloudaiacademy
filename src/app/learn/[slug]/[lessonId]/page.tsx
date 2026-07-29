@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
-import { canTeachCourse, roleFromClaims } from '@/lib/roles';
+import { canTeachCourse, isLearnerRole, roleFromClaims } from '@/lib/roles';
 import { updateUserProgress, enrollInCourse } from '@/lib/enrollment';
 import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
 import Header from '@/components/landing/header';
@@ -98,12 +98,12 @@ export default function LessonPage() {
   const uid = user?.uid;
   const isInstructor = !!(uid && canTeachCourse(course as any, uid));
   const canPreviewCourse = !!(isAdmin || (isTeacher && isInstructor));
-  const isStudent = !!user && !roleLoading && role === 'student';
+  const isLearner = !!user && !roleLoading && isLearnerRole(role);
   const studentAccountRequiresPayment =
-    isStudent && studentRequiresPayment(paymentSettings, userProfile);
+    isLearner && studentRequiresPayment(paymentSettings, userProfile);
   const courseIsFree = !!(course && isPriceFree((course as any)?.price));
   const coursePaymentRequired = !!(
-    isStudent &&
+    isLearner &&
     !canPreviewCourse &&
     paymentSettings.paywall.enabled &&
     studentAccountRequiresPayment &&
@@ -284,10 +284,10 @@ export default function LessonPage() {
       const tr = await user.getIdTokenResult(true);
       const tokenRole = roleFromClaims(tr.claims);
       tokenRoleHint = tokenRole;
-      if (tokenRole !== 'student') {
+      if (!isLearnerRole(tokenRole)) {
         toast({
           title: 'Enrollment not available',
-          description: 'Only student accounts can enroll in courses.',
+          description: 'Only learner accounts (student or reviewer) can enroll in courses.',
         });
         return;
       }
@@ -295,10 +295,10 @@ export default function LessonPage() {
       console.warn('[Enroll] Failed to refresh token claims', e);
     }
 
-    if (!isStudent) {
+    if (!isLearner) {
       toast({
         title: 'Enrollment not available',
-        description: 'Only student accounts can enroll in courses.',
+        description: 'Only learner accounts (student or reviewer) can enroll in courses.',
       });
       return;
     }
@@ -370,11 +370,11 @@ export default function LessonPage() {
           variant: 'destructive',
           title: 'Request failed',
           description:
-            profileRoleHint && profileRoleHint !== 'student'
-              ? `Permission denied. Your profile role is "${profileRoleHint}". Only student accounts can enroll.${debug}`
+            profileRoleHint && !isLearnerRole(profileRoleHint)
+              ? `Permission denied. Your profile role is "${profileRoleHint}". Only learner accounts can enroll.${debug}`
               :
-            roleHint !== 'student'
-              ? `Permission denied. Your role is "${roleHint}". Only student accounts can enroll.${debug}`
+            !isLearnerRole(roleHint)
+              ? `Permission denied. Your role is "${roleHint}". Only learner accounts can enroll.${debug}`
               : `Permission denied by Firestore rules.${debug}`,
         });
         return;
@@ -489,7 +489,7 @@ export default function LessonPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  {isStudent ? (
+                  {isLearner ? (
                     isEnrolled && paymentSettings.model === 'per_course' && coursePaymentRequired ? (
                       <Button
                         disabled={isWaitlistSaving || !perCoursePaymentAvailable}
@@ -535,7 +535,9 @@ export default function LessonPage() {
                       </Button>
                     )
                   ) : (
-                    <p className="text-sm text-muted-foreground">Only students can enroll in courses.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Only learner accounts (student or reviewer) can enroll in courses.
+                    </p>
                   )}
                   {studentAccountRequiresPayment && paymentSettings.model !== 'per_course' && (
                     <Button asChild variant="outline">
@@ -762,7 +764,7 @@ export default function LessonPage() {
             </div>
             
             <div className="flex gap-2">
-                {isStudent && (
+                {isLearner && (
                   <>
                     <Dialog>
                       <DialogTrigger asChild>
@@ -795,7 +797,7 @@ export default function LessonPage() {
             
             <div>
                 {nextLesson ? (
-                  isStudent ? (
+                  isLearner ? (
                     !isLessonCompleted ? (
                       <Button variant="outline" disabled>
                         Next Lesson <ArrowRight className="ml-2" />
