@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { doc, getFirestore, onSnapshot } from 'firebase/firestore';
 import type { UserRole } from '@/types/models';
-import { roleFromClaims } from '@/lib/roles';
+import { resolveCurrentRole, roleFromClaims } from '@/lib/roles';
 
 const CLAIMS_REFRESH_KEY = 'cloudai:claimsRefreshedAt';
 const CLAIMS_REFRESH_WINDOW_MS = 5 * 60 * 1000;
@@ -13,15 +13,6 @@ function normalizeRole(raw: unknown): UserRole | null {
   return raw === 'admin' || raw === 'teacher' || raw === 'editor' || raw === 'reviewer' || raw === 'student'
     ? (raw as UserRole)
     : null;
-}
-
-function mergeRoleClaimsAndProfile(claimRole: UserRole, profileRole: UserRole) {
-  // Prefer the most privileged role we can observe; profile is authoritative when claims are missing/stale.
-  if (claimRole === 'admin' || profileRole === 'admin') return 'admin' as const;
-  if (claimRole === 'editor' || profileRole === 'editor') return 'editor' as const;
-  if (claimRole === 'teacher' || profileRole === 'teacher') return 'teacher' as const;
-  if (claimRole === 'reviewer' || profileRole === 'reviewer') return 'reviewer' as const;
-  return 'student' as const;
 }
 
 export function useCurrentRole() {
@@ -35,11 +26,16 @@ export function useCurrentRole() {
     let unsubscribeProfile: (() => void) | null = null;
 
     let lastClaimRole: UserRole = 'student';
-    let lastProfileRole: UserRole = 'student';
+    let lastProfileRole: UserRole | null = null;
+    let profileExists = false;
+    let profileResolved = false;
+    let claimResolved = false;
 
-    const applyMergedRole = () => {
+    const applyResolvedRole = () => {
       if (cancelled) return;
-      setRole(mergeRoleClaimsAndProfile(lastClaimRole, lastProfileRole));
+      if (!profileResolved || (!profileExists && !claimResolved)) return;
+      setRole(resolveCurrentRole(lastClaimRole, lastProfileRole, profileExists));
+      setLoading(false);
     };
 
     async function init() {
@@ -50,8 +46,8 @@ export function useCurrentRole() {
           return;
         }
 
-        // Subscribe to the user's profile role as a fallback when claims are missing or stale.
-        // This avoids the UI showing "student" while Firestore rules treat the user as staff.
+        // The current profile is authoritative. Claims are used only when the profile is absent;
+        // profile read failures fall closed to the student role.
         try {
           unsubscribeProfile?.();
           const ref = doc(firestore, 'users', u.uid);
@@ -59,16 +55,25 @@ export function useCurrentRole() {
             ref,
             (snap) => {
               if (cancelled) return;
-              const next = normalizeRole(snap.data()?.role) ?? 'student';
-              lastProfileRole = next;
-              applyMergedRole();
+              profileExists = snap.exists();
+              profileResolved = true;
+              lastProfileRole = profileExists
+                ? normalizeRole(snap.data()?.role) ?? 'student'
+                : null;
+              applyResolvedRole();
             },
             () => {
-              // Ignore profile listener errors; claims still provide a baseline.
+              profileExists = true;
+              profileResolved = true;
+              lastProfileRole = 'student';
+              applyResolvedRole();
             },
           );
         } catch {
-          // Ignore profile listener setup errors.
+          profileExists = true;
+          profileResolved = true;
+          lastProfileRole = 'student';
+          applyResolvedRole();
         }
 
         let forceRefresh = false;
@@ -87,9 +92,9 @@ export function useCurrentRole() {
           tr = await u.getIdTokenResult();
         }
         lastClaimRole = roleFromClaims(tr.claims);
+        claimResolved = true;
         if (!cancelled) {
-          applyMergedRole();
-          setLoading(false);
+          applyResolvedRole();
         }
       } catch {
         if (!cancelled) { setRole('student'); setLoading(false); }
@@ -102,9 +107,13 @@ export function useCurrentRole() {
       try {
         unsubscribeProfile?.();
         unsubscribeProfile = null;
-        lastProfileRole = 'student';
+        lastProfileRole = null;
+        profileExists = false;
+        profileResolved = false;
+        claimResolved = false;
 
         if (!u) { setRole('student'); setLoading(false); return; }
+        setLoading(true);
 
         // Re-subscribe for the new user.
         try {
@@ -113,18 +122,37 @@ export function useCurrentRole() {
             ref,
             (snap) => {
               if (cancelled) return;
-              const next = normalizeRole(snap.data()?.role) ?? 'student';
-              lastProfileRole = next;
-              applyMergedRole();
+              profileExists = snap.exists();
+              profileResolved = true;
+              lastProfileRole = profileExists
+                ? normalizeRole(snap.data()?.role) ?? 'student'
+                : null;
+              applyResolvedRole();
             },
-            () => {},
+            () => {
+              profileExists = true;
+              profileResolved = true;
+              lastProfileRole = 'student';
+              applyResolvedRole();
+            },
           );
-        } catch {}
+        } catch {
+          profileExists = true;
+          profileResolved = true;
+          lastProfileRole = 'student';
+          applyResolvedRole();
+        }
 
         const tr = await u.getIdTokenResult();
         lastClaimRole = roleFromClaims(tr.claims);
-        applyMergedRole();
-      } catch { setRole('student'); }
+        claimResolved = true;
+        applyResolvedRole();
+      } catch {
+        if (!cancelled) {
+          setRole('student');
+          setLoading(false);
+        }
+      }
     });
 
     return () => {
@@ -143,6 +171,7 @@ export function useCurrentRole() {
     isTeacher: role === 'teacher',
     isEditor: role === 'editor' || role === 'admin',
     isReviewer: role === 'reviewer' || role === 'admin',
+    isLearner: role === 'student' || role === 'reviewer',
     isStudent: role === 'student',
   } as const;
 }

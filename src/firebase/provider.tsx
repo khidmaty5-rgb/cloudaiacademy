@@ -7,6 +7,7 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import { ensureUserClaimsSync } from '@/firebase/claim-sync';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { shouldAutoCreateStudentProfile } from '@/lib/roles';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -119,7 +120,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const tr = await u.getIdTokenResult();
         claimRole = (tr.claims as any)?.role as string | undefined;
       } catch {}
-      if (claimRole === 'admin' || claimRole === 'teacher' || claimRole === 'editor') return;
+      if (!shouldAutoCreateStudentProfile(claimRole)) return;
 
       const ref = doc(firestore, 'users', u.uid);
       try {

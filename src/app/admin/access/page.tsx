@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
 import { studentRequiresPayment } from '@/lib/payment-gate';
+import { isLearnerRole } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -391,9 +392,9 @@ export default function AdminAccessPage() {
                     <TableCell>
                       <Switch
                           checked={studentRequiresPayment(paymentSettings, u as any)}
-                          disabled={u.role !== 'student' || !paymentSettings.paywall.enabled}
+                          disabled={!isLearnerRole(u.role) || !paymentSettings.paywall.enabled}
                           onCheckedChange={async (checked) => {
-                            if (u.role !== 'student' || !paymentSettings.paywall.enabled) return;
+                            if (!isLearnerRole(u.role) || !paymentSettings.paywall.enabled) return;
                             try {
                               await updateDoc(doc(firestore, 'users', u.id), { requirePayment: !!checked });
                             } catch {}
@@ -403,7 +404,7 @@ export default function AdminAccessPage() {
                     <TableCell>
                       <CourseOfflinePaymentDialog
                         disabled={
-                          u.role !== 'student' ||
+                          !isLearnerRole(u.role) ||
                           paymentSettings.model !== 'per_course' ||
                           sortedCourses.length === 0
                         }

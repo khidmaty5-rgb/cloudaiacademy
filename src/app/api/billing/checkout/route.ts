@@ -12,6 +12,8 @@ import {
   type PaymentInterval,
   type PaymentPlanId,
 } from '@/lib/payment-settings';
+import { isLearnerRole } from '@/lib/roles';
+import { getEffectiveUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -117,16 +119,19 @@ export async function POST(req: NextRequest) {
     const uid = decoded.uid || decoded.sub;
     if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const role = (decoded as any)?.role as string | undefined | null;
-    if (role && role !== 'student') {
-      return NextResponse.json({ error: 'Only student accounts can checkout.' }, { status: 403 });
+    const db = getFirestore(app);
+    const effectiveRole = await getEffectiveUserRole(db, uid, (decoded as any)?.role);
+    if (!isLearnerRole(effectiveRole)) {
+      return NextResponse.json(
+        { error: 'Only learner accounts (student or reviewer) can checkout.' },
+        { status: 403 },
+      );
     }
 
     const body = (await req.json().catch(() => ({}))) as CheckoutRequestBody;
     const planId = normalizePlanId(body.planId);
     if (!planId) return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 });
 
-    const db = getFirestore(app);
     const settingsSnap = await db.doc('settings/payment').get();
     const settings = sanitizePaymentSettings(
       settingsSnap.exists ? (settingsSnap.data() as any) : null,

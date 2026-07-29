@@ -9,7 +9,7 @@ This catalog groups the application into stable work areas so each function can 
 | Public visitor | View landing content, published courses, research content, published journal articles, and certificate verification |
 | Student | Manage a profile, enroll, purchase access, learn, track progress, use AI learning tools, and view certificates |
 | Teacher | View assigned courses, manage lessons where authorized, and use provider communication tools |
-| Reviewer | View assigned manuscripts and submit reviews |
+| Reviewer | View assigned manuscripts, submit reviews, and retain learner access to personally enrolled or purchased courses without staff/paywall bypass |
 | Editor | Manage journal workflow, reviewers, issues, and publication |
 | Administrator | Manage users, roles, courses, payments, certificates, announcements, journal operations, and platform settings |
 | n8n worker | Confirm Telegram connections, claim scheduled jobs, and record delivery results using a shared secret |
@@ -43,6 +43,7 @@ Server functions:
 - `POST /api/admin/update-user-role`
 - Firebase Functions `onUserCreate`, `onUserUpdate`, and `adminCreateUser`
 - Client claim synchronization and current-role resolution
+- Reviewer accounts are learner-equivalent outside the Journal: they may enroll, purchase access, learn, track progress, and receive certificates, but do not inherit teacher, editor, or administrator privileges
 
 Data: `users/{uid}` and Firebase Authentication custom claims.
 

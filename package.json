@@ -10,7 +10,7 @@
     "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && cross-env NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint src",
-    "test:firestore-rules": "firebase emulators:exec --config firebase.test.json --only firestore \"node --test tests/firestore/user-profile.rules.test.mjs tests/firestore/journal-submission.rules.test.mjs tests/firestore/journal-visibility.rules.test.mjs tests/firestore/journal-author-updates.rules.test.mjs tests/firestore/journal-reviewer-access.rules.test.mjs tests/journal/reviewer-access-policy.test.mjs tests/journal/reviewer-assignment-store.test.mjs\"",
+    "test:firestore-rules": "firebase emulators:exec --config firebase.test.json --only firestore \"node --test tests/firestore/user-profile.rules.test.mjs tests/firestore/journal-submission.rules.test.mjs tests/firestore/journal-visibility.rules.test.mjs tests/firestore/journal-author-updates.rules.test.mjs tests/firestore/journal-reviewer-access.rules.test.mjs tests/firestore/reviewer-learning-access.rules.test.mjs tests/journal/reviewer-access-policy.test.mjs tests/journal/reviewer-assignment-store.test.mjs tests/roles/reviewer-learning-policy.test.mjs\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

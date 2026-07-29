@@ -36,7 +36,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, isUserLoading } = useUser();
   const { role, loading: roleLoading } = useCurrentRole();
-  const showStudentMenu = !!user && !isUserLoading && !roleLoading && role === 'student';
+  const showStudentMenu =
+    !!user && !isUserLoading && !roleLoading && (role === 'student' || role === 'reviewer');
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

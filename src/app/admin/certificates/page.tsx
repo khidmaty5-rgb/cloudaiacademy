@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import CertificateView from '@/components/certificates/certificate-view';
 import { generateCertificatePdfBytes } from '@/lib/certificate-pdf';
 import { formatCertificateId, normalizeCourseCode } from '@/lib/certificates';
+import { isLearnerRole } from '@/lib/roles';
 import type { Certificate, CertificateRecipientNameStyle, Course, UserProfile } from '@/types/models';
 
 function asDateInputValue(d: Date) {
@@ -413,7 +414,7 @@ export default function AdminCertificatesPage() {
           );
           return snap.docs
             .map((d) => ({ id: d.id, ...(d.data() as any) }) as UserProfile)
-            .filter((u) => u.role === 'student');
+            .filter((u) => isLearnerRole(u.role));
         };
 
         const emailHits = await fetchPrefix('email', termLower);
