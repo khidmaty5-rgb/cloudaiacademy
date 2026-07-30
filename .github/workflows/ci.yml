@@ -42,6 +42,9 @@ jobs:
       - name: Test Firestore security rules
         run: npm run test:firestore-rules
 
+      - name: Test billing payment validation
+        run: npm run test:billing
+
       - name: Typecheck
         run: npm run typecheck
 
