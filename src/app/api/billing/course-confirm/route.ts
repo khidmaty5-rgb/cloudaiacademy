@@ -5,6 +5,12 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import {
+  normalizePriceToCents,
+  validatePaypalCoursePayment,
+  validateStripeCourseSession,
+} from '@/server/course-payment-validation';
 
 export const runtime = 'nodejs';
 
@@ -69,34 +75,6 @@ function getAdminApp(): App {
 
 function isSafeId(id: string) {
   return /^[a-zA-Z0-9_-]+$/.test(id);
-}
-
-function normalizePriceToCents(price: unknown): number | null {
-  if (typeof price === 'number' && Number.isFinite(price)) {
-    if (price <= 0) return 0;
-    return Math.round(price * 100);
-  }
-
-  if (typeof price !== 'string') return null;
-  const raw = price.trim();
-  if (!raw) return null;
-
-  const lowered = raw.toLowerCase();
-  if (lowered === 'free' || lowered === '$0' || lowered === '0' || lowered === '0.00') return 0;
-
-  const cleaned = raw.replace(/[^0-9.,-]/g, '').replace(/,/g, '').trim();
-  if (!cleaned) return null;
-  const n = Number.parseFloat(cleaned);
-  if (!Number.isFinite(n)) return null;
-  if (n <= 0) return 0;
-  return Math.round(n * 100);
-}
-
-function isPaidSession(session: Record<string, unknown>) {
-  const paymentStatus = typeof session.payment_status === 'string' ? session.payment_status : '';
-  if (paymentStatus === 'paid') return true;
-  if (paymentStatus === 'no_payment_required') return true;
-  return false;
 }
 
 function paypalApiBase() {
@@ -262,12 +240,15 @@ async function findPaidSessionForCourse(opts: {
 
   const sessions = data.filter((v): v is Record<string, unknown> => !!v && typeof v === 'object');
   const matches = sessions.filter((s) => {
-    if (!isPaidSession(s)) return false;
+    if (pickString(s.payment_status) !== 'paid') return false;
+    if (pickString(s.status) !== 'complete') return false;
+    if (pickString(s.mode) !== 'payment') return false;
     const meta = pickMetadata(s);
     if (meta.courseId !== opts.courseId) return false;
-    if (meta.paymentType && meta.paymentType !== 'course') return false;
-    const uidFromMeta = meta.firebaseUid || pickString(s.client_reference_id);
-    if (uidFromMeta && uidFromMeta !== opts.uid) return false;
+    if (meta.paymentType !== 'course') return false;
+    if (meta.firebaseUid !== opts.uid) return false;
+    const clientReferenceId = pickString(s.client_reference_id);
+    if (clientReferenceId && clientReferenceId !== opts.uid) return false;
     return true;
   });
 
@@ -309,26 +290,35 @@ export async function POST(req: NextRequest) {
     const userRef = db.doc(`users/${uid}`);
     const userSnap = await userRef.get();
     const userData = userSnap.exists ? (userSnap.data() as Record<string, unknown>) : {};
+    const [courseSnap, settingsSnap] = await Promise.all([
+      db.doc(`courses/${courseId}`).get(),
+      db.doc('settings/payment').get(),
+    ]);
+    if (!courseSnap.exists) return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
+    const course = courseSnap.data() as Record<string, unknown>;
+    const cents = normalizePriceToCents(course?.price);
+    if (cents == null) return NextResponse.json({ error: 'Course price is not configured.' }, { status: 400 });
+    if (cents <= 0) return NextResponse.json({ error: 'This course is free.' }, { status: 400 });
+    const settings = sanitizePaymentSettings(
+      settingsSnap.exists ? settingsSnap.data() : null,
+      DEFAULT_PAYMENT_SETTINGS,
+    );
+    const expectedPayment = {
+      uid,
+      courseId,
+      amountCents: cents,
+      currency: settings.currency,
+    };
 
     if (orderId) {
-      const courseSnap = await db.doc(`courses/${courseId}`).get();
-      if (!courseSnap.exists) return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
-      const course = courseSnap.data() as Record<string, unknown>;
-      const cents = normalizePriceToCents(course?.price);
-      if (cents == null) return NextResponse.json({ error: 'Course price is not configured.' }, { status: 400 });
-      if (cents <= 0) return NextResponse.json({ error: 'This course is free.' }, { status: 400 });
-
-      const expectedAmount = (cents / 100).toFixed(2);
-
       const order = await paypalGetJson(`/v2/checkout/orders/${orderId}`);
       let parsed = parsePaypalOrder(order);
 
-      const expectedCustomId = `${uid}:${courseId}`;
-      if (!parsed.customId || parsed.customId !== expectedCustomId) {
-        return NextResponse.json({ error: 'PayPal order does not match this user/course.' }, { status: 403 });
-      }
-      if (!parsed.value || parsed.value !== expectedAmount) {
-        return NextResponse.json({ error: 'PayPal amount does not match course price.' }, { status: 400 });
+      if (parsed.customId !== `${uid}:${courseId}`) {
+        return NextResponse.json(
+          { error: 'PayPal order does not match this user/course.' },
+          { status: 403 },
+        );
       }
 
       if (parsed.status === 'APPROVED') {
@@ -346,8 +336,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (parsed.status !== 'COMPLETED') {
-        return NextResponse.json({ error: `PayPal order is not completed (status=${parsed.status}).` }, { status: 400 });
+      const validation = validatePaypalCoursePayment(parsed, expectedPayment);
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: validation.status });
       }
 
       await db.doc(`users/${uid}/coursePurchases/${courseId}`).set(
@@ -387,20 +378,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isPaidSession(session)) {
-      return NextResponse.json({ error: 'Checkout session is not paid yet.' }, { status: 400 });
-    }
-
     const metadata = pickMetadata(session);
-    if (metadata.paymentType && metadata.paymentType !== 'course') {
-      return NextResponse.json({ error: 'This checkout session is not for a course purchase.' }, { status: 400 });
-    }
-    if (metadata.courseId && metadata.courseId !== courseId) {
-      return NextResponse.json({ error: 'Checkout session does not match this course.' }, { status: 400 });
-    }
-    const uidFromSession = metadata.firebaseUid || pickString(session.client_reference_id);
-    if (uidFromSession && uidFromSession !== uid) {
-      return NextResponse.json({ error: 'Checkout session does not match this user.' }, { status: 403 });
+    const validation = validateStripeCourseSession(session, expectedPayment);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
 
     const stripeCustomerId = pickString(session.customer) || customerId || undefined;
@@ -412,7 +393,7 @@ export async function POST(req: NextRequest) {
     await db.doc(`users/${uid}/coursePurchases/${courseId}`).set(
       {
         courseId,
-        courseTitle: metadata.courseTitle || undefined,
+        courseTitle: pickString(course?.title) || metadata.courseTitle || undefined,
         stripeCustomerId,
         stripeCheckoutSessionId,
         stripePaymentIntentId: paymentIntent,
