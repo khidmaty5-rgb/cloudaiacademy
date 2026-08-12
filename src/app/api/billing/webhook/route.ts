@@ -5,6 +5,15 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_PAYMENT_SETTINGS, sanitizePaymentSettings } from '@/lib/payment-settings';
+import { normalizePriceToCents } from '@/server/course-payment-validation';
+import {
+  classifyStripeCourseWebhook,
+  getStripeCourseIdentity,
+  isStripeCourseSession,
+  isStripeCourseWebhookEvent,
+} from '@/server/stripe-course-webhook';
+import { fulfillStripeCourseWebhook } from '@/server/stripe-course-webhook-store';
 
 export const runtime = 'nodejs';
 
@@ -146,11 +155,84 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
+  if (!event?.id || !/^evt_[a-zA-Z0-9_]+$/.test(event.id) || !event.type) {
+    return NextResponse.json({ error: 'Invalid Stripe event.' }, { status: 400 });
+  }
 
   try {
     const app = getAdminApp();
     const db = getFirestore(app);
     const obj = event?.data?.object;
+
+    if (isStripeCourseWebhookEvent(event.type)) {
+      const session = obj && typeof obj === 'object' ? (obj as Record<string, unknown>) : {};
+      const courseSession = isStripeCourseSession(session);
+      const identity = getStripeCourseIdentity(session);
+      if (courseSession && !identity) {
+        console.warn('[billing/webhook] ignored malformed course checkout event', {
+          eventId: event.id,
+          eventType: event.type,
+        });
+        return NextResponse.json({ received: true }, { status: 200 });
+      }
+      if (identity) {
+        const [courseSnap, settingsSnap] = await Promise.all([
+          db.doc(`courses/${identity.courseId}`).get(),
+          db.doc('settings/payment').get(),
+        ]);
+        if (!courseSnap.exists) {
+          console.warn('[billing/webhook] ignored course event for missing course', {
+            eventId: event.id,
+            courseId: identity.courseId,
+          });
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
+        const course = courseSnap.data() as Record<string, unknown>;
+        const amountCents = normalizePriceToCents(course.price);
+        const settings = sanitizePaymentSettings(
+          settingsSnap.exists ? settingsSnap.data() : null,
+          DEFAULT_PAYMENT_SETTINGS,
+        );
+        if (amountCents == null || amountCents <= 0) {
+          console.warn('[billing/webhook] ignored course event with invalid current price', {
+            eventId: event.id,
+            courseId: identity.courseId,
+          });
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
+
+        const classification = classifyStripeCourseWebhook(event.type, session, {
+          ...identity,
+          amountCents,
+          currency: settings.currency,
+        });
+        if (classification.action === 'ignore') {
+          console.warn('[billing/webhook] ignored course checkout event', {
+            eventId: event.id,
+            eventType: event.type,
+            outcome: classification.outcome,
+            reason: classification.reason,
+          });
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
+        if (classification.action === 'fulfill') {
+          const outcome = await fulfillStripeCourseWebhook(db, {
+            eventId: event.id,
+            eventType: event.type,
+            eventCreated: event.created,
+            ...classification,
+            courseTitle: typeof course.title === 'string' ? course.title : undefined,
+          });
+          if (outcome === 'session_binding_conflict') {
+            console.error('[billing/webhook] Stripe session binding conflict', {
+              eventId: event.id,
+              sessionId: classification.sessionId,
+            });
+          }
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
+      }
+    }
 
     const setRequirePayment = async (uid: string, requirePayment: boolean, extra?: Record<string, any>) => {
       await db.doc(`users/${uid}`).set(
@@ -174,34 +256,16 @@ export async function POST(req: NextRequest) {
       const customerId = (session?.customer as string | undefined) || '';
       const planId = (session?.metadata?.planId as string | undefined) || '';
       const interval = (session?.metadata?.interval as string | undefined) || '';
-      const courseId = (session?.metadata?.courseId as string | undefined) || '';
-      const courseTitle = (session?.metadata?.courseTitle as string | undefined) || '';
 
       let userId = uid;
       if (!userId && customerId) userId = await findUserIdByCustomerId(db, customerId);
       if (userId) {
-        if (courseId) {
-          await db.doc(`users/${userId}/coursePurchases/${courseId}`).set(
-            {
-              courseId,
-              courseTitle: courseTitle || undefined,
-              stripeCustomerId: customerId || undefined,
-              stripeCheckoutSessionId: session?.id,
-              amount: (session as any)?.amount_total ?? undefined,
-              currency: (session as any)?.currency ?? undefined,
-              status: 'PAID',
-              paidAt: new Date(),
-            },
-            { merge: true },
-          );
-        } else {
-          await setRequirePayment(userId, false, {
-            stripeCustomerId: customerId || undefined,
-            stripeCheckoutSessionId: session?.id,
-            billingPlanId: planId || undefined,
-            billingInterval: interval || undefined,
-          });
-        }
+        await setRequirePayment(userId, false, {
+          stripeCustomerId: customerId || undefined,
+          stripeCheckoutSessionId: session?.id,
+          billingPlanId: planId || undefined,
+          billingInterval: interval || undefined,
+        });
       }
       return NextResponse.json({ received: true }, { status: 200 });
     }
