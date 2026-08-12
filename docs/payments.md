@@ -20,6 +20,31 @@ Server-side billing APIs require these env vars:
 
 See `.env.example` and `.env.local.example`.
 
+## Stripe webhook
+
+Endpoint: `/api/billing/webhook`
+
+The Stripe webhook must subscribe to these course-payment events:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+
+Course entitlement is created only when the Checkout Session is a completed, paid,
+one-time payment whose user, course, payment type, amount, and currency match the
+current application records. An unpaid `checkout.session.completed` delivery is
+acknowledged without granting access; a later `checkout.session.async_payment_succeeded`
+delivery can complete fulfillment.
+
+Successful fulfillment writes server-only replay records at:
+
+- `billingWebhookEvents/{stripeEventId}`
+- `stripeCourseSessions/{checkoutSessionId}`
+
+The event record makes exact redelivery idempotent. The session record permanently
+binds a Stripe Checkout Session to one learner/course pair. Existing paid entitlement
+timestamps and provider details are preserved when Stripe sends another event for the
+same session or the learner is already entitled through another purchase path.
+
 ## PayPal webhook (optional, recommended)
 
 Endpoint: `/api/billing/paypal-webhook`
