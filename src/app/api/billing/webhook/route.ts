@@ -14,6 +14,11 @@ import {
   isStripeCourseWebhookEvent,
 } from '@/server/stripe-course-webhook';
 import { fulfillStripeCourseWebhook } from '@/server/stripe-course-webhook-store';
+import {
+  getStripeSubscriptionId,
+  isStripeSubscriptionWebhookEvent,
+} from '@/server/stripe-subscription-webhook';
+import { syncStripeSubscriptionWebhook } from '@/server/stripe-subscription-webhook-store';
 
 export const runtime = 'nodejs';
 
@@ -133,6 +138,28 @@ async function findUserIdByCustomerId(db: FirebaseFirestore.Firestore, customerI
   const snap = await db.collection('users').where('stripeCustomerId', '==', cid).limit(1).get();
   if (snap.empty) return null;
   return snap.docs[0].id || null;
+}
+
+async function retrieveStripeSubscription(subscriptionId: string) {
+  const secret = (process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!secret) throw new Error('Stripe secret key is missing (STRIPE_SECRET_KEY).');
+
+  const response = await fetch(
+    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secret}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  const body = (await response.json().catch(() => null)) as
+    | { error?: { message?: string } }
+    | null;
+  if (!response.ok) {
+    throw new Error(body?.error?.message || `Stripe API error (${response.status}).`);
+  }
+  return body;
 }
 
 export async function POST(req: NextRequest) {
@@ -270,29 +297,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // Subscription status changes
-    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      const sub = obj || {};
-      const customerId = (sub?.customer as string | undefined) || '';
-      const status = (sub?.status as string | undefined) || '';
-      const uidFromMeta = (sub?.metadata?.firebaseUid as string | undefined) || null;
-      const planId = (sub?.metadata?.planId as string | undefined) || '';
-      const interval = (sub?.metadata?.interval as string | undefined) || '';
-
-      let userId = uidFromMeta;
-      if (!userId && customerId) userId = await findUserIdByCustomerId(db, customerId);
-
-      if (userId) {
-        const active = status === 'active' || status === 'trialing';
-        await setRequirePayment(userId, !active, {
-          stripeCustomerId: customerId || undefined,
-          stripeSubscriptionId: sub?.id,
-          stripeSubscriptionStatus: status,
-          billingPlanId: planId || undefined,
-          billingInterval: interval || undefined,
-        });
+    if (isStripeSubscriptionWebhookEvent(event.type)) {
+      const subscriptionId = getStripeSubscriptionId(obj);
+      if (!subscriptionId) {
+        return NextResponse.json({ error: 'Invalid Stripe subscription event.' }, { status: 400 });
       }
-
+      await syncStripeSubscriptionWebhook(
+        db,
+        {
+          eventId: event.id,
+          eventType: event.type,
+          eventCreated: event.created,
+          subscriptionId,
+        },
+        {
+          loadCurrentSubscription: retrieveStripeSubscription,
+          findUserIdByCustomerId: (customerId) => findUserIdByCustomerId(db, customerId),
+        },
+      );
       return NextResponse.json({ received: true }, { status: 200 });
     }
 

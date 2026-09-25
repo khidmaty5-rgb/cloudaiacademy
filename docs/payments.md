@@ -29,6 +29,19 @@ The Stripe webhook must subscribe to these course-payment events:
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`
 
+It must also subscribe to these subscription lifecycle events:
+
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+Subscription delivery is idempotent and order-independent. The handler records each Stripe
+event ID, retrieves the current Subscription from Stripe instead of trusting delivery order or
+`event.created`, and atomically stores the subscription snapshot with the learner's access state
+in a Firestore transaction. Concurrent deliveries for the same subscription conflict on the
+same state document; Firestore retries the transaction and refreshes Stripe's current state.
+Missing or conflicting user/customer bindings fail closed with a non-2xx response and no processed
+event marker, allowing Stripe's normal delivery retry to recover after the binding is corrected.
+
 Course entitlement is created only when the Checkout Session is a completed, paid,
 one-time payment whose user, course, payment type, amount, and currency match the
 current application records. An unpaid `checkout.session.completed` delivery is
