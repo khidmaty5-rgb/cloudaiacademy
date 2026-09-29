@@ -4,27 +4,25 @@ import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser } from '@/firebase';
 import { Card } from '@/components/ui/card';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useUser();
   const { isTeacher, isAdmin, loading } = useCurrentRole();
 
   const showTabs = (
-    <div className="flex flex-wrap gap-2 mb-6">
-      <Link href="/teacher/dashboard" className={`px-3 py-2 rounded ${pathname === '/teacher/dashboard' ? 'bg-accent text-accent-foreground' : 'bg-muted hover:bg-muted/80'}`}>Teaching</Link>
-      <Link href="/teacher/courses" className={`px-3 py-2 rounded ${pathname === '/teacher/courses' ? 'bg-accent text-accent-foreground' : 'bg-muted hover:bg-muted/80'}`}>My Courses</Link>
-    </div>
+    <nav className="mb-8 flex w-fit flex-wrap gap-1 rounded-xl border bg-card p-1 shadow-sm" aria-label="Teaching workspace">
+      <Link href="/teacher/dashboard" className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${pathname === '/teacher/dashboard' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>Teaching</Link>
+      <Link href="/teacher/courses" className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${pathname === '/teacher/courses' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>My Courses</Link>
+    </nav>
   );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1">
-        <div className="container py-8">
+        <div className="container max-w-7xl py-8 md:py-10">
           {showTabs}
           {loading ? (
             <Card className="h-40" />

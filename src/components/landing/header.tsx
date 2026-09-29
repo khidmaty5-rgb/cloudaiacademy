@@ -10,6 +10,7 @@ import {
   Shield,
   FileText,
   QrCode,
+  ChevronDown,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -321,7 +322,11 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
               : ((userProfile?.role as Role) ?? 'student'))
     : null;
   const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'editor' || effectiveRole === 'teacher';
-  const isAdminRoute = !!pathname && pathname.startsWith('/admin');
+  const isAdminRoute = !!pathname && pathname !== '/admin' && pathname.startsWith('/admin');
+  const isTeacherRoute = !!pathname && pathname.startsWith('/teacher');
+  const isReviewerRoute = !!pathname && pathname.startsWith('/reviewer');
+  const isWorkspaceVariant =
+    isAppVariant || isAdminRoute || isTeacherRoute || isReviewerRoute;
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: uiSettings } = useDoc(settingsDocRef);
@@ -482,6 +487,44 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       )
     : adminNavItemsWithCertificates;
 
+  const roleAdjustedAdminNavItems = isEditor
+    ? adminNavItemsWithCertificates.filter((item) => item.href === '/admin/journal')
+    : filteredAdminNavItems;
+
+  const learnerNavItems = [
+    { href: '/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard' },
+    { href: '/profile', label: lang === 'ar' ? 'الملف الشخصي' : 'Profile' },
+    { href: '/learning-path', label: lang === 'ar' ? 'مسار التعلّم' : 'Learning Path' },
+    { href: '/courses', label: lang === 'ar' ? 'الدورات' : 'Courses' },
+    { href: '/certificates', label: lang === 'ar' ? 'الشهادات' : 'Certificates' },
+  ] as const;
+
+  const reviewerNavItems = [
+    { href: '/reviewer', label: lang === 'ar' ? 'لوحة المحكم' : 'Review queue' },
+    { href: '/journal', label: lang === 'ar' ? 'المجلة' : 'Journal' },
+  ] as const;
+
+  const canAccessReviewWorkspace =
+    effectiveRole === 'reviewer' || effectiveRole === 'editor' || effectiveRole === 'admin';
+  const workspaceNavItems = isAdminRoute
+    ? canAccessAdmin && !roleLoading ? roleAdjustedAdminNavItems : []
+    : isTeacherRoute
+      ? canAccessAdmin && !roleLoading ? teachingNavItems : []
+      : isReviewerRoute
+        ? canAccessReviewWorkspace && !roleLoading ? reviewerNavItems : []
+        : learnerNavItems;
+  const workspacePrimaryItems = isAdminRoute
+    ? workspaceNavItems.slice(0, 4)
+    : workspaceNavItems;
+  const workspaceOverflowItems = isAdminRoute ? workspaceNavItems.slice(4) : [];
+  const workspaceLabel = isAdminRoute
+    ? lang === 'ar' ? 'الإدارة' : 'Admin'
+    : isTeacherRoute
+      ? lang === 'ar' ? 'التدريس' : 'Teaching'
+      : isReviewerRoute
+        ? lang === 'ar' ? 'التحكيم' : 'Review'
+        : lang === 'ar' ? 'التعلّم' : 'Learning';
+
   const handleLogoClick = () => {
     router.push('/');
   };
@@ -511,16 +554,22 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
-      <div className={`${isAppVariant ? 'w-full px-4' : 'container'} flex ${isAppVariant ? 'h-16' : 'h-20'} items-center gap-3`}>
+      <div className={`${isWorkspaceVariant ? 'w-full px-4 sm:px-6 lg:px-8' : 'container'} flex ${isWorkspaceVariant ? 'h-16' : 'h-20'} items-center gap-3`}>
         <button
           type="button"
           onClick={handleLogoClick}
           className="flex items-center gap-3"
         >
-          <Logo size={isAppVariant ? 44 : 64} textClassName="text-primary-foreground" />
+          <Logo size={isWorkspaceVariant ? 44 : 64} textClassName="text-primary-foreground" />
         </button>
 
-        {!isAppVariant && (
+        {isWorkspaceVariant && (
+          <span className="hidden rounded-full border border-primary-foreground/15 bg-primary-foreground/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/70 sm:inline-flex">
+            {workspaceLabel}
+          </span>
+        )}
+
+        {!isWorkspaceVariant && (
         <div className="hidden flex-1 justify-center md:flex">
         <nav className="flex items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
           {/* Always show public nav */}
@@ -578,6 +627,44 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         </div>
         )}
 
+        {isWorkspaceVariant && !isAppVariant && (
+          <div className="hidden min-w-0 flex-1 justify-center lg:flex">
+            <nav className="flex max-w-full items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
+              {workspacePrimaryItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={navPillClassName(isActiveHref(item.href))}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {workspaceOverflowItems.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={navPillClassName(
+                        workspaceOverflowItems.some((item) => isActiveHref(item.href)),
+                      )}
+                    >
+                      {lang === 'ar' ? 'المزيد' : 'More'}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-52">
+                    {workspaceOverflowItems.map((item) => (
+                      <DropdownMenuItem asChild key={item.href}>
+                        <Link href={item.href}>{item.label}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </nav>
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           {!isAppVariant ? (
             <Button
@@ -614,7 +701,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
             onToggleFaq={toggleFaq}
           />
 
-          <div className="md:hidden">
+          <div className={isWorkspaceVariant ? 'lg:hidden' : 'md:hidden'}>
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -639,7 +726,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                 <nav className="grid gap-4 p-4">
                   <LangToggle className="mb-2" />
                   <ThemeToggle className="mb-2 h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60" />
-                  {!isAdminRoute && !isAppVariant && (
+                  {!isWorkspaceVariant && (
                     <>
                        {visibleLinks.map((link) => (
                          <Link
@@ -804,6 +891,40 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                           href={item.href}
                           onClick={() => setIsOpen(false)}
                           className="text-lg font-medium hover:text-accent"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </>
+                  )}
+                  {isTeacherRoute && canAccessAdmin && (
+                    <>
+                      {teachingNavItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={[
+                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
+                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
+                          ].join(' ')}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </>
+                  )}
+                  {isReviewerRoute && (
+                    <>
+                      {reviewerNavItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={[
+                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
+                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
+                          ].join(' ')}
                         >
                           {item.label}
                         </Link>
