@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLang } from '@/components/i18n/lang';
 
 type PageProps = {
   params: Promise<{ roomId: string }>;
@@ -27,6 +28,8 @@ export default function LiveRoomPage({ params }: PageProps) {
   const firestore = getFirestore();
   const { role, loading: roleLoading, isAdmin, isTeacher } = useCurrentRole();
   const router = useRouter();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const courseDocRef = useMemoFirebase(() => {
     if (!courseId) return null;
@@ -65,15 +68,15 @@ export default function LiveRoomPage({ params }: PageProps) {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
               <CardHeader>
-                <CardTitle>Login required</CardTitle>
-                <CardDescription>Please login to join this live session.</CardDescription>
+                <CardTitle>{ar ? 'تسجيل الدخول مطلوب' : 'Login required'}</CardTitle>
+                <CardDescription>{ar ? 'يرجى تسجيل الدخول للانضمام إلى الجلسة المباشرة.' : 'Please login to join this live session.'}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Link
                   href={`/login?next=${encodeURIComponent(nextHref)}`}
                   className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block"
                 >
-                  Go to Login
+                  {ar ? 'الانتقال إلى تسجيل الدخول' : 'Go to Login'}
                 </Link>
               </CardContent>
             </Card>
@@ -108,11 +111,11 @@ export default function LiveRoomPage({ params }: PageProps) {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-destructive/30 bg-destructive/5">
               <CardHeader>
-                <CardTitle>Access denied</CardTitle>
-                <CardDescription>You must be enrolled in this course or an assigned instructor to join this live session.</CardDescription>
+                <CardTitle>{ar ? 'الوصول مرفوض' : 'Access denied'}</CardTitle>
+                <CardDescription>{ar ? 'يجب أن تكون مسجلاً في الدورة أو مدرساً معيّناً للانضمام إلى هذه الجلسة.' : 'You must be enrolled in this course or an assigned instructor to join this live session.'}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href={`/courses/${courseId}`} className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">Go to course</Link>
+                <Link href={`/courses/${courseId}`} className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">{ar ? 'الانتقال إلى الدورة' : 'Go to course'}</Link>
               </CardContent>
             </Card>
           </div>
@@ -127,20 +130,20 @@ export default function LiveRoomPage({ params }: PageProps) {
       <header className="border-b border-slate-800">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 gap-2">
           <h1 className="text-sm font-medium md:text-base">
-            Live Class – <span className="font-semibold">{prettyLabel}</span>
+            {ar ? 'الفصل المباشر' : 'Live Class'} – <span className="font-semibold">{prettyLabel}</span>
           </h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.open(jitsiUrl, '_blank', 'noopener,noreferrer')}
               className="rounded bg-accent px-2 py-1 text-xs text-accent-foreground hover:bg-accent/90"
             >
-              Join in new tab
+              {ar ? 'الانضمام في تبويب جديد' : 'Join in new tab'}
             </button>
             <button
               onClick={() => router.push(dashboardHref)}
               className="rounded bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700"
             >
-              Back to dashboard
+              {ar ? 'العودة إلى لوحة التحكم' : 'Back to dashboard'}
             </button>
             <span className="hidden md:inline text-xs text-slate-400">Powered by Jitsi (meet.jit.si)</span>
           </div>
@@ -151,8 +154,8 @@ export default function LiveRoomPage({ params }: PageProps) {
         <div className="h-[calc(100vh-3.5rem)] grid place-items-center p-4">
           <Card className="max-w-lg w-full bg-slate-900 border-slate-800">
             <CardHeader>
-              <CardTitle>Join your live class</CardTitle>
-              <CardDescription>We open Jitsi in a separate tab to avoid the embed time limit.</CardDescription>
+              <CardTitle>{ar ? 'انضم إلى فصلك المباشر' : 'Join your live class'}</CardTitle>
+              <CardDescription>{ar ? 'نفتح Jitsi في تبويب منفصل لتجنب مهلة التضمين.' : 'We open Jitsi in a separate tab to avoid the embed time limit.'}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3">
@@ -160,13 +163,13 @@ export default function LiveRoomPage({ params }: PageProps) {
                   onClick={() => window.open(jitsiUrl, '_blank', 'noopener,noreferrer')}
                   className="rounded bg-accent px-4 py-2 text-sm text-accent-foreground hover:bg-accent/90"
                 >
-                  Join in new tab
+                  {ar ? 'الانضمام في تبويب جديد' : 'Join in new tab'}
                 </button>
                 <button
                   onClick={() => navigator.clipboard.writeText(jitsiUrl)}
                   className="rounded bg-slate-800 px-4 py-2 text-sm hover:bg-slate-700"
                 >
-                  Copy invite link
+                  {ar ? 'نسخ رابط الدعوة' : 'Copy invite link'}
                 </button>
               </div>
             </CardContent>

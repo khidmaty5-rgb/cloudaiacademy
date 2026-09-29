@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { getEvidenceUrl } from '@/lib/evidence';
+import { useLang } from '@/components/i18n/lang';
 
 export default function AdminAnalyticsPage() {
   const { isAdmin, loading } = useCurrentRole();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   // Loading shim to keep UX consistent with other admin pages
   if (loading) {
@@ -33,14 +36,14 @@ export default function AdminAnalyticsPage() {
         <Header />
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-xl mx-auto text-center">
-            <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">Access denied</h1>
-            <p className="text-muted-foreground mb-6">You do not have permission to view this page.</p>
+            <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">{ar ? 'الوصول مرفوض' : 'Access denied'}</h1>
+            <p className="text-muted-foreground mb-6">{ar ? 'لا تملك صلاحية عرض هذه الصفحة.' : 'You do not have permission to view this page.'}</p>
             <div className="flex justify-center gap-3">
               <Button asChild variant="outline">
-                <Link href="/">Go Home</Link>
+                <Link href="/">{ar ? 'الصفحة الرئيسية' : 'Go Home'}</Link>
               </Button>
               <Button asChild>
-                <Link href="/dashboard">Go to Dashboard</Link>
+                <Link href="/dashboard">{ar ? 'لوحة التحكم' : 'Go to Dashboard'}</Link>
               </Button>
             </div>
           </div>
@@ -58,16 +61,16 @@ export default function AdminAnalyticsPage() {
       <main className="flex-1">
         <div className="container px-4 py-6 md:px-6 md:py-10 max-w-7xl">
           <div className="mb-6">
-            <h1 className="font-headline text-3xl md:text-4xl font-bold">Analytics & Insights</h1>
+            <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'التحليلات والرؤى' : 'Analytics & Insights'}</h1>
             <p className="mt-2 text-muted-foreground max-w-2xl">
-              Evidence.dev dashboards with key CloudAI Academy metrics like student progress and course engagement.
+              {ar ? 'لوحات بيانات تعرض مؤشرات CloudAI Academy الأساسية مثل تقدم الطلاب والتفاعل مع الدورات.' : 'Evidence.dev dashboards with key CloudAI Academy metrics like student progress and course engagement.'}
             </p>
           </div>
 
           <Card className="border-accent">
             <CardHeader>
-              <CardTitle>Student Progress</CardTitle>
-              <CardDescription>Overview of learner progress across courses.</CardDescription>
+              <CardTitle>{ar ? 'تقدم الطلاب' : 'Student Progress'}</CardTitle>
+              <CardDescription>{ar ? 'نظرة عامة على تقدم المتعلمين في الدورات.' : 'Overview of learner progress across courses.'}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-hidden rounded-xl">
@@ -80,7 +83,7 @@ export default function AdminAnalyticsPage() {
               </div>
               <div className="mt-3">
                 <Button asChild variant="outline" size="sm">
-                  <a href={studentProgressUrl} target="_blank" rel="noopener noreferrer">Open full-screen</a>
+                  <a href={studentProgressUrl} target="_blank" rel="noopener noreferrer">{ar ? 'فتح بملء الشاشة' : 'Open full-screen'}</a>
                 </Button>
               </div>
             </CardContent>

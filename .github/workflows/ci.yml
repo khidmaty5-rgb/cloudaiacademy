@@ -45,6 +45,9 @@ jobs:
       - name: Test billing payment validation
         run: npm run test:billing
 
+      - name: Test role access matrix
+        run: npm run test:roles
+
       - name: Typecheck
         run: npm run typecheck
 

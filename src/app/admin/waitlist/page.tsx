@@ -30,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useLang } from '@/components/i18n/lang';
 
 function isIndexRequiredMessage(message: string): boolean {
   const m = (message || '').toLowerCase();
@@ -90,6 +91,8 @@ export default function AdminWaitlistPage() {
   const { toast } = useToast();
   const { isAdmin, loading: roleLoading } = useCurrentRole();
   const canView = isAdmin;
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/admin');
@@ -141,12 +144,12 @@ export default function AdminWaitlistPage() {
     setUpdatingKey(key);
     try {
       await setEnrollmentRequestStatus({ userId: r.userId, courseId: r.courseId, status });
-      toast({ title: 'Updated', description: `Set status to ${status}.` });
+      toast({ title: ar ? 'تم التحديث' : 'Updated', description: ar ? `تم تعيين الحالة إلى ${status}.` : `Set status to ${status}.` });
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Update failed',
-        description: err?.message || 'Could not update request.',
+        title: ar ? 'تعذّر التحديث' : 'Update failed',
+        description: err?.message || (ar ? 'تعذّر تحديث الطلب.' : 'Could not update request.'),
       });
     } finally {
       setUpdatingKey(null);
@@ -163,14 +166,14 @@ export default function AdminWaitlistPage() {
     try {
       setDeleteDeleting(true);
       await cancelEnrollmentRequest(deleteCandidate.userId, deleteCandidate.courseId);
-      toast({ title: 'Deleted', description: 'Removed the enrollment request.' });
+      toast({ title: ar ? 'تم الحذف' : 'Deleted', description: ar ? 'تمت إزالة طلب التسجيل.' : 'Removed the enrollment request.' });
       setDeleteConfirmOpen(false);
       setDeleteCandidate(null);
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Delete failed',
-        description: err?.message || 'Could not delete request.',
+        title: ar ? 'تعذّر الحذف' : 'Delete failed',
+        description: err?.message || (ar ? 'تعذّرت إزالة الطلب.' : 'Could not delete request.'),
       });
     } finally {
       setDeleteDeleting(false);
@@ -201,8 +204,8 @@ export default function AdminWaitlistPage() {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-destructive/30 bg-destructive/10">
               <CardHeader>
-                <CardTitle>No permission</CardTitle>
-                <CardDescription>You do not have access to this page.</CardDescription>
+                <CardTitle>{ar ? 'لا توجد صلاحية' : 'No permission'}</CardTitle>
+                <CardDescription>{ar ? 'لا تملك صلاحية الوصول إلى هذه الصفحة.' : 'You do not have access to this page.'}</CardDescription>
               </CardHeader>
             </Card>
           </div>
@@ -218,24 +221,24 @@ export default function AdminWaitlistPage() {
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-4xl mx-auto space-y-6">
           <div>
-            <h1 className="font-headline text-3xl font-bold">Enrollment Waitlist</h1>
+            <h1 className="font-headline text-3xl font-bold">{ar ? 'قائمة انتظار التسجيل' : 'Enrollment Waitlist'}</h1>
             <p className="text-muted-foreground">
-              Review and approve student enrollment requests.
+              {ar ? 'راجع طلبات تسجيل الطلاب ووافق عليها.' : 'Review and approve student enrollment requests.'}
             </p>
           </div>
 
           <Card className="border-accent">
             <CardHeader>
-              <CardTitle>Requests (recent)</CardTitle>
+              <CardTitle>{ar ? 'أحدث الطلبات' : 'Requests (recent)'}</CardTitle>
               <CardDescription>
-                Showing the latest 50 requests. Use search to filter.
+                {ar ? 'نعرض أحدث 50 طلباً. استخدم البحث للتصفية.' : 'Showing the latest 50 requests. Use search to filter.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Search by student, email, course, code, status..."
+                placeholder={ar ? 'ابحث بالطالب أو البريد أو الدورة أو الرمز أو الحالة…' : 'Search by student, email, course, code, status...'}
               />
 
               {requestsError && !indexRelatedError ? (
@@ -246,24 +249,24 @@ export default function AdminWaitlistPage() {
 
               {useFallbackQuery && indexRelatedError ? (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Firestore index is not ready yet, so this page is using a fallback query. Results may be incomplete until the index finishes building.
+                  {ar ? 'فهرس Firestore غير جاهز بعد، لذلك تستخدم الصفحة استعلاماً بديلاً. قد تكون النتائج غير مكتملة حتى يكتمل بناء الفهرس.' : 'Firestore index is not ready yet, so this page is using a fallback query. Results may be incomplete until the index finishes building.'}
                   {indexConsoleUrl ? (
                     <div className="mt-2 break-all">
                       <a className="underline" href={indexConsoleUrl} target="_blank" rel="noreferrer">
-                        Open index status in Firebase Console
+                        {ar ? 'فتح حالة الفهرس في Firebase Console' : 'Open index status in Firebase Console'}
                       </a>
                     </div>
                   ) : null}
                   <div className="mt-2">
                     <Button variant="outline" size="sm" onClick={() => setUseFallbackQuery(false)}>
-                      Retry sorted query
+                      {ar ? 'إعادة محاولة الاستعلام المرتب' : 'Retry sorted query'}
                     </Button>
                   </div>
                 </div>
               ) : null}
 
               {requestsError ? null : filteredRequests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No requests found.</p>
+                <p className="text-sm text-muted-foreground">{ar ? 'لم يتم العثور على طلبات.' : 'No requests found.'}</p>
               ) : (
                 <div className="space-y-3">
                   {filteredRequests.map((r) => {
@@ -282,16 +285,16 @@ export default function AdminWaitlistPage() {
                             {r.userEmail ? r.userEmail : r.userId}
                           </div>
                           <div className="mt-2 text-sm">
-                            <span className="font-medium">Course:</span>{' '}
+                            <span className="font-medium">{ar ? 'الدورة:' : 'Course:'}</span>{' '}
                             {r.courseTitle || r.courseId}
                             {r.courseCode ? ` (${r.courseCode})` : ''}
                           </div>
                           <div className="mt-1 text-sm">
-                            <span className="font-medium">Status:</span>{' '}
+                            <span className="font-medium">{ar ? 'الحالة:' : 'Status:'}</span>{' '}
                             <span className="font-mono">{r.status}</span>
                             <span className="text-muted-foreground">
                               {' '}
-                              • requested {toDateLabel(r.createdAt)}
+                              • {ar ? 'طُلب في' : 'requested'} {toDateLabel(r.createdAt)}
                             </span>
                           </div>
                         </div>
@@ -302,21 +305,21 @@ export default function AdminWaitlistPage() {
                             disabled={isUpdating || r.status === 'APPROVED'}
                             onClick={() => updateStatus(r, 'APPROVED')}
                           >
-                            Approve
+                            {ar ? 'موافقة' : 'Approve'}
                           </Button>
                           <Button
                             variant="outline"
                             disabled={isUpdating || r.status === 'REJECTED'}
                             onClick={() => updateStatus(r, 'REJECTED')}
                           >
-                            Reject
+                            {ar ? 'رفض' : 'Reject'}
                           </Button>
                           <Button
                             variant="destructive"
                             disabled={isUpdating || deleteDeleting || !r.userId || !r.courseId}
                             onClick={() => confirmDelete(r)}
                           >
-                            Remove
+                            {ar ? 'إزالة' : 'Remove'}
                           </Button>
                         </div>
                       </div>
@@ -339,16 +342,16 @@ export default function AdminWaitlistPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove request?</AlertDialogTitle>
+            <AlertDialogTitle>{ar ? 'إزالة الطلب؟' : 'Remove request?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the enrollment request
+              {ar ? 'سيؤدي هذا إلى حذف طلب التسجيل نهائياً' : 'This will permanently delete the enrollment request'}
               {deleteCandidate
                 ? ` for ${deleteCandidate.userName || deleteCandidate.userEmail || deleteCandidate.userId} — ${deleteCandidate.courseTitle || deleteCandidate.courseId}.`
                 : '.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteDeleting}>{ar ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(e) => {
@@ -357,7 +360,7 @@ export default function AdminWaitlistPage() {
               }}
               disabled={!deleteCandidate || deleteDeleting}
             >
-              {deleteDeleting ? 'Removing…' : 'Remove'}
+              {deleteDeleting ? (ar ? 'جارٍ الإزالة…' : 'Removing…') : (ar ? 'إزالة' : 'Remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

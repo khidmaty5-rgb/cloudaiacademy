@@ -18,12 +18,15 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserProfile } from '@/lib/user';
 import { doc, getFirestore } from 'firebase/firestore';
+import { useLang } from '@/components/i18n/lang';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const firestore = getFirestore();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -56,14 +59,14 @@ export default function ProfilePage() {
     try {
       await updateUserProfile(user, { firstName, lastName });
       toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully updated.',
+        title: ar ? 'تم تحديث الملف الشخصي' : 'Profile Updated',
+        description: ar ? 'تم تحديث معلوماتك بنجاح.' : 'Your profile has been successfully updated.',
       });
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message || 'There was an error updating your profile.',
+        title: ar ? 'تعذّر التحديث' : 'Update Failed',
+        description: error.message || (ar ? 'حدث خطأ أثناء تحديث ملفك الشخصي.' : 'There was an error updating your profile.'),
       });
     } finally {
       setIsLoading(false);
@@ -101,17 +104,17 @@ export default function ProfilePage() {
 
   return (
     <div className="w-full max-w-xl px-4 py-10 md:px-6">
-      <h1 className="font-headline text-3xl md:text-4xl font-bold">Your Profile</h1>
+      <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'ملفك الشخصي' : 'Your Profile'}</h1>
       <Card className="mt-8">
         <form onSubmit={handleSave}>
           <CardHeader>
-            <CardTitle>Profile Details</CardTitle>
-            <CardDescription>Update your personal information.</CardDescription>
+            <CardTitle>{ar ? 'تفاصيل الملف الشخصي' : 'Profile Details'}</CardTitle>
+            <CardDescription>{ar ? 'حدّث معلوماتك الشخصية.' : 'Update your personal information.'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">{ar ? 'الاسم الأول' : 'First Name'}</Label>
                 <Input
                   id="firstName"
                   value={firstName}
@@ -120,7 +123,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">{ar ? 'اسم العائلة' : 'Last Name'}</Label>
                 <Input
                   id="lastName"
                   value={lastName}
@@ -130,7 +133,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{ar ? 'البريد الإلكتروني' : 'Email'}</Label>
               <Input
                 id="email"
                 type="email"
@@ -141,7 +144,7 @@ export default function ProfilePage() {
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? (ar ? 'جارٍ الحفظ…' : 'Saving...') : (ar ? 'حفظ التغييرات' : 'Save Changes')}
             </Button>
           </CardFooter>
         </form>

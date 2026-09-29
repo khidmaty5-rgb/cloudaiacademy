@@ -22,8 +22,11 @@ import { studentRequiresPayment } from '@/lib/payment-gate';
 import { isLearnerRole, roleFromClaims } from '@/lib/roles';
 import { confirmCoursePurchase, startCourseCheckout } from '@/lib/course-checkout';
 import { isPriceFree } from '@/lib/course-price';
+import { useLang } from '@/components/i18n/lang';
 
 export default function LearnCoursePage() {
+  const { lang } = useLang();
+  const ar = lang === 'ar';
   const params = useParams();
   const slug = params.slug as string;
   
@@ -158,11 +161,11 @@ export default function LearnCoursePage() {
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
               <CardHeader>
-                <CardTitle>Login required</CardTitle>
-                <CardDescription>Please login to view course content.</CardDescription>
+                <CardTitle>{ar ? 'تسجيل الدخول مطلوب' : 'Login required'}</CardTitle>
+                <CardDescription>{ar ? 'يرجى تسجيل الدخول لعرض محتوى الدورة.' : 'Please login to view course content.'}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href={`/login?next=${encodeURIComponent(`/learn/${slug}`)}`} className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">Go to Login</Link>
+                <Link href={`/login?next=${encodeURIComponent(`/learn/${slug}`)}`} className="px-4 py-2 rounded bg-accent text-accent-foreground inline-block">{ar ? 'الانتقال إلى تسجيل الدخول' : 'Go to Login'}</Link>
               </CardContent>
             </Card>
           </div>
@@ -178,7 +181,7 @@ export default function LearnCoursePage() {
         <Header />
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
-            <p className="text-muted-foreground">Course not found.</p>
+            <p className="text-muted-foreground">{ar ? 'الدورة غير موجودة.' : 'Course not found.'}</p>
           </div>
         </main>
         <Footer />
@@ -345,16 +348,16 @@ export default function LearnCoursePage() {
     const courseIsFull = (course as any)?.isFull === true;
     const gateTitle =
       isEnrolled && coursePaymentRequired
-        ? 'Payment required'
+        ? (ar ? 'الدفع مطلوب' : 'Payment required')
         : courseIsFull
-          ? 'Join waiting list'
-          : 'Enroll to access this course';
+          ? (ar ? 'الانضمام إلى قائمة الانتظار' : 'Join waiting list')
+          : (ar ? 'سجّل للوصول إلى هذه الدورة' : 'Enroll to access this course');
     const gateDescription =
       isEnrolled && coursePaymentRequired
-        ? 'You are enrolled, but payment is required to access lessons.'
+        ? (ar ? 'أنت مسجّل، لكن يلزم الدفع للوصول إلى الدروس.' : 'You are enrolled, but payment is required to access lessons.')
         : courseIsFull
-          ? 'Your request will be reviewed before you can access lessons.'
-          : 'You need to enroll before viewing lessons.';
+          ? (ar ? 'ستتم مراجعة طلبك قبل أن تتمكن من الوصول إلى الدروس.' : 'Your request will be reviewed before you can access lessons.')
+          : (ar ? 'يجب التسجيل قبل عرض الدروس.' : 'You need to enroll before viewing lessons.');
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -367,7 +370,7 @@ export default function LearnCoursePage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {coursePaymentRequired && (
-                  <p className="text-sm text-destructive">Payment is required before you can access lessons.</p>
+                  <p className="text-sm text-destructive">{ar ? 'يلزم الدفع قبل الوصول إلى الدروس.' : 'Payment is required before you can access lessons.'}</p>
                 )}
                 {coursePaymentRequired &&
                   paymentSettings.model === 'per_course' &&
@@ -436,7 +439,7 @@ export default function LearnCoursePage() {
                     )
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Only learner accounts (student or reviewer) can enroll in courses.
+                      {ar ? 'يمكن لحسابات المتعلمين فقط، الطلاب أو المراجعين، التسجيل في الدورات.' : 'Only learner accounts (student or reviewer) can enroll in courses.'}
                     </p>
                   )}
                   {studentAccountRequiresPayment && paymentSettings.model !== 'per_course' && (
@@ -444,14 +447,14 @@ export default function LearnCoursePage() {
                       href="/#pricing"
                       className="px-4 py-2 rounded border border-accent text-accent inline-block"
                     >
-                      View Plans
+                      {ar ? 'عرض الخطط' : 'View Plans'}
                     </Link>
                   )}
                   <Link
                     href={`/courses/${slug}`}
                     className="px-4 py-2 rounded border border-accent text-accent inline-block"
                   >
-                    Back to course
+                    {ar ? 'العودة إلى الدورة' : 'Back to course'}
                   </Link>
                 </div>
               </CardContent>
@@ -469,7 +472,7 @@ export default function LearnCoursePage() {
         <Header />
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
-            <p className="text-muted-foreground">No lessons found for this course.</p>
+            <p className="text-muted-foreground">{ar ? 'لا توجد دروس لهذه الدورة.' : 'No lessons found for this course.'}</p>
           </div>
         </main>
         <Footer />
@@ -487,7 +490,7 @@ export default function LearnCoursePage() {
           <h1 className="font-headline text-3xl md:text-4xl font-bold">{course.title}</h1>
           <div className="mt-4">
             <div className='flex justify-between items-center mb-1'>
-                 <p className="text-sm text-muted-foreground">Course Progress</p>
+                 <p className="text-sm text-muted-foreground">{ar ? 'تقدم الدورة' : 'Course Progress'}</p>
                  <p className="text-sm font-bold text-accent">{progress}%</p>
             </div>
             <Progress value={progress} className="h-2 bg-muted" />
@@ -495,8 +498,8 @@ export default function LearnCoursePage() {
 
           <Card className="mt-8 border-accent">
             <CardHeader>
-              <CardTitle>Course Content</CardTitle>
-              <CardDescription>Complete each lesson to finish the course.</CardDescription>
+              <CardTitle>{ar ? 'محتوى الدورة' : 'Course Content'}</CardTitle>
+              <CardDescription>{ar ? 'أكمل كل درس لإنهاء الدورة.' : 'Complete each lesson to finish the course.'}</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">

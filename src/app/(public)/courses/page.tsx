@@ -4,8 +4,6 @@ import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getCourseImage } from '@/lib/course-images';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,8 +90,7 @@ export default function CoursesPage() {
   }, [allCourses, searchTerm, category, level]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           <div className="text-center">
@@ -228,7 +225,6 @@ export default function CoursesPage() {
           )}
         </div>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }

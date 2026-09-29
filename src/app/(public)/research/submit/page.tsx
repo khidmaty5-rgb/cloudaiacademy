@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { FileText, Mail } from 'lucide-react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,18 +9,20 @@ import { useLang } from '@/components/i18n/lang';
 
 export default function ResearchSubmitPage() {
   const { lang } = useLang();
-
-  // TODO(i18n): Add Arabic strings for this page; for now we intentionally keep English copy so the language toggle works without broken content.
-  const title = 'Register Interest to Submit';
-  const sub =
-    'Technical Reports (Pilot): we publish short reports with code + evaluation artifacts. This is mentor review + artifact checks (not formal peer review).';
+  const ar = lang === 'ar';
+  const title = ar ? 'سجّل اهتمامك بالنشر' : 'Register Interest to Submit';
+  const sub = ar
+    ? 'التقارير التقنية التجريبية: ننشر تقارير مختصرة مع الشفرة ومواد التقييم، بعد مراجعة المرشد وفحص المواد، وليس تحكيماً علمياً رسمياً.'
+    : 'Technical Reports (Pilot): we publish short reports with code + evaluation artifacts. This is mentor review + artifact checks (not formal peer review).';
+  const requirements = ar
+    ? ['رابط المستودع: الشفرة وملفات الإعداد', 'ملاحظات التقييم: المقاييس وخطوط الأساس والمحفزات والبيانات', 'تعليمات إعادة الإنتاج والنتائج المتوقعة', 'مسودة تقرير مختصر: الأهداف والمنهج والنتائج والقيود', 'معلومات التأليف ونسب المساهمات']
+    : ['Repository link (code + configs)', 'Evaluation notes (metrics, baselines, prompts, datasets)', 'Reproduction instructions (how to run, expected outputs)', 'Short report draft (goals, methods, results, limitations)', 'Authorship & credit information'];
 
   const email = 'info@cloudaiacademy.ca';
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Technical report submission interest')}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1">
         <section className="bg-muted/40 py-12 md:py-16">
           <div className="container">
@@ -36,20 +36,17 @@ export default function ResearchSubmitPage() {
               <div className="pt-2 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <a href={mailto}>
-                    Email to register interest
-                    <Mail className="ml-2 h-4 w-4" aria-hidden="true" />
+                    {ar ? 'راسلنا لتسجيل اهتمامك' : 'Email to register interest'}
+                    <Mail className="ms-2 h-4 w-4" aria-hidden="true" />
                   </a>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/research/mentor">Review / Mentor</Link>
+                  <Link href="/research/mentor">{ar ? 'المراجعة / الإرشاد' : 'Review / Mentor'}</Link>
                 </Button>
                 <Button asChild variant="link" className="text-accent">
-                  <Link href="/research">Back to Research</Link>
+                  <Link href="/research">{ar ? 'العودة إلى الأبحاث' : 'Back to Research'}</Link>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {lang === 'ar' ? 'TODO: Arabic translations for this page.' : 'TODO: Arabic translations for this page.'}
-              </p>
             </div>
           </div>
         </section>
@@ -60,38 +57,33 @@ export default function ResearchSubmitPage() {
               <Card className="bg-card/50 border-accent/30">
                 <CardHeader className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="font-headline text-xl">What we’ll ask for</CardTitle>
+                    <CardTitle className="font-headline text-xl">{ar ? 'ما الذي سنطلبه؟' : 'What we’ll ask for'}</CardTitle>
                     <Badge variant="secondary" className="bg-accent/10 text-accent">
-                      Pilot
+                      {ar ? 'تجريبي' : 'Pilot'}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Repository link (code + configs)</li>
-                    <li>Evaluation notes (metrics, baselines, prompts, datasets)</li>
-                    <li>Reproduction instructions (how to run, expected outputs)</li>
-                    <li>Short report draft (goals, methods, results, limitations)</li>
-                    <li>Authorship & credit information</li>
+                  <ul className="list-disc ps-5 space-y-2">
+                    {requirements.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </CardContent>
               </Card>
 
               <Card className="bg-card/50 border-accent/30">
                 <CardHeader className="space-y-2">
-                  <CardTitle className="font-headline text-xl">Launch honesty</CardTitle>
+                  <CardTitle className="font-headline text-xl">{ar ? 'الشفافية في مرحلة الإطلاق' : 'Launch honesty'}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-3">
                   <p>
-                    We do not claim publications, indexing, impact factor, DOI, or peer-reviewed journal status.
+                    {ar ? 'لا ندّعي وجود منشورات أو فهرسة أو معامل تأثير أو معرّفات DOI أو صفة مجلة محكّمة.' : 'We do not claim publications, indexing, impact factor, DOI, or peer-reviewed journal status.'}
                   </p>
                   <p>
-                    This submission flow is a pilot designed to build high-quality open-source artifacts and technical
-                    reports.
+                    {ar ? 'مسار التقديم هذا تجريبي ويهدف إلى بناء مواد مفتوحة المصدر وتقارير تقنية عالية الجودة.' : 'This submission flow is a pilot designed to build high-quality open-source artifacts and technical reports.'}
                   </p>
                   <div className="flex items-center gap-2 text-sm">
                     <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
-                    <span className="text-muted-foreground">Mentor review + artifact checks before posting.</span>
+                    <span className="text-muted-foreground">{ar ? 'مراجعة المرشد وفحص المواد قبل النشر.' : 'Mentor review + artifact checks before posting.'}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -99,8 +91,6 @@ export default function ResearchSubmitPage() {
           </div>
         </section>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }
-

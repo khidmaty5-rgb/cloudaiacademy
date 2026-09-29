@@ -67,10 +67,21 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background font-body text-foreground antialiased;
-    min-width: 320px;
-  }
+body {
+  @apply bg-background font-body text-foreground antialiased;
+  min-width: 320px;
+}
+
+html[lang='ar'] body {
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+}
+
+html[lang='ar'] h1,
+html[lang='ar'] h2,
+html[lang='ar'] h3,
+html[lang='ar'] h4 {
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+}
   h1,
   h2,
   h3,

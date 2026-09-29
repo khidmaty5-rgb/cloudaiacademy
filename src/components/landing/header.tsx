@@ -96,6 +96,8 @@ function UserProfileMenu({
 }: UserProfileMenuProps) {
   const { user } = useUser();
   const router = useRouter();
+  const { lang } = useLang();
+  const tr = (en: string, ar: string) => (lang === 'ar' ? ar : en);
 
   const handleLogout = async () => {
     await signOutUser();
@@ -140,13 +142,13 @@ function UserProfileMenu({
           variant="outline"
           className="hidden sm:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
         >
-          <Link href="/login">Login</Link>
+          <Link href="/login">{tr('Login', 'تسجيل الدخول')}</Link>
         </Button>
         <Button
           asChild
           className="bg-accent hover:bg-accent/90 text-accent-foreground"
         >
-          <Link href="/signup">Sign Up</Link>
+          <Link href="/signup">{tr('Sign Up', 'إنشاء حساب')}</Link>
         </Button>
       </>
     );
@@ -154,13 +156,13 @@ function UserProfileMenu({
 
   const effectiveAdminLabel =
     role === 'admin'
-      ? 'Admin'
+      ? tr('Admin', 'مشرف')
       : role === 'teacher'
-        ? 'Teacher'
+        ? tr('Teacher', 'مدرّس')
         : role === 'editor'
-          ? 'Editor'
+          ? tr('Editor', 'محرّر')
           : role === 'reviewer'
-            ? 'Reviewer'
+            ? tr('Reviewer', 'مراجع')
             : null;
 
   return (
@@ -194,7 +196,7 @@ function UserProfileMenu({
               {user.displayName || user.email}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              {effectiveAdminLabel ?? 'Student'}
+              {effectiveAdminLabel ?? tr('Student', 'طالب')}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -213,79 +215,79 @@ function UserProfileMenu({
                       : '/dashboard'
             }
           >
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
+            <LayoutDashboard className="me-2 h-4 w-4" />
+            {tr('Dashboard', 'لوحة التحكم')}
           </Link>
         </DropdownMenuItem>
         {(role === 'admin' || role === 'editor') && (
           <DropdownMenuItem asChild>
             <Link href="/admin/journal">
-              <FileText className="mr-2 h-4 w-4" />
-              Journal Dashboard
+              <FileText className="me-2 h-4 w-4" />
+              {tr('Journal Dashboard', 'لوحة المجلة')}
             </Link>
           </DropdownMenuItem>
         )}
         {(role === 'reviewer' || role === 'admin' || role === 'editor') && (
           <DropdownMenuItem asChild>
             <Link href="/reviewer">
-              <FileText className="mr-2 h-4 w-4" />
-              Reviewer Dashboard
+              <FileText className="me-2 h-4 w-4" />
+              {tr('Reviewer Dashboard', 'لوحة المراجع')}
             </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
           <Link href="/profile">
-            <UserCog className="mr-2 h-4 w-4" />
-            Profile
+            <UserCog className="me-2 h-4 w-4" />
+            {tr('Profile', 'الملف الشخصي')}
           </Link>
         </DropdownMenuItem>
         {canAccessAdmin && (
           <DropdownMenuItem asChild>
             <Link href={role === 'teacher' ? '/teacher/dashboard' : '/admin/dashboard'}>
-              <Shield className="mr-2 h-4 w-4" />
+              <Shield className="me-2 h-4 w-4" />
               {effectiveAdminLabel ?? 'Admin'}
             </Link>
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleJournalNav}>
-            {showJournalNav ? 'Hide Journal' : 'Show Journal'}
+            {showJournalNav ? tr('Hide Journal', 'إخفاء المجلة') : tr('Show Journal', 'إظهار المجلة')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleHero}>
-            {showHero ? 'Hide Hero on Home' : 'Show Hero on Home'}
+            {showHero ? tr('Hide Hero on Home', 'إخفاء الواجهة الرئيسية') : tr('Show Hero on Home', 'إظهار الواجهة الرئيسية')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleFeatures}>
-            {showFeatures ? 'Hide Why Choose section' : 'Show Why Choose section'}
+            {showFeatures ? tr('Hide Why Choose section', 'إخفاء قسم لماذا تختارنا') : tr('Show Why Choose section', 'إظهار قسم لماذا تختارنا')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleStats}>
-            {showStats ? 'Hide Stats on Home' : 'Show Stats on Home'}
+            {showStats ? tr('Hide Stats on Home', 'إخفاء الإحصاءات') : tr('Show Stats on Home', 'إظهار الإحصاءات')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleTestimonials}>
-            {showTestimonials ? 'Hide Testimonials on Home' : 'Show Testimonials on Home'}
+            {showTestimonials ? tr('Hide Testimonials on Home', 'إخفاء آراء المتعلمين') : tr('Show Testimonials on Home', 'إظهار آراء المتعلمين')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onTogglePricing}>
-            {showPricing ? 'Hide Pricing on Home' : 'Show Pricing on Home'}
+            {showPricing ? tr('Hide Pricing on Home', 'إخفاء الأسعار') : tr('Show Pricing on Home', 'إظهار الأسعار')}
           </DropdownMenuItem>
         )}
         {role === 'admin' && (
           <DropdownMenuItem onClick={onToggleFaq}>
-            {showFaq ? 'Hide FAQ on Home' : 'Show FAQ on Home'}
+            {showFaq ? tr('Hide FAQ on Home', 'إخفاء الأسئلة الشائعة') : tr('Show FAQ on Home', 'إظهار الأسئلة الشائعة')}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          <LogOut className="me-2 h-4 w-4" />
+          {tr('Log out', 'تسجيل الخروج')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -782,14 +784,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
-                            Login
+                            {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
                           </Link>
                           <Link
                             href="/signup"
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
-                            Sign Up
+                            {lang === 'ar' ? 'إنشاء حساب' : 'Sign Up'}
                           </Link>
                         </>
                       )}
@@ -820,7 +822,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
-                            Profile
+                            {lang === 'ar' ? 'الملف الشخصي' : 'Profile'}
                           </Link>
                           {!canAccessAdmin && (
                             <Link
@@ -870,14 +872,14 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
-                            Login
+                            {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
                           </Link>
                           <Link
                             href="/signup"
                             onClick={() => setIsOpen(false)}
                             className="text-lg font-medium hover:text-accent"
                           >
-                            Sign Up
+                            {lang === 'ar' ? 'إنشاء حساب' : 'Sign Up'}
                           </Link>
                         </>
                       )}

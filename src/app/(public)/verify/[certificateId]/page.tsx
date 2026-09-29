@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { doc, getFirestore } from 'firebase/firestore';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +11,7 @@ import CertificateView from '@/components/certificates/certificate-view';
 import { generateCertificatePdfBytes } from '@/lib/certificate-pdf';
 import type { Certificate } from '@/types/models';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { useLang } from '@/components/i18n/lang';
 
 export default function VerifyCertificatePage() {
   const params = useParams<{ certificateId: string }>();
@@ -22,6 +21,8 @@ export default function VerifyCertificatePage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const { user } = useUser();
   const { isAdmin } = useCurrentRole();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const firestore = getFirestore();
   const certDocRef = useMemoFirebase(() => {
@@ -42,8 +43,8 @@ export default function VerifyCertificatePage() {
     if (!user) {
       toast({
         variant: 'destructive',
-        title: 'Login required',
-        description: 'Please login to download this certificate.',
+        title: ar ? 'تسجيل الدخول مطلوب' : 'Login required',
+        description: ar ? 'يرجى تسجيل الدخول لتنزيل هذه الشهادة.' : 'Please login to download this certificate.',
       });
       return;
     }
@@ -74,8 +75,8 @@ export default function VerifyCertificatePage() {
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Download failed',
-        description: err?.message || 'Failed to download the PDF.',
+        title: ar ? 'تعذّر التنزيل' : 'Download failed',
+        description: err?.message || (ar ? 'تعذّر تنزيل ملف PDF.' : 'Failed to download the PDF.'),
       });
     } finally {
       setIsDownloading(false);
@@ -105,8 +106,8 @@ export default function VerifyCertificatePage() {
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Download failed',
-        description: err?.message || 'Failed to generate the PDF.',
+        title: ar ? 'تعذّر التنزيل' : 'Download failed',
+        description: err?.message || (ar ? 'تعذّر إنشاء ملف PDF.' : 'Failed to generate the PDF.'),
       });
     } finally {
       setIsDownloading(false);
@@ -114,8 +115,7 @@ export default function VerifyCertificatePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-6xl mx-auto">
           {isLoading ? (
@@ -125,13 +125,13 @@ export default function VerifyCertificatePage() {
             </div>
           ) : error ? (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-              {error.message || 'Failed to load certificate.'}
+              {error.message || (ar ? 'تعذّر تحميل الشهادة.' : 'Failed to load certificate.')}
             </div>
           ) : !certificate ? (
             <div className="rounded-md border border-border bg-muted/20 p-6 text-center">
-              <h1 className="font-headline text-2xl font-bold">Certificate not found</h1>
+              <h1 className="font-headline text-2xl font-bold">{ar ? 'الشهادة غير موجودة' : 'Certificate not found'}</h1>
               <p className="mt-2 text-muted-foreground">
-                Check the certificate ID and try again.
+                {ar ? 'تحقق من معرّف الشهادة ثم حاول مرة أخرى.' : 'Check the certificate ID and try again.'}
               </p>
             </div>
           ) : (
@@ -150,11 +150,11 @@ export default function VerifyCertificatePage() {
                 ].join(' ')}
               >
                 <div>
-                  {isRevoked ? 'Revoked certificate:' : 'Verified certificate:'}{' '}
+                  {isRevoked ? (ar ? 'شهادة ملغاة:' : 'Revoked certificate:') : (ar ? 'شهادة موثّقة:' : 'Verified certificate:')}{' '}
                   <span className="font-semibold">{certificate.id}</span>
                 </div>
                 {isRevoked ? (
-                  <p className="text-sm md:text-base">Download is disabled for revoked certificates.</p>
+                  <p className="text-sm md:text-base">{ar ? 'التنزيل معطّل للشهادات الملغاة.' : 'Download is disabled for revoked certificates.'}</p>
                 ) : canDownload ? (
                   <Button
                     type="button"
@@ -164,10 +164,10 @@ export default function VerifyCertificatePage() {
                     }
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
                   >
-                    {isDownloading ? 'Preparing...' : 'Download PDF'}
+                    {isDownloading ? (ar ? 'جارٍ التحضير…' : 'Preparing...') : (ar ? 'تنزيل PDF' : 'Download PDF')}
                   </Button>
                 ) : (
-                  <p className="text-sm md:text-base">Download is available to the certificate owner or admins.</p>
+                  <p className="text-sm md:text-base">{ar ? 'التنزيل متاح لمالك الشهادة أو المشرفين.' : 'Download is available to the certificate owner or admins.'}</p>
                 )}
               </div>
                 );
@@ -177,7 +177,6 @@ export default function VerifyCertificatePage() {
           )}
         </div>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }

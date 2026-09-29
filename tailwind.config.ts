@@ -21,8 +21,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['var(--font-inter)'],
-        headline: ['var(--font-space-grotesk)'],
+        body: ['var(--font-inter)', '"Segoe UI"', 'Tahoma', 'Arial', 'sans-serif'],
+        headline: ['var(--font-space-grotesk)', '"Segoe UI"', 'Tahoma', 'Arial', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
