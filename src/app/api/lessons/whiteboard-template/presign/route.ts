@@ -4,7 +4,9 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getS3Client } from '@/lib/s3';
 import { getApps, initializeApp, cert, applicationDefault, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -61,8 +63,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = decoded?.role as string | undefined;
-    if (role !== 'admin') {
+    const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(getFirestore(app), uid, decoded?.role, ['admin']);
+    if (!role) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -87,4 +91,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

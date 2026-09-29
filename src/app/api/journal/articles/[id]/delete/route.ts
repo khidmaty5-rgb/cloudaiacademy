@@ -6,6 +6,7 @@ import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getS3Client } from '@/lib/s3';
 import { firebaseConfig } from '@/firebase/config';
 import { deleteJournalReviewerAssignmentsForArticle } from '@/server/journal-reviewer-assignments';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -67,12 +68,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = decoded?.role as string | undefined;
-    if (role !== 'admin') {
+    const db = getFirestore(app);
+    const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin']);
+    if (!role) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const db = getFirestore(app);
     const ref = db.doc(`journalArticles/${id}`);
     const snap = await ref.get();
     if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });

@@ -3,6 +3,7 @@ import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -79,12 +80,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = (decoded?.role as string | undefined) || 'student';
-    const isAdmin = role === 'admin';
-    if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
     const app = getAdminAppWithCert();
     if (!app) return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
+    const db = getFirestore(app);
+    const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin']);
+    if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const rawLimit = req.nextUrl.searchParams.get('limit') || '100';
     const limit = Math.max(1, Math.min(500, Number.parseInt(rawLimit, 10) || 100));
@@ -92,9 +94,9 @@ export async function GET(req: NextRequest) {
     const rawStartAfter = req.nextUrl.searchParams.get('startAfter') || '';
     const startAfterId = rawStartAfter.trim();
 
-    let q = getFirestore(app).collection('certificates').orderBy('issuedAt', 'desc').limit(limit);
+    let q = db.collection('certificates').orderBy('issuedAt', 'desc').limit(limit);
     if (startAfterId) {
-      const cursorSnap = await getFirestore(app).doc(`certificates/${startAfterId}`).get();
+      const cursorSnap = await db.doc(`certificates/${startAfterId}`).get();
       if (cursorSnap.exists) {
         q = q.startAfter(cursorSnap);
       }

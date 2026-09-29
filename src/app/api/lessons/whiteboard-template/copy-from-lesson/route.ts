@@ -5,6 +5,7 @@ import { getApps, initializeApp, cert, applicationDefault, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -65,8 +66,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = decoded?.role as string | undefined;
-    if (role !== 'admin') {
+    const db = getFirestore(app);
+    const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin']);
+    if (!role) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -80,7 +84,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid courseId or lessonId' }, { status: 400 });
     }
 
-    const db = getFirestore(app);
     const lessonSnap = await db.doc(`courses/${courseId}/lessons/${lessonId}`).get();
     if (!lessonSnap.exists) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
     const lesson = lessonSnap.data() as any;
@@ -113,4 +116,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
   }
 }
-

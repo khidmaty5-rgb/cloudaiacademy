@@ -5,6 +5,7 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -231,12 +232,10 @@ export async function POST(req: NextRequest) {
 
     const db = getFirestore(app);
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    let roleFromDoc: string | undefined;
-    if (!verified && uid) {
-      const userDoc = await db.doc(`users/${uid}`).get();
-      roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
-    }
-    const isAdmin = verified ? roleFromToken === 'admin' : roleFromDoc === 'admin';
+    const isAdmin = Boolean(
+      uid &&
+        (await getAuthorizedUserRole(db, uid, verified ? roleFromToken : null, ['admin'])),
+    );
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const url = new URL(req.url);

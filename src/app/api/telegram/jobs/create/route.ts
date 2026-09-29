@@ -3,6 +3,7 @@ import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -37,10 +38,6 @@ async function verifyIdTokenOrDecode(app: App, idToken: string) {
   }
 }
 
-function isProviderRole(role: any): boolean {
-  return role === 'admin' || role === 'teacher';
-}
-
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
@@ -50,13 +47,14 @@ export async function POST(req: NextRequest) {
     const app = getAdminApp();
     const decoded: any = await verifyIdTokenOrDecode(app, idToken);
     const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
-    const role = (decoded as any)?.role as string | undefined;
-    if (!uid || !isProviderRole(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const db = getFirestore(app);
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin', 'teacher']);
+    if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { text, mediaUrl = null, linkUrl = null, sendAt = null } = await req.json();
     if (!text || typeof text !== 'string') return NextResponse.json({ error: 'Invalid text' }, { status: 400 });
 
-    const db = getFirestore(app);
     const userRef = db.doc(`users/${uid}`);
     const userSnap = await userRef.get();
     const profile = userSnap.exists ? (userSnap.data() as any) : null;

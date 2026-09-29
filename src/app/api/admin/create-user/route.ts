@@ -5,6 +5,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -58,8 +59,19 @@ export async function POST(req: NextRequest) {
 
     const app = getAdminApp();
     const decoded = await getAuth(app).verifyIdToken(token);
-    const requesterRole = (decoded as any)?.role as string | undefined;
-    if (requesterRole !== 'admin') {
+    const requesterUid = decoded.uid || decoded.sub;
+    if (!requesterUid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const db = getFirestore(app);
+    const requesterRole = await getAuthorizedUserRole(
+      db,
+      requesterUid,
+      decoded.role,
+      ['admin'],
+    );
+    if (!requesterRole) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -85,7 +97,7 @@ export async function POST(req: NextRequest) {
     const firstName = parts[0] || '';
     const lastName = parts.slice(1).join(' ');
 
-    await getFirestore(app).doc(`users/${userRecord.uid}`).set({
+    await db.doc(`users/${userRecord.uid}`).set({
       id: userRecord.uid,
       firstName,
       lastName,

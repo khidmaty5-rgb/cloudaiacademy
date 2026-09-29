@@ -24,3 +24,13 @@ export async function getEffectiveUserRole(
 
   return normalizeUserRole(tokenRole);
 }
+
+export async function getAuthorizedUserRole(
+  db: Firestore,
+  uid: string,
+  tokenRole: unknown,
+  allowedRoles: readonly UserRole[],
+): Promise<UserRole | null> {
+  const role = await getEffectiveUserRole(db, uid, tokenRole);
+  return role && allowedRoles.includes(role) ? role : null;
+}

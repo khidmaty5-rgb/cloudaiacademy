@@ -5,6 +5,7 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -648,15 +649,13 @@ export async function POST(req: NextRequest) {
     const only = url.searchParams.get('only');
     const limit = limitParam ? Math.max(1, Math.min(seedCourses.length, parseInt(limitParam))) : seedCourses.length;
 
-    // Authorize: require admin role from verified ID token claims only.
-    // In dev fallback decode mode (unverified token), require the Firestore profile role instead.
+    // Treat the current Firestore profile as authoritative. A verified token role is
+    // used only when no profile exists; unverified development tokens never get that fallback.
     const roleFromToken = decoded?.role || decoded?.claims?.role;
-    let roleFromDoc: string | undefined;
-    if (!verified && uid) {
-      const userDoc = await db.doc(`users/${uid}`).get();
-      roleFromDoc = userDoc.exists ? (userDoc.data() as any).role : undefined;
-    }
-    const isAdmin = verified ? roleFromToken === 'admin' : roleFromDoc === 'admin';
+    const isAdmin = Boolean(
+      uid &&
+        (await getAuthorizedUserRole(db, uid, verified ? roleFromToken : null, ['admin'])),
+    );
     if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const results: string[] = [];

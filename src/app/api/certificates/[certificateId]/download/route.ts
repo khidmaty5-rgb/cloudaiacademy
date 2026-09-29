@@ -5,7 +5,9 @@ import { getS3Client } from '@/lib/s3';
 import { fetchPublicFirestoreDoc } from '@/lib/firestore-public';
 import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -90,13 +92,17 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = (decoded?.role as string | undefined) || 'student';
-    const isAdmin = role === 'admin';
     const requesterUid =
       (decoded?.uid as string | undefined) ||
       (decoded?.user_id as string | undefined) ||
       (decoded?.sub as string | undefined) ||
       '';
+    if (!requesterUid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const app = getAdminAppWithCert();
+    if (!app) return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
+    const isAdmin = Boolean(
+      await getAuthorizedUserRole(getFirestore(app), requesterUid, decoded?.role, ['admin']),
+    );
 
     const { certificateId: rawId } = await context.params;
     if (!rawId) return NextResponse.json({ error: 'Missing certificateId' }, { status: 400 });

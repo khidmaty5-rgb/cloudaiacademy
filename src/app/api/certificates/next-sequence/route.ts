@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { isValidCourseCode, normalizeCourseCode } from '@/lib/certificates';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -78,9 +79,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = (decoded?.role as string | undefined) || 'student';
-    const isAdmin = role === 'admin';
-    if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const app = getAdminAppWithCert();
+    if (!app) return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
+    const db = getFirestore(app);
+    const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin']);
+    if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
     const year = parseYear(body?.year);
@@ -88,13 +93,9 @@ export async function POST(req: NextRequest) {
     if (!year) return NextResponse.json({ error: 'Invalid year' }, { status: 400 });
     if (!courseCode) return NextResponse.json({ error: 'Invalid courseCode' }, { status: 400 });
 
-    const app = getAdminAppWithCert();
-    if (!app) return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
-
     const prefix = 'CA';
     const counterId = `${prefix}-${year}-${courseCode}`;
 
-    const db = getFirestore(app);
     const counterRef = db.collection('certificateCounters').doc(counterId);
 
     const nextSequence = await db.runTransaction(async (tx) => {

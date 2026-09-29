@@ -5,6 +5,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -64,10 +65,11 @@ export async function POST(req: NextRequest) {
     const decoded = await getAuth(app).verifyIdToken(token);
     const requesterUid = decoded.uid || decoded.sub;
     const requesterRoleRaw = (decoded as any)?.role as string | undefined;
-    const requesterRole: 'admin' | 'teacher' | 'student' | undefined =
-      requesterRoleRaw === 'admin' ? 'admin' : requesterRoleRaw === 'teacher' ? 'teacher' : requesterRoleRaw === 'student' ? 'student' : undefined;
 
     const db = getFirestore(app);
+    const requesterRole = requesterUid
+      ? await getAuthorizedUserRole(db, requesterUid, requesterRoleRaw, ['admin'])
+      : null;
     const { userId, role } = (await req.json()) as { userId?: string; role?: string };
     const hasRole = typeof role === 'string' && role.length > 0;
     if (!userId || (hasRole && !['student', 'teacher', 'reviewer', 'editor', 'admin'].includes(role))) {
@@ -128,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Case A: Admin can set any user's role (updates claims and doc)
-    if (requesterRole === 'admin') {
+    if (requesterRole) {
       await getAuth(app).setCustomUserClaims(userId, { role });
       await db.doc(`users/${userId}`).set({ role }, { merge: true });
       return NextResponse.json({ ok: true }, { status: 200 });

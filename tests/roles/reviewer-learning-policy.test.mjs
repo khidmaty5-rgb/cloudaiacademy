@@ -89,4 +89,40 @@ describe('reviewer learning and role policy', () => {
       'reviewer',
     );
   });
+
+  it('rejects a stale admin claim after the profile is demoted', async () => {
+    assert.equal(
+      await effectiveRoles.getAuthorizedUserRole(
+        firestore({ role: 'student' }),
+        'reviewer-1',
+        'admin',
+        ['admin'],
+      ),
+      null,
+    );
+  });
+
+  it('authorizes the current profile role instead of a stale lesser claim', async () => {
+    assert.equal(
+      await effectiveRoles.getAuthorizedUserRole(
+        firestore({ role: 'admin' }),
+        'reviewer-1',
+        'student',
+        ['admin'],
+      ),
+      'admin',
+    );
+  });
+
+  it('fails closed when an existing profile has no recognized role', async () => {
+    assert.equal(
+      await effectiveRoles.getAuthorizedUserRole(
+        firestore({ role: null }),
+        'reviewer-1',
+        'admin',
+        ['admin'],
+      ),
+      null,
+    );
+  });
 });

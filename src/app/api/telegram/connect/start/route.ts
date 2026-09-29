@@ -3,6 +3,7 @@ import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthorizedUserRole } from '@/server/effective-user-role';
 
 export const runtime = 'nodejs';
 
@@ -48,10 +49,6 @@ async function verifyIdTokenOrDecode(app: App, idToken: string) {
   }
 }
 
-function isProviderRole(role: any): boolean {
-  return role === 'admin' || role === 'teacher';
-}
-
 function genCode(len = 10): string {
   let s = '';
   while (s.length < len) s += Math.random().toString(36).slice(2);
@@ -67,10 +64,10 @@ export async function POST(req: NextRequest) {
     const app = getAdminApp();
     const decoded: any = await verifyIdTokenOrDecode(app, idToken);
     const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
-    const role = (decoded as any)?.role as string | undefined;
-    if (!uid || !isProviderRole(role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
     const db = getFirestore(app);
+    if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = await getAuthorizedUserRole(db, uid, decoded?.role, ['admin', 'teacher']);
+    if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     let code = genCode(10);
