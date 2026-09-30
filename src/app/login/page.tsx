@@ -16,7 +16,8 @@ import { Suspense, useState } from 'react';
 import { signIn } from '@/lib/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { LangToggle, useLang } from '@/components/i18n/lang';
+import { useLang } from '@/components/i18n/lang';
+import AuthShell from '@/components/layout/auth-shell';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -61,11 +62,10 @@ function LoginContent() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/50 p-4" dir={ar ? 'rtl' : 'ltr'}>
-      <LangToggle className="absolute end-4 top-4 border-border bg-card text-foreground [&_button]:text-foreground" />
-      <Card className="w-full max-w-sm">
+    <AuthShell>
+      <Card className="w-full border-border/80 shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <Link href="/" className="mb-4 inline-block">
+          <Link href="/" className="mb-3 inline-flex justify-center lg:hidden">
             <Logo />
           </Link>
           <CardTitle>{ar ? 'مرحباً بعودتك' : 'Welcome Back'}</CardTitle>
@@ -105,7 +105,7 @@ function LoginContent() {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -113,8 +113,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-          <Card className="w-full max-w-sm">
+        <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <CardTitle>…</CardTitle>
             </CardHeader>

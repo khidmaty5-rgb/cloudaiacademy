@@ -1,7 +1,6 @@
 'use client';
 import { useLang } from '@/components/i18n/lang';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell } from '@/components/layout/site-shell';
 
 export default function PublicLayout({
   children,
@@ -10,13 +9,7 @@ export default function PublicLayout({
 }) {
   function LangRoot({ children }: { children: React.ReactNode }) {
     const { dir } = useLang();
-    return (
-      <div dir={dir} className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <div className="flex-1">{children}</div>
-        <Footer />
-      </div>
-    );
+    return <SiteShell dir={dir}>{children}</SiteShell>;
   }
   return <LangRoot>{children}</LangRoot>;
 }

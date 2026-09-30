@@ -14,8 +14,7 @@ import {
 import { LayoutDashboard, UserCog, BookOpen, GraduationCap, Award } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell } from '@/components/layout/site-shell';
 import { useUser } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
@@ -42,9 +41,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     !!user && !isUserLoading && !roleLoading && (role === 'student' || role === 'reviewer');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header variant="app" />
-      <div className="flex-1">
+    <SiteShell headerVariant="app">
+      <div className="min-h-0 flex-1">
         {showStudentMenu ? (
           <SidebarProvider>
             <Sidebar variant="inset" collapsible="icon" className="pt-16">
@@ -86,8 +84,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="min-w-0">{children}</div>
         )}
       </div>
-      <Footer />
-    </div>
+    </SiteShell>
   );
 }
 

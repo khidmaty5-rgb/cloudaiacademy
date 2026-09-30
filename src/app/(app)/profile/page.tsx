@@ -75,7 +75,7 @@ export default function ProfilePage() {
   
   if (isUserLoading || isProfileLoading || !user) {
      return (
-      <div className="w-full max-w-xl px-4 py-10 md:px-6">
+      <div className="mx-auto w-full max-w-xl px-4 py-10 md:px-6">
         <div className="space-y-4">
           <Skeleton className="h-8 w-1/2" />
           <Card>
@@ -103,7 +103,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-xl px-4 py-10 md:px-6">
+    <div className="mx-auto w-full max-w-xl px-4 py-10 md:px-6">
       <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'ملفك الشخصي' : 'Your Profile'}</h1>
       <Card className="mt-8">
         <form onSubmit={handleSave}>

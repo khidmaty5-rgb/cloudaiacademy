@@ -1,5 +1,10 @@
 import RouteGuard from '@/components/auth/route-guard';
+import { SiteShell } from '@/components/layout/site-shell';
 
 export default function ReviewerLayout({ children }: { children: React.ReactNode }) {
-  return <RouteGuard>{children}</RouteGuard>;
+  return (
+    <RouteGuard>
+      <SiteShell>{children}</SiteShell>
+    </RouteGuard>
+  );
 }

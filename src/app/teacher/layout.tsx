@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell, PageContainer } from '@/components/layout/site-shell';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -23,10 +22,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   return (
     <RouteGuard>
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <SiteShell>
       <main className="flex-1">
-        <div className="container max-w-7xl py-8 md:py-10">
+        <PageContainer className="py-8 md:py-10">
           {showTabs}
           {loading ? (
             <Card className="h-40" />
@@ -44,10 +42,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
               {children}
             </>
           )}
-        </div>
+        </PageContainer>
       </main>
-      <Footer />
-    </div>
+    </SiteShell>
     </RouteGuard>
   );
 }

@@ -16,7 +16,7 @@ function CourseCard({ course }: { course: any }) {
   const isContain = image.fit === 'contain';
   return (
     <Link href={`/courses/${course.slug}`} className="block h-full">
-      <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300 h-full border-accent border-2">
+      <Card className="group h-full overflow-hidden border border-border/70 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl">
         <CardHeader className="p-0">
           <div className="relative w-full bg-white" style={{ aspectRatio: '3/2' }}>
             <div className={`absolute inset-0 ${isContain ? 'p-8' : ''}`}>
@@ -32,14 +32,14 @@ function CourseCard({ course }: { course: any }) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
-          <Badge variant="secondary" className="bg-accent/10 text-accent mb-2">
+        <CardContent className="flex min-h-64 flex-col p-6">
+          <Badge dir="auto" variant="secondary" className="mb-2 w-fit bg-accent/10 text-accent">
             {course.category}
           </Badge>
-          <CardTitle className="font-headline mb-2">{course.title}</CardTitle>
-          <p className="text-muted-foreground mb-4 text-sm">{course.description}</p>
-          <div className="text-2xl font-bold text-accent mb-4">{course.price}</div>
-          <div className="flex justify-between text-muted-foreground text-sm border-t pt-4">
+          <CardTitle dir="auto" className="mb-2 line-clamp-2 font-headline">{course.title}</CardTitle>
+          <p dir="auto" className="mb-4 line-clamp-3 text-sm text-muted-foreground">{course.description}</p>
+          <div className="mt-auto mb-4 text-2xl font-bold text-accent">{course.price}</div>
+          <div className="flex flex-wrap justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4" /> {course.duration}
             </div>
@@ -70,7 +70,7 @@ export default function Courses() {
   const { data: courses, isLoading, error } = useCollection(coursesQuery);
 
   return (
-    <section id="courses" className="py-20 md:py-28 bg-muted/50">
+    <section id="courses" className="bg-muted/50 py-16 md:py-24">
       <div className="container">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="font-headline text-3xl md:text-4xl font-bold">
@@ -83,7 +83,7 @@ export default function Courses() {
           </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
 

@@ -140,13 +140,13 @@ function UserProfileMenu({
         <Button
           asChild
           variant="outline"
-          className="hidden sm:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+          className="hidden border-accent text-accent hover:bg-accent hover:text-accent-foreground xl:inline-flex"
         >
           <Link href="/login">{tr('Login', 'تسجيل الدخول')}</Link>
         </Button>
         <Button
           asChild
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          className="hidden bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
         >
           <Link href="/signup">{tr('Sign Up', 'إنشاء حساب')}</Link>
         </Button>
@@ -556,13 +556,13 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
-      <div className={`${isWorkspaceVariant ? 'w-full px-4 sm:px-6 lg:px-8' : 'container'} flex ${isWorkspaceVariant ? 'h-16' : 'h-20'} items-center gap-3`}>
+      <div className={`${isWorkspaceVariant ? 'w-full px-4 sm:px-6 lg:px-8' : 'container'} flex h-16 min-w-0 items-center gap-2 sm:gap-3`}>
         <button
           type="button"
           onClick={handleLogoClick}
-          className="flex items-center gap-3"
+          className="flex shrink-0 items-center gap-2"
         >
-          <Logo size={isWorkspaceVariant ? 44 : 64} textClassName="text-primary-foreground" />
+          <Logo size={44} textClassName="text-lg text-primary-foreground sm:text-xl" />
         </button>
 
         {isWorkspaceVariant && (
@@ -572,7 +572,7 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
         )}
 
         {!isWorkspaceVariant && (
-        <div className="hidden flex-1 justify-center md:flex">
+        <div className="hidden min-w-0 flex-1 justify-center lg:flex">
         <nav className="flex items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
           {/* Always show public nav */}
            {visibleLinks.filter((link) => link.id !== 'qr').map((link) => (
@@ -667,43 +667,45 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ms-auto flex shrink-0 items-center gap-2">
           {!isAppVariant ? (
             <Button
               asChild
               variant="ghost"
               size="icon"
-              className="hidden md:inline-flex h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-accent hover:bg-primary-foreground/10 hover:text-accent focus-visible:ring-accent/60"
+              className="hidden h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-accent hover:bg-primary-foreground/10 hover:text-accent focus-visible:ring-accent/60 lg:inline-flex"
             >
               <Link href="/print/qr" aria-label={navLabel('qr')} title={navLabel('qr')}>
                 <QrCode className="h-5 w-5" />
               </Link>
             </Button>
           ) : null}
-          <LangToggle className="hidden md:flex" />
-          <ThemeToggle className="hidden md:inline-flex h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60" />
-          <UserProfileMenu
-            role={effectiveRole}
-            canAccessAdmin={canAccessAdmin}
-            isUserLoading={isUserLoading}
-            isProfileLoading={isProfileLoading}
-            showJournalNav={showJournalNav}
-            onToggleJournalNav={toggleJournalNav}
-            showHero={showHero}
-            onToggleHero={toggleHero}
-            showFeatures={showFeatures}
-            onToggleFeatures={toggleFeatures}
-            showStats={showStats}
-            onToggleStats={toggleStats}
-            showTestimonials={showTestimonials}
-            onToggleTestimonials={toggleTestimonials}
-            showPricing={showPricing}
-            onTogglePricing={togglePricing}
-            showFaq={showFaq}
-            onToggleFaq={toggleFaq}
-          />
+          <LangToggle className="hidden lg:flex" />
+          <ThemeToggle className="hidden h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60 lg:inline-flex" />
+          <div className={isWorkspaceVariant ? '' : 'flex justify-end xl:min-w-44'}>
+            <UserProfileMenu
+              role={effectiveRole}
+              canAccessAdmin={canAccessAdmin}
+              isUserLoading={isUserLoading}
+              isProfileLoading={isProfileLoading}
+              showJournalNav={showJournalNav}
+              onToggleJournalNav={toggleJournalNav}
+              showHero={showHero}
+              onToggleHero={toggleHero}
+              showFeatures={showFeatures}
+              onToggleFeatures={toggleFeatures}
+              showStats={showStats}
+              onToggleStats={toggleStats}
+              showTestimonials={showTestimonials}
+              onToggleTestimonials={toggleTestimonials}
+              showPricing={showPricing}
+              onTogglePricing={togglePricing}
+              showFaq={showFaq}
+              onToggleFaq={toggleFaq}
+            />
+          </div>
 
-          <div className={isWorkspaceVariant ? 'lg:hidden' : 'md:hidden'}>
+          <div className="lg:hidden">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -712,18 +714,18 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                   className="hover:bg-primary-foreground/10"
                 >
                   <Menu className="h-6 w-6" />
-                  <span className="sr-only">Toggle Menu</span>
+                  <span className="sr-only">{lang === 'ar' ? 'فتح القائمة' : 'Open menu'}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent
-                side="right"
-                className="border-l-primary-foreground/10 bg-primary text-primary-foreground"
+                side={lang === 'ar' ? 'left' : 'right'}
+                className="border-primary-foreground/10 bg-primary text-primary-foreground"
               >
                 <SheetHeader>
                   <div className="border-b border-primary-foreground/10 p-4">
                     <Logo size={64} textClassName="text-primary-foreground" />
                   </div>
-                  <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
+                  <SheetTitle className="sr-only">{lang === 'ar' ? 'قائمة الهاتف' : 'Mobile menu'}</SheetTitle>
                 </SheetHeader>
                 <nav className="grid gap-4 p-4">
                   <LangToggle className="mb-2" />

@@ -49,7 +49,7 @@ export default function CertificatesPage() {
 
   if (isUserLoading || !user) {
     return (
-      <div className="w-full max-w-4xl px-4 py-10 md:px-6">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 md:px-6">
         <Skeleton className="h-8 w-1/3" />
         <div className="mt-6 space-y-4">
           <Skeleton className="h-28 w-full" />
@@ -60,7 +60,7 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="w-full max-w-4xl px-4 py-10 md:px-6">
+    <div className="mx-auto w-full max-w-4xl px-4 py-10 md:px-6">
       <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'الشهادات' : 'Certificates'}</h1>
       <p className="mt-2 text-muted-foreground">
         {ar ? 'شهادات إتمامك للدورات.' : 'Your certificates of completion.'}

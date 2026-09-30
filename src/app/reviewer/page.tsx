@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +27,7 @@ import { useLang } from '@/components/i18n/lang';
 import { useUser } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { PageContainer } from '@/components/layout/site-shell';
 
 type Assignment = {
   id: string;
@@ -255,10 +254,8 @@ export default function ReviewerDashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1 py-10 md:py-16">
-        <div className="container space-y-8">
+      <main className="min-w-0 flex-1 py-8 md:py-12">
+        <PageContainer className="space-y-8">
           <header className="space-y-1">
             <h1 className="font-headline text-3xl md:text-4xl font-bold">{t.title}</h1>
             <p className="text-sm text-muted-foreground">{t.subtitle}</p>
@@ -335,7 +332,7 @@ export default function ReviewerDashboardPage() {
               ))}
             </div>
           )}
-        </div>
+        </PageContainer>
 
         <Dialog
           open={previewOpen}
@@ -444,7 +441,5 @@ export default function ReviewerDashboardPage() {
           </DialogContent>
         </Dialog>
       </main>
-      <Footer />
-    </div>
   );
 }
