@@ -1,8 +1,6 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import CourseForm from '@/components/admin/CourseForm';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, getFirestore } from 'firebase/firestore';
@@ -49,8 +47,7 @@ export default function EditCoursePage() {
   const isPageLoading = roleLoading || isLoading;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-4xl mx-auto">
           {isPageLoading ? (
@@ -82,7 +79,6 @@ export default function EditCoursePage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

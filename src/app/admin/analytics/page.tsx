@@ -1,8 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -17,23 +15,20 @@ export default function AdminAnalyticsPage() {
   // Loading shim to keep UX consistent with other admin pages
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-6xl mx-auto">
             <div className="h-8 w-1/3 bg-muted animate-pulse rounded mb-4" />
             <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-xl mx-auto text-center">
             <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">{ar ? 'الوصول مرفوض' : 'Access denied'}</h1>
@@ -48,7 +43,6 @@ export default function AdminAnalyticsPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -56,8 +50,7 @@ export default function AdminAnalyticsPage() {
   const studentProgressUrl = getEvidenceUrl('/student-progress');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1">
         <div className="container px-4 py-6 md:px-6 md:py-10 max-w-7xl">
           <div className="mb-6">
@@ -90,7 +83,6 @@ export default function AdminAnalyticsPage() {
           </Card>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

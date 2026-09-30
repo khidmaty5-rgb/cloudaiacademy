@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -109,8 +107,7 @@ export default function CreateAnnouncementPage() {
   
   if (isUserLoading || roleLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-          <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-2xl mx-auto">
             <Skeleton className="h-8 w-1/2 mb-8" />
@@ -128,7 +125,6 @@ export default function CreateAnnouncementPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -138,8 +134,7 @@ export default function CreateAnnouncementPage() {
   const canView = isAdmin === true;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-2xl mx-auto">
           {canView ? (
@@ -200,7 +195,6 @@ export default function CreateAnnouncementPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

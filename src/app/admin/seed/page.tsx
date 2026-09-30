@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
@@ -101,8 +99,7 @@ export default function AdminSeedPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-2xl mx-auto space-y-6">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">
@@ -133,7 +130,6 @@ export default function AdminSeedPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
