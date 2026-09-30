@@ -327,8 +327,15 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
   const isAdminRoute = !!pathname && pathname !== '/admin' && pathname.startsWith('/admin');
   const isTeacherRoute = !!pathname && pathname.startsWith('/teacher');
   const isReviewerRoute = !!pathname && pathname.startsWith('/reviewer');
+  const isLearnRoute = !!pathname && pathname.startsWith('/learn');
+  const isTelegramRoute = pathname === '/dashboard/telegram';
   const isWorkspaceVariant =
-    isAppVariant || isAdminRoute || isTeacherRoute || isReviewerRoute;
+    isAppVariant ||
+    isAdminRoute ||
+    isTeacherRoute ||
+    isReviewerRoute ||
+    isLearnRoute ||
+    isTelegramRoute;
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: uiSettings } = useDoc(settingsDocRef);
@@ -506,6 +513,19 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
     { href: '/journal', label: lang === 'ar' ? 'المجلة' : 'Journal' },
   ] as const;
 
+  const telegramNavItems = [
+    {
+      href:
+        effectiveRole === 'admin'
+          ? '/admin/dashboard'
+          : effectiveRole === 'teacher'
+            ? '/teacher/dashboard'
+            : '/dashboard',
+      label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard',
+    },
+    { href: '/dashboard/telegram', label: lang === 'ar' ? 'تيليجرام' : 'Telegram' },
+  ] as const;
+
   const canAccessReviewWorkspace =
     effectiveRole === 'reviewer' || effectiveRole === 'editor' || effectiveRole === 'admin';
   const workspaceNavItems = isAdminRoute
@@ -514,6 +534,8 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       ? canAccessAdmin && !roleLoading ? teachingNavItems : []
       : isReviewerRoute
         ? canAccessReviewWorkspace && !roleLoading ? reviewerNavItems : []
+        : isTelegramRoute
+          ? telegramNavItems
         : learnerNavItems;
   const workspacePrimaryItems = isAdminRoute
     ? workspaceNavItems.slice(0, 4)
@@ -525,6 +547,8 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
       ? lang === 'ar' ? 'التدريس' : 'Teaching'
       : isReviewerRoute
         ? lang === 'ar' ? 'التحكيم' : 'Review'
+        : isTelegramRoute
+          ? lang === 'ar' ? 'تيليجرام' : 'Telegram'
         : lang === 'ar' ? 'التعلّم' : 'Learning';
 
   const handleLogoClick = () => {
@@ -885,6 +909,23 @@ export default function Header({ variant = 'public' }: HeaderProps = {}) {
                           </Link>
                         </>
                       )}
+                    </>
+                  )}
+                  {(isLearnRoute || isTelegramRoute) && !isAppVariant && (
+                    <>
+                      {workspaceNavItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={[
+                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
+                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
+                          ].join(' ')}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
                     </>
                   )}
                   {isAdminRoute && canAccessAdmin && (

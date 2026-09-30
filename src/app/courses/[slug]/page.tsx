@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { getCourseImage } from '@/lib/course-images';
 import { SiteShell } from '@/components/layout/site-shell';
+import { LearnerWorkspaceShell } from '@/components/layout/learner-workspace-shell';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -39,18 +40,32 @@ const courseCopy = {
     startLive: 'Start Live Class',
   },
   ar: {
-    courseNotFound: 'Course not found.',
-    goToCourse: 'Go to Course',
-    enrollNow: 'Enroll Now',
-    enrollNotAllowed: 'Enrollment not available',
-    enrollNotAllowedDesc: 'Only learner accounts (student or reviewer) can enroll in courses.',
-    enrollSuccess: 'Successfully Enrolled!',
-    enrollSuccessDesc: (title: string) => `You have enrolled in ${title}.`,
-    enrollFailed: 'Enrollment Failed',
-    enrollFailedDesc: 'There was an error enrolling in the course.',
+    courseNotFound: 'لم يتم العثور على الدورة.',
+    goToCourse: 'الانتقال إلى الدورة',
+    enrollNow: 'التسجيل الآن',
+    enrollNotAllowed: 'التسجيل غير متاح',
+    enrollNotAllowedDesc: 'يمكن لحسابات المتعلمين فقط (الطلاب أو المراجعين) التسجيل في الدورات.',
+    enrollSuccess: 'تم التسجيل بنجاح!',
+    enrollSuccessDesc: (title: string) => `لقد سجلت في ${title}.`,
+    enrollFailed: 'تعذر التسجيل',
+    enrollFailedDesc: 'حدث خطأ أثناء التسجيل في الدورة.',
     startLive: 'بدء الحصة المباشرة',
   },
 } as const;
+
+function CoursePageShell({
+  authenticated,
+  children,
+}: {
+  authenticated: boolean;
+  children: React.ReactNode;
+}) {
+  return authenticated ? (
+    <LearnerWorkspaceShell>{children}</LearnerWorkspaceShell>
+  ) : (
+    <SiteShell>{children}</SiteShell>
+  );
+}
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -391,7 +406,7 @@ export default function CourseDetailPage() {
 
   if (isLoading) {
       return (
-        <SiteShell>
+        <CoursePageShell authenticated={!!user}>
           <main className="flex-1">
             <div className="container py-10 md:py-16">
               <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -406,24 +421,24 @@ export default function CourseDetailPage() {
               </div>
             </div>
           </main>
-        </SiteShell>
+        </CoursePageShell>
       );
   }
 
   if (!course) {
     return (
-      <SiteShell>
+      <CoursePageShell authenticated={!!user}>
         <main className="flex-1">
           <div className="container py-10 md:py-16">
             <p className="text-muted-foreground">{t.courseNotFound}</p>
           </div>
         </main>
-      </SiteShell>
+      </CoursePageShell>
     );
   }
 
   return (
-    <SiteShell>
+    <CoursePageShell authenticated={!!user}>
       <main className="flex-1">
         <div className="container py-10 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -570,6 +585,6 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </main>
-    </SiteShell>
+    </CoursePageShell>
   );
 }

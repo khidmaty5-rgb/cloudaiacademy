@@ -106,10 +106,10 @@ export default function CoursesPage() {
             <div className="grid sm:grid-cols-3 gap-4">
                 <div className='sm:col-span-3'>
                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Search className="absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder={t.searchPlaceholder}
-                            className="pl-10 w-full"
+                            className="w-full ps-10"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

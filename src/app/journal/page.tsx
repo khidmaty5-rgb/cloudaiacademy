@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/i18n/lang";
-import Header from "@/components/landing/header";
-import Footer from "@/components/landing/footer";
 import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { useCurrentRole } from "@/hooks/useCurrentRole";
 import { Button } from "@/components/ui/button";
@@ -295,8 +293,7 @@ export default function JournalPage() {
   if (!isUiLoading && !journalEnabled) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-muted">
       <main className="flex-1 bg-muted text-foreground">
         <section
           dir={dir}
@@ -551,7 +548,6 @@ export default function JournalPage() {
           </footer>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -1,7 +1,5 @@
 export const runtime = 'nodejs';
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import PdfSandbox from '@/components/journal/pdf-sandbox';
 import type { Metadata } from 'next';
@@ -158,8 +156,7 @@ export default async function JournalArticlePage(context: {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16 bg-background">
         <div className="container max-w-3xl">
           <section className="space-y-6">
@@ -243,7 +240,6 @@ export default async function JournalArticlePage(context: {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
