@@ -14,9 +14,9 @@ export default function Hero() {
   const { user, isUserLoading } = useUser();
   const { lang, dir } = useLang();
   const isRTL = dir === 'rtl';
-  const textAlign = isRTL ? 'lg:text-right' : 'lg:text-left';
-  const textOrder = isRTL ? 'lg:order-2' : 'lg:order-1';
-  const imageOrder = isRTL ? 'lg:order-1' : 'lg:order-2';
+  const textAlign = isRTL ? 'md:text-right' : 'md:text-left';
+  const textOrder = isRTL ? 'md:order-2' : 'md:order-1';
+  const imageOrder = isRTL ? 'md:order-1' : 'md:order-2';
 
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-background');
   const browserImage = PlaceHolderImages.find((img) => img.id === 'hero-browser');
@@ -31,13 +31,13 @@ export default function Hero() {
   const content = sanitizeHeroConfig(ui?.hero?.[lang], DEFAULT_HERO[lang]);
 
   return (
-    <section className="relative bg-primary text-primary-foreground py-20 md:py-32">
+    <section className="relative overflow-hidden bg-primary py-14 text-primary-foreground sm:py-16 lg:py-24">
       {heroImage && (
         <Image
           src={heroImage.imageUrl}
           alt={heroImage.description}
           fill
-          className="object-cover -z-20 opacity-10 blur-2xl scale-110"
+          className="-z-20 object-cover opacity-10 blur-2xl"
           data-ai-hint={heroImage.imageHint}
         />
       )}
@@ -47,7 +47,7 @@ export default function Hero() {
 
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <svg
-          className="absolute left-[max(50%,25rem)] top-0 h-full w-full -translate-x-1/2 stroke-gray-200/20 [mask-image:radial-gradient(64rem_64rem_at_top,white,transparent)]"
+          className="absolute inset-0 h-full w-full stroke-gray-200/20 [mask-image:radial-gradient(64rem_64rem_at_top,white,transparent)]"
           aria-hidden="true"
         >
           <defs>
@@ -62,7 +62,7 @@ export default function Hero() {
               <path d="M100 200V.5M.5 .5H200" fill="none" />
             </pattern>
           </defs>
-          <svg x="50%" y={-1} className="overflow-visible fill-gray-500/10">
+          <svg x="50%" y={-1} className="fill-gray-500/10">
             <path
               d="M-100.5 0h201v201h-201Z M699.5 0h201v201h-201Z M499.5 400h201v201h-201Z M-300.5 600h201v201h-201Z"
               strokeWidth={0}
@@ -72,11 +72,11 @@ export default function Hero() {
         </svg>
       </div>
 
-      <div className="container">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="container relative">
+        <div className="grid min-w-0 items-center gap-10 md:grid-cols-[minmax(0,1.08fr)_minmax(16rem,0.92fr)] xl:gap-16">
           <div className={`text-center ${textAlign} ${textOrder}`}>
             <div
-              className={`mx-auto lg:mx-0 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-sm text-primary-foreground/90 backdrop-blur-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+                className={`mx-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-sm text-primary-foreground/90 backdrop-blur-sm md:mx-0 ${isRTL ? 'flex-row-reverse' : ''}`}
             >
               <Sparkles className="h-4 w-4 text-accent" />
               <span dir="auto">{content.badge}</span>
@@ -84,18 +84,18 @@ export default function Hero() {
 
             <h1
               dir="auto"
-              className="mt-5 font-headline text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]"
+              className="mt-5 font-headline text-[clamp(2.25rem,5vw,4rem)] font-bold leading-[1.08] tracking-tight"
             >
               {content.title}
             </h1>
 
-            <p dir="auto" className="mt-6 text-lg md:text-xl text-primary-foreground/80 max-w-xl mx-auto lg:mx-0">
+            <p dir="auto" className="mx-auto mt-6 max-w-xl text-lg text-primary-foreground/80 md:mx-0 md:text-xl">
               {content.desc}
             </p>
 
             {content.highlights.length > 0 && (
               <ul
-                className={`mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-primary-foreground/80 justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'}`}
+                className={`mt-8 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-primary-foreground/80 ${isRTL ? 'md:justify-end' : 'md:justify-start'}`}
               >
                 {content.highlights.map((item) => (
                   <li
@@ -109,39 +109,13 @@ export default function Hero() {
               </ul>
             )}
 
-            <div
-              className={`mt-10 flex flex-col sm:flex-row sm:flex-wrap justify-center ${isRTL ? 'lg:justify-end' : 'lg:justify-start'} gap-4`}
-            >
+            <div className={`mt-9 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap ${isRTL ? 'md:justify-end' : 'md:justify-start'}`}>
               <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                 <Link href="/courses">{content.explore}</Link>
               </Button>
 
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-accent/40 bg-accent/10 text-primary-foreground hover:bg-accent/15 hover:text-primary-foreground"
-              >
-                <Link href="/print/qr" className={isRTL ? 'flex-row-reverse' : ''}>
-                  <QrCode className="h-4 w-4" />
-                  <span dir="auto">{lang === 'ar' ? '\u0637\u0628\u0627\u0639\u0629 QR' : 'Print QR'}</span>
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-accent/40 bg-accent/10 text-primary-foreground hover:bg-accent/15 hover:text-primary-foreground"
-              >
-                <Link href="/research" className={isRTL ? 'flex-row-reverse' : ''}>
-                  <FlaskConical className="h-4 w-4" />
-                  <span dir="auto">{lang === 'ar' ? 'استكشف الأبحاث' : 'Explore Research'}</span>
-                </Link>
-              </Button>
-
               {isUserLoading ? (
-                <div className="h-11 w-44 animate-pulse rounded-md bg-white/20" />
+                <div className="h-11 w-40 animate-pulse rounded-md bg-white/15" />
               ) : user ? (
                 <Button
                   asChild
@@ -163,23 +137,28 @@ export default function Hero() {
               )}
             </div>
 
-            {false && (
-            <div className={`mt-4 ${isRTL ? 'lg:text-right' : 'lg:text-left'} text-center`}>
+            <div className={`mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-primary-foreground/75 ${isRTL ? 'md:justify-end' : 'md:justify-start'}`}>
+              <Link
+                href="/research"
+                className={`inline-flex items-center gap-2 transition-colors hover:text-accent ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <FlaskConical className="h-4 w-4" />
+                <span dir="auto">{lang === 'ar' ? 'استكشف الأبحاث' : 'Explore research'}</span>
+              </Link>
               <Link
                 href="/print/qr"
-                className={`inline-flex items-center gap-2 text-sm text-primary-foreground/80 hover:text-accent hover:underline underline-offset-4 ${isRTL ? 'flex-row-reverse' : ''}`}
+                className={`inline-flex items-center gap-2 transition-colors hover:text-accent ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <QrCode className="h-4 w-4" />
-                <span dir="auto">{lang === 'ar' ? 'طباعة ومشاركة QR' : 'Print & share QR'}</span>
+                <span dir="auto">{lang === 'ar' ? 'طباعة رمز QR ومشاركته' : 'Print and share the course QR'}</span>
               </Link>
             </div>
-            )}
           </div>
 
           <div
-            className={`relative mx-auto w-full max-w-[300px] sm:max-w-[360px] md:max-w-[420px] lg:max-w-[480px] ${imageOrder}`}
+            className={`relative mx-auto hidden w-full max-w-[300px] sm:block lg:max-w-[400px] ${imageOrder}`}
           >
-            <div className="absolute -inset-10 rounded-[2.5rem] bg-gradient-to-br from-accent/35 via-chart-3/20 to-chart-1/20 blur-3xl opacity-70" />
+            <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-accent/30 via-chart-3/15 to-chart-1/15 opacity-60 blur-3xl" />
             <div className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0" />
               <div className="relative h-full w-full overflow-hidden rounded-xl bg-white shadow-lg">

@@ -308,7 +308,7 @@ export default function DashboardPage() {
 
   if (isUserLoading || roleLoading || !user) {
     return (
-      <div className="w-full max-w-6xl px-4 py-10 md:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6">
         <div className="space-y-4">
           <Skeleton className="h-8 w-1/2" />
           <div className="grid gap-8 md:grid-cols-2">
@@ -322,7 +322,7 @@ export default function DashboardPage() {
 
   return (
     
-        <div className="w-full max-w-6xl px-4 py-10 md:px-6">
+        <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">
             {t.welcome(user.displayName || t.defaultName)}
           </h1>

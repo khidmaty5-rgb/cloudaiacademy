@@ -2,26 +2,26 @@
 
 import Link from 'next/link';
 import { CheckCircle2, Mail } from 'lucide-react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 
 export default function ResearchMentorPage() {
   const { lang } = useLang();
-
-  // TODO(i18n): Add Arabic strings for this page; for now we intentionally keep English copy so the language toggle works without broken content.
-  const title = 'Mentor / Review';
-  const sub =
-    'Help contributors ship reproducible artifacts and improve drafts. This is mentoring—not formal peer review.';
+  const ar = lang === 'ar';
+  const title = ar ? 'الإرشاد والمراجعة' : 'Mentor / Review';
+  const sub = ar
+    ? 'ساعد المساهمين على إنتاج مواد قابلة لإعادة الاستخدام وتحسين المسودات. هذا إرشاد تقني وليس تحكيماً علمياً رسمياً.'
+    : 'Help contributors ship reproducible artifacts and improve drafts. This is mentoring—not formal peer review.';
+  const mentorTasks = ar
+    ? ['مراجعة القضايا وطلبات الدمج من حيث الوضوح والسلامة وقابلية إعادة الإنتاج', 'المساعدة في التحقق من نتائج التقييم وخطوط الأساس', 'توجيه جودة التوثيق: الإعداد والاستخدام والقيود', 'تقديم ملاحظات على مسودات التقارير التقنية']
+    : ['Review issues and PRs for clarity, safety, and reproducibility', 'Help validate evaluation results and baselines', 'Guide documentation quality (setup, usage, limitations)', 'Provide feedback on technical report drafts'];
 
   const email = 'info@cloudaiacademy.ca';
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Mentor / reviewer interest (Research)')}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1">
         <section className="bg-muted/40 py-12 md:py-16">
           <div className="container">
@@ -35,20 +35,17 @@ export default function ResearchMentorPage() {
               <div className="pt-2 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <a href={mailto}>
-                    Email to volunteer
-                    <Mail className="ml-2 h-4 w-4" aria-hidden="true" />
+                    {ar ? 'راسلنا للتطوع' : 'Email to volunteer'}
+                    <Mail className="ms-2 h-4 w-4" aria-hidden="true" />
                   </a>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/research/submit">Register interest to submit</Link>
+                  <Link href="/research/submit">{ar ? 'سجّل اهتمامك بالنشر' : 'Register interest to submit'}</Link>
                 </Button>
                 <Button asChild variant="link" className="text-accent">
-                  <Link href="/research">Back to Research</Link>
+                  <Link href="/research">{ar ? 'العودة إلى الأبحاث' : 'Back to Research'}</Link>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {lang === 'ar' ? 'TODO: Arabic translations for this page.' : 'TODO: Arabic translations for this page.'}
-              </p>
             </div>
           </div>
         </section>
@@ -58,31 +55,27 @@ export default function ResearchMentorPage() {
             <div className="mx-auto max-w-4xl grid gap-6 md:grid-cols-2">
               <Card className="bg-card/50 border-accent/30">
                 <CardHeader>
-                  <CardTitle className="font-headline text-xl">What mentors do</CardTitle>
+                  <CardTitle className="font-headline text-xl">{ar ? 'ما الذي يقدمه المرشدون؟' : 'What mentors do'}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Review issues and PRs for clarity, safety, and reproducibility</li>
-                    <li>Help validate evaluation results and baselines</li>
-                    <li>Guide documentation quality (setup, usage, limitations)</li>
-                    <li>Provide feedback on technical report drafts</li>
+                  <ul className="list-disc ps-5 space-y-2">
+                    {mentorTasks.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </CardContent>
               </Card>
 
               <Card className="bg-card/50 border-accent/30">
                 <CardHeader>
-                  <CardTitle className="font-headline text-xl">Launch standards</CardTitle>
+                  <CardTitle className="font-headline text-xl">{ar ? 'معايير الإطلاق' : 'Launch standards'}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-3">
                   <p>
-                    We use lightweight artifact checks to ensure work is reviewable and reproducible before publishing a
-                    pilot technical report.
+                    {ar ? 'نستخدم فحوصات عملية للمواد لضمان قابلية العمل للمراجعة وإعادة الإنتاج قبل نشر التقرير التقني التجريبي.' : 'We use lightweight artifact checks to ensure work is reviewable and reproducible before publishing a pilot technical report.'}
                   </p>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-accent" aria-hidden="true" />
                     <Link href="/research/standards" className="text-accent hover:underline">
-                      View standards
+                      {ar ? 'عرض المعايير' : 'View standards'}
                     </Link>
                   </div>
                 </CardContent>
@@ -91,8 +84,6 @@ export default function ResearchMentorPage() {
           </div>
         </section>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }
-

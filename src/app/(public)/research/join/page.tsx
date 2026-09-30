@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { ArrowRight, CheckCircle2, Mail, Users } from 'lucide-react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,21 +56,21 @@ const tracks = [
 
 function ResearchJoinContent() {
   const { lang } = useLang();
+  const ar = lang === 'ar';
   const searchParams = useSearchParams();
   const initiativeParam = searchParams.get('initiative')?.trim() || '';
   const selectedInitiative = initiatives.find((i) => i.slug === initiativeParam) ?? null;
 
-  // TODO(i18n): Add Arabic strings for this page; for now we intentionally keep English copy so the language toggle works without broken content.
   const t = {
-    title: 'Join a Project (Students & Researchers)',
-    sub: 'Launch-phase research is built through initiatives, weekly rhythm, and reproducible artifacts. Tell us what you want to work on and we will match you to a track or an initiative.',
-    ctaEmail: 'Email to join',
-    ctaPropose: 'Propose a Project',
-    ctaBack: 'Back to Research',
-    selectedTitle: 'Selected initiative',
-    stepsTitle: 'What happens next',
-    steps: ['Intro + fit check', 'Scope a deliverable', 'Build + evaluate', 'Publish a short technical report (pilot)'],
-    tracksTitle: 'Student tracks',
+    title: ar ? 'انضم إلى مشروع للطلاب والباحثين' : 'Join a Project (Students & Researchers)',
+    sub: ar ? 'تُبنى أبحاث مرحلة الإطلاق عبر مبادرات منتظمة ومواد قابلة لإعادة الإنتاج. أخبرنا بما تريد العمل عليه وسنطابقك مع المسار أو المبادرة المناسبة.' : 'Launch-phase research is built through initiatives, weekly rhythm, and reproducible artifacts. Tell us what you want to work on and we will match you to a track or an initiative.',
+    ctaEmail: ar ? 'راسلنا للانضمام' : 'Email to join',
+    ctaPropose: ar ? 'اقترح مشروعاً' : 'Propose a Project',
+    ctaBack: ar ? 'العودة إلى الأبحاث' : 'Back to Research',
+    selectedTitle: ar ? 'المبادرة المختارة' : 'Selected initiative',
+    stepsTitle: ar ? 'ماذا يحدث بعد ذلك؟' : 'What happens next',
+    steps: ar ? ['تعارف وتحقق من الملاءمة', 'تحديد نطاق المخرج', 'البناء والتقييم', 'نشر تقرير تقني مختصر تجريبي'] : ['Intro + fit check', 'Scope a deliverable', 'Build + evaluate', 'Publish a short technical report (pilot)'],
+    tracksTitle: ar ? 'مسارات الطلاب' : 'Student tracks',
     contactEmail: 'info@cloudaiacademy.ca',
   };
 
@@ -87,8 +85,7 @@ function ResearchJoinContent() {
   const mailto = `mailto:${t.contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1">
         <section className="py-12 md:py-16 bg-muted/40">
           <div className="container">
@@ -104,13 +101,13 @@ function ResearchJoinContent() {
                 <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <a href={mailto}>
                     {t.ctaEmail}
-                    <Mail className="ml-2 h-4 w-4" aria-hidden="true" />
+                    <Mail className="ms-2 h-4 w-4" aria-hidden="true" />
                   </a>
                 </Button>
                 <Button asChild variant="outline">
                   <Link href="/research/propose">
                     {t.ctaPropose}
-                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" aria-hidden="true" />
                   </Link>
                 </Button>
                 <Button asChild variant="link" className="text-accent">
@@ -118,9 +115,6 @@ function ResearchJoinContent() {
                 </Button>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                {lang === 'ar' ? 'TODO: Arabic translations for this page.' : 'TODO: Arabic translations for this page.'}
-              </p>
             </div>
           </div>
         </section>
@@ -144,10 +138,11 @@ function ResearchJoinContent() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">Next:</span> email us your background + availability and we will send onboarding details.
+                    <span className="font-medium text-foreground">{ar ? 'التالي:' : 'Next:'}</span>{' '}
+                    {ar ? 'راسلنا بخبرتك والوقت المتاح وسنرسل لك تفاصيل الانضمام.' : 'email us your background + availability and we will send onboarding details.'}
                   </div>
                   <Button asChild variant="outline">
-                    <a href={mailto}>Email about this initiative</a>
+                    <a href={mailto}>{ar ? 'راسلنا بشأن هذه المبادرة' : 'Email about this initiative'}</a>
                   </Button>
                 </CardContent>
               </Card>
@@ -170,7 +165,7 @@ function ResearchJoinContent() {
                     <CardHeader className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                          Step {idx + 1}
+                          {ar ? 'الخطوة' : 'Step'} {idx + 1}
                         </Badge>
                         <Users className="h-4 w-4 text-accent" aria-hidden="true" />
                       </div>
@@ -183,7 +178,8 @@ function ResearchJoinContent() {
               </div>
 
               <div className="text-center text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Pipeline:</span> Propose → Build → Evaluate → Publish (Technical Report)
+                <span className="font-medium text-foreground">{ar ? 'المسار:' : 'Pipeline:'}</span>{' '}
+                {ar ? 'اقتراح ← بناء ← تقييم ← نشر تقرير تقني' : 'Propose → Build → Evaluate → Publish (Technical Report)'}
               </div>
             </div>
           </div>
@@ -197,7 +193,7 @@ function ResearchJoinContent() {
                   {t.tracksTitle}
                 </h2>
                 <p dir="auto" className="text-muted-foreground">
-                  Pick a track based on time and confidence. If you are unsure, start with the reading group track.
+                  {ar ? 'اختر المسار وفق وقتك وخبرتك. إذا لم تكن متأكداً، ابدأ بمسار مجموعة القراءة.' : 'Pick a track based on time and confidence. If you are unsure, start with the reading group track.'}
                 </p>
               </div>
 
@@ -218,11 +214,11 @@ function ResearchJoinContent() {
                       <div className="flex gap-3 text-sm text-muted-foreground">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 text-accent" aria-hidden="true" />
                         <p dir="auto">
-                          <span className="font-medium text-foreground">Deliverable:</span> {track.deliverable}
+                          <span className="font-medium text-foreground">{ar ? 'المخرج:' : 'Deliverable:'}</span> {track.deliverable}
                         </p>
                       </div>
                       <Button asChild variant="outline" className="w-full">
-                        <a href={mailto}>Join this track</a>
+                        <a href={mailto}>{ar ? 'انضم إلى هذا المسار' : 'Join this track'}</a>
                       </Button>
                     </CardContent>
                   </Card>
@@ -231,9 +227,9 @@ function ResearchJoinContent() {
 
               <div className="flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  Prefer to choose an initiative first? Go back to{' '}
+                  {ar ? 'تفضّل اختيار مبادرة أولاً؟ عد إلى ' : 'Prefer to choose an initiative first? Go back to '}
                   <Link href="/research#initiatives" className="text-accent hover:underline">
-                    Active Initiatives
+                    {ar ? 'المبادرات النشطة' : 'Active Initiatives'}
                   </Link>
                   .
                 </span>
@@ -242,8 +238,7 @@ function ResearchJoinContent() {
           </div>
         </section>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }
 

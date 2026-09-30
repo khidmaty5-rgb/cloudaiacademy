@@ -4,8 +4,6 @@ import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getCourseImage } from '@/lib/course-images';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,8 +90,7 @@ export default function CoursesPage() {
   }, [allCourses, searchTerm, category, level]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           <div className="text-center">
@@ -154,13 +151,13 @@ export default function CoursesPage() {
                {error.message || 'Failed to load courses. Please try again.'}
              </div>
           ) : isLoading ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-96 w-full" />
                 ))}
              </div>
           ) : filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredCourses.map((course) => {
                 const image = getCourseImage(course as any);
                 const isContain = image.fit === 'contain';
@@ -170,7 +167,7 @@ export default function CoursesPage() {
                     key={course.id}
                     className="block"
                   >
-                    <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300 h-full border-accent border-2">
+                    <Card className="group h-full overflow-hidden border border-border/70 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl">
                       <CardHeader className="p-0">
                         <div className="relative w-full bg-white" style={{ aspectRatio: '3/2' }}>
                           <div className={`absolute inset-0 ${isContain ? 'p-8' : ''}`}>
@@ -186,23 +183,24 @@ export default function CoursesPage() {
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6">
+                      <CardContent className="flex min-h-64 flex-col p-6">
                         <Badge
+                          dir="auto"
                           variant="secondary"
-                          className="bg-accent/10 text-accent mb-2"
+                          className="mb-2 w-fit bg-accent/10 text-accent"
                         >
                           {course.category}
                         </Badge>
-                        <CardTitle className="font-headline mb-2">
+                        <CardTitle dir="auto" className="mb-2 line-clamp-2 font-headline">
                           {course.title}
                         </CardTitle>
-                        <p className="text-muted-foreground mb-4 text-sm">
+                        <p dir="auto" className="mb-4 line-clamp-3 text-sm text-muted-foreground">
                           {course.description}
                         </p>
-                        <div className="text-2xl font-bold text-accent mb-4">
+                        <div className="mt-auto mb-4 text-2xl font-bold text-accent">
                           {course.price}
                         </div>
-                        <div className="flex justify-between text-muted-foreground text-sm border-t pt-4">
+                        <div className="flex flex-wrap justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4" /> {course.duration}
                           </div>
@@ -228,7 +226,6 @@ export default function CoursesPage() {
           )}
         </div>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }

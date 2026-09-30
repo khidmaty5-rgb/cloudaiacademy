@@ -77,7 +77,7 @@ export function LangToggle({ className = '' }: { className?: string }) {
     <div
       className={`inline-flex h-9 items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1 ${className}`}
       role="group"
-      aria-label="Language"
+      aria-label={lang === 'ar' ? 'اللغة' : 'Language'}
     >
       <button
         type="button"

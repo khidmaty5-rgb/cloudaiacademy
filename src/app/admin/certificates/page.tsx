@@ -33,6 +33,7 @@ import { generateCertificatePdfBytes } from '@/lib/certificate-pdf';
 import { formatCertificateId, normalizeCourseCode } from '@/lib/certificates';
 import { isLearnerRole } from '@/lib/roles';
 import type { Certificate, CertificateRecipientNameStyle, Course, UserProfile } from '@/types/models';
+import { useLang } from '@/components/i18n/lang';
 
 function asDateInputValue(d: Date) {
   const y = d.getFullYear();
@@ -55,6 +56,8 @@ type CertificateListItem = {
 };
 
 export default function AdminCertificatesPage() {
+  const { lang } = useLang();
+  const ar = lang === 'ar';
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -943,20 +946,20 @@ export default function AdminCertificatesPage() {
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-6xl mx-auto space-y-8">
           <div>
-            <h1 className="font-headline text-3xl md:text-4xl font-bold">Issue Certificate</h1>
+            <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'إصدار شهادة' : 'Issue Certificate'}</h1>
             <p className="mt-2 text-muted-foreground">
               Create a certificate of completion that can be verified publicly.
             </p>
           </div>
 
           {!canView ? (
-            <div className="text-center py-16 text-muted-foreground">No permission.</div>
+            <div className="text-center py-16 text-muted-foreground">{ar ? 'لا تملك صلاحية الوصول.' : 'No permission.'}</div>
           ) : (
             <div className="grid gap-8 lg:grid-cols-2">
               <div className="space-y-6">
                 <Card>
                 <CardHeader>
-                  <CardTitle>Certificate Details</CardTitle>
+                  <CardTitle>{ar ? 'تفاصيل الشهادة' : 'Certificate Details'}</CardTitle>
                   <CardDescription>
                     This will create two records: `certificates/{'{id}'}`
                     (public verification) and `users/{'{uid}'}/certificates/{'{id}'}`
@@ -1223,8 +1226,8 @@ export default function AdminCertificatesPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>View Student Certificates</CardTitle>
-                    <CardDescription>Lookup a student, then preview/download any issued certificate.</CardDescription>
+                    <CardTitle>{ar ? 'عرض شهادات الطالب' : 'View Student Certificates'}</CardTitle>
+                    <CardDescription>{ar ? 'ابحث عن طالب ثم عاين أو نزّل أي شهادة صادرة.' : 'Lookup a student, then preview/download any issued certificate.'}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-2">
@@ -1390,7 +1393,7 @@ export default function AdminCertificatesPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Delete Test Certificates</CardTitle>
+                    <CardTitle>{ar ? 'حذف الشهادات التجريبية' : 'Delete Test Certificates'}</CardTitle>
                     <CardDescription>
                       Delete a certificate by ID (removes both `certificates/{'{id}'}` and the student copy).
                     </CardDescription>

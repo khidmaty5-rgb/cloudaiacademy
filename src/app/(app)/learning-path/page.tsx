@@ -130,7 +130,7 @@ export default function LearningPathPage() {
 
   if (isUserLoading || !user) {
     return (
-      <div className="w-full max-w-2xl px-4 py-10 md:px-6" dir={dir}>
+      <div className="mx-auto w-full max-w-2xl px-4 py-10 md:px-6" dir={dir}>
         <Skeleton className="mb-4 h-8 w-1/2" />
         <Skeleton className="mb-8 h-4 w-3/4" />
         <Card>
@@ -209,7 +209,7 @@ export default function LearningPathPage() {
   };
 
   return (
-    <div className="w-full max-w-2xl px-4 py-10 md:px-6" dir={dir}>
+    <div className="mx-auto w-full max-w-2xl px-4 py-10 md:px-6" dir={dir}>
       <div className="text-center">
         <h1 className="font-headline text-3xl font-bold md:text-4xl">
           {t.pageTitle}

@@ -16,6 +16,8 @@ import { Suspense, useState } from 'react';
 import { signIn } from '@/lib/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useLang } from '@/components/i18n/lang';
+import AuthShell from '@/components/layout/auth-shell';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -23,6 +25,8 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const nextParam = searchParams.get('next');
   const safeNext = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
@@ -51,28 +55,28 @@ function LoginContent() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
+        title: ar ? 'تعذّر تسجيل الدخول' : 'Login Failed',
         description: error.message,
       });
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-      <Card className="w-full max-w-sm">
+    <AuthShell>
+      <Card className="w-full border-border/80 shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <Link href="/" className="mb-4 inline-block">
+          <Link href="/" className="mb-3 inline-flex justify-center lg:hidden">
             <Logo />
           </Link>
-          <CardTitle>Welcome Back</CardTitle>
+          <CardTitle>{ar ? 'مرحباً بعودتك' : 'Welcome Back'}</CardTitle>
           <CardDescription>
-            Log in to your CloudAI Academy account.
+            {ar ? 'سجّل الدخول إلى حسابك في CloudAI Academy.' : 'Log in to your CloudAI Academy account.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleLogin}>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{ar ? 'البريد الإلكتروني' : 'Email'}</Label>
               <Input
                 id="email"
                 type="email"
@@ -83,25 +87,25 @@ function LoginContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{ar ? 'كلمة المرور' : 'Password'}</Label>
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Log In
+              {ar ? 'تسجيل الدخول' : 'Log In'}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
+            {ar ? 'ليس لديك حساب؟' : "Don't have an account?"}{' '}
             <Link
               href="/signup"
               className="font-medium text-accent hover:underline"
             >
-              Sign up
+              {ar ? 'إنشاء حساب' : 'Sign up'}
             </Link>
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -109,10 +113,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-          <Card className="w-full max-w-sm">
+        <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <CardTitle>Loading…</CardTitle>
+              <CardTitle>…</CardTitle>
             </CardHeader>
           </Card>
         </div>

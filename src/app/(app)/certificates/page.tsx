@@ -4,13 +4,13 @@ import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { collection, getFirestore, orderBy, query } from 'firebase/firestore';
-import { format } from 'date-fns';
 import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Certificate } from '@/types/models';
+import { useLang } from '@/components/i18n/lang';
 
 function toDateValue(v: any): Date | null {
   if (!v) return null;
@@ -28,6 +28,8 @@ export default function CertificatesPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = getFirestore();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/login');
@@ -47,7 +49,7 @@ export default function CertificatesPage() {
 
   if (isUserLoading || !user) {
     return (
-      <div className="w-full max-w-4xl px-4 py-10 md:px-6">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 md:px-6">
         <Skeleton className="h-8 w-1/3" />
         <div className="mt-6 space-y-4">
           <Skeleton className="h-28 w-full" />
@@ -58,10 +60,10 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="w-full max-w-4xl px-4 py-10 md:px-6">
-      <h1 className="font-headline text-3xl md:text-4xl font-bold">Certificates</h1>
+    <div className="mx-auto w-full max-w-4xl px-4 py-10 md:px-6">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'الشهادات' : 'Certificates'}</h1>
       <p className="mt-2 text-muted-foreground">
-        Your certificates of completion.
+        {ar ? 'شهادات إتمامك للدورات.' : 'Your certificates of completion.'}
       </p>
 
       <div className="mt-8">
@@ -72,17 +74,19 @@ export default function CertificatesPage() {
           </div>
         ) : error ? (
           <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-            {error.message || 'Failed to load certificates.'}
+            {error.message || (ar ? 'تعذّر تحميل الشهادات.' : 'Failed to load certificates.')}
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/20 p-6 text-center">
-            <p className="text-muted-foreground">No certificates yet.</p>
+            <p className="text-muted-foreground">{ar ? 'لا توجد شهادات بعد.' : 'No certificates yet.'}</p>
           </div>
         ) : (
           <div className="space-y-4">
             {items.map((cert) => {
               const completedAt = toDateValue(cert.completedAt);
-              const completedLabel = completedAt ? format(completedAt, 'PPP') : '-';
+              const completedLabel = completedAt
+                ? new Intl.DateTimeFormat(ar ? 'ar' : 'en', { dateStyle: 'long' }).format(completedAt)
+                : '-';
               const verifyHref = `/verify/${encodeURIComponent(cert.id)}`;
               const isRevoked = cert.status === 'REVOKED';
               return (
@@ -90,18 +94,18 @@ export default function CertificatesPage() {
                   <CardHeader className="pb-2">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <CardTitle className="font-headline text-xl">{cert.courseTitle}</CardTitle>
-                      {isRevoked ? <Badge variant="destructive">Revoked</Badge> : null}
+                      {isRevoked ? <Badge variant="destructive">{ar ? 'ملغاة' : 'Revoked'}</Badge> : null}
                     </div>
                     <CardDescription>
-                      Completed {completedLabel} | {cert.totalHours} hours
+                      {ar ? `اكتملت في ${completedLabel} | ${cert.totalHours} ساعة` : `Completed ${completedLabel} | ${cert.totalHours} hours`}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div className="text-sm text-muted-foreground">
-                      Certificate ID: <span className="font-medium text-foreground">{cert.id}</span>
+                      {ar ? 'معرّف الشهادة:' : 'Certificate ID:'} <span className="font-medium text-foreground">{cert.id}</span>
                     </div>
                     <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                      <Link href={verifyHref}>View / Verify</Link>
+                      <Link href={verifyHref}>{ar ? 'عرض / تحقّق' : 'View / Verify'}</Link>
                     </Button>
                   </CardContent>
                 </Card>

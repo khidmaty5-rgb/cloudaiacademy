@@ -16,6 +16,8 @@ import { Suspense, useState } from 'react';
 import { signUp } from '@/lib/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useLang } from '@/components/i18n/lang';
+import AuthShell from '@/components/layout/auth-shell';
 
 
 function SignupContent() {
@@ -25,6 +27,8 @@ function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const nextParam = searchParams.get('next');
   const safeNext = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
@@ -37,7 +41,7 @@ function SignupContent() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Signup Failed',
+        title: ar ? 'تعذّر إنشاء الحساب' : 'Signup Failed',
         description: error.message,
       });
     }
@@ -45,25 +49,25 @@ function SignupContent() {
 
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-      <Card className="w-full max-w-sm">
+    <AuthShell>
+      <Card className="w-full border-border/80 shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <Link href="/" className="mb-4 inline-block">
+          <Link href="/" className="mb-3 inline-flex justify-center lg:hidden">
             <Logo />
           </Link>
-          <CardTitle>Create an Account</CardTitle>
+          <CardTitle>{ar ? 'إنشاء حساب' : 'Create an Account'}</CardTitle>
           <CardDescription>
-            Start your journey with CloudAI Academy.
+            {ar ? 'ابدأ رحلتك مع CloudAI Academy.' : 'Start your journey with CloudAI Academy.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSignup}>
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <Label htmlFor="name">{ar ? 'الاسم الكامل' : 'Full Name'}</Label>
+              <Input id="name" placeholder={ar ? 'الاسم الكامل' : 'John Doe'} required value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{ar ? 'البريد الإلكتروني' : 'Email'}</Label>
               <Input
                 id="email"
                 type="email"
@@ -74,25 +78,25 @@ function SignupContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{ar ? 'كلمة المرور' : 'Password'}</Label>
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Create Account
+              {ar ? 'إنشاء الحساب' : 'Create Account'}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
+            {ar ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
             <Link
               href="/login"
               className="font-medium text-accent hover:underline"
             >
-              Log in
+              {ar ? 'تسجيل الدخول' : 'Log in'}
             </Link>
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -100,10 +104,10 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-          <Card className="w-full max-w-sm">
+        <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <CardTitle>Loading…</CardTitle>
+              <CardTitle>…</CardTitle>
             </CardHeader>
           </Card>
         </div>

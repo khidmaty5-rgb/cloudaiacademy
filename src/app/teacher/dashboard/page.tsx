@@ -12,12 +12,15 @@ import { Button } from '@/components/ui/button';
 import { getCourseImage } from '@/lib/course-images';
 import Image from 'next/image';
 import LiveSessionButton from '@/components/LiveSessionButton';
+import { useLang } from '@/components/i18n/lang';
 
 export default function TeacherDashboardPage() {
   const { user } = useUser();
   const { isTeacher, loading } = useCurrentRole();
   const firestore = getFirestore();
   const uid = user?.uid;
+  const { lang } = useLang();
+  const ar = lang === 'ar';
 
   const ownerQuery = useMemoFirebase(() => {
     if (loading || !isTeacher || !uid) return null;
@@ -43,14 +46,14 @@ export default function TeacherDashboardPage() {
     return <Skeleton className="h-40 w-full" />;
   }
   if (!isTeacher) {
-    return <div className="text-center py-16 text-muted-foreground">No permission.</div>;
+    return <div className="text-center py-16 text-muted-foreground">{ar ? 'لا تملك صلاحية الوصول.' : 'No permission.'}</div>;
   }
 
   const isLoading = loadingOwned || loadingAssigned;
 
   return (
     <div className="space-y-6">
-      <h1 className="font-headline text-3xl md:text-4xl font-bold">Teaching Dashboard</h1>
+      <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'لوحة التدريس' : 'Teaching Dashboard'}</h1>
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -58,7 +61,7 @@ export default function TeacherDashboardPage() {
           ))}
         </div>
       ) : courses.length === 0 ? (
-        <div className="text-muted-foreground">You are not assigned to any courses yet.</div>
+        <div className="text-muted-foreground">{ar ? 'لم يتم تعيين أي دورات لك بعد.' : 'You are not assigned to any courses yet.'}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => {

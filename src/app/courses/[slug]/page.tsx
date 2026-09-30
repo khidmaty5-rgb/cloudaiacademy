@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { getCourseImage } from '@/lib/course-images';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell } from '@/components/layout/site-shell';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -392,8 +391,7 @@ export default function CourseDetailPage() {
 
   if (isLoading) {
       return (
-        <div className="flex min-h-screen flex-col bg-background">
-          <Header />
+        <SiteShell>
           <main className="flex-1">
             <div className="container py-10 md:py-16">
               <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -408,28 +406,24 @@ export default function CourseDetailPage() {
               </div>
             </div>
           </main>
-          <Footer />
-        </div>
+        </SiteShell>
       );
   }
 
   if (!course) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <SiteShell>
         <main className="flex-1">
           <div className="container py-10 md:py-16">
             <p className="text-muted-foreground">{t.courseNotFound}</p>
           </div>
         </main>
-        <Footer />
-      </div>
+      </SiteShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <SiteShell>
       <main className="flex-1">
         <div className="container py-10 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -463,9 +457,9 @@ export default function CourseDetailPage() {
               </div>
             </div>
             <div className="flex flex-col justify-center">
-              <Badge variant="secondary" className="bg-accent/10 text-accent w-fit mb-2">{course.category}</Badge>
-              <h1 className="font-headline text-3xl md:text-4xl font-bold">{course.title}</h1>
-              <p className="mt-4 text-lg text-muted-foreground">{course.description}</p>
+              <Badge dir="auto" variant="secondary" className="mb-2 w-fit bg-accent/10 text-accent">{course.category}</Badge>
+              <h1 dir="auto" className="font-headline text-3xl font-bold md:text-4xl">{course.title}</h1>
+              <p dir="auto" className="mt-4 text-lg text-muted-foreground">{course.description}</p>
               
               <div className="flex items-center gap-6 text-muted-foreground mt-4">
                 <div className="flex items-center gap-2">
@@ -576,7 +570,6 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </main>
-      <Footer />
-    </div>
+    </SiteShell>
   );
 }

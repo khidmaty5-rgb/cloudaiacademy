@@ -1,5 +1,6 @@
 'use client';
 import { useLang } from '@/components/i18n/lang';
+import { SiteShell } from '@/components/layout/site-shell';
 
 export default function PublicLayout({
   children,
@@ -8,7 +9,7 @@ export default function PublicLayout({
 }) {
   function LangRoot({ children }: { children: React.ReactNode }) {
     const { dir } = useLang();
-    return <div dir={dir}>{children}</div>;
+    return <SiteShell dir={dir}>{children}</SiteShell>;
   }
   return <LangRoot>{children}</LangRoot>;
 }

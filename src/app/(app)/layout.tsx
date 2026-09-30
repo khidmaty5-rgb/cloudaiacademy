@@ -14,34 +14,35 @@ import {
 import { LayoutDashboard, UserCog, BookOpen, GraduationCap, Award } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell } from '@/components/layout/site-shell';
 import { useUser } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { useLang } from '@/components/i18n/lang';
+import RouteGuard from '@/components/auth/route-guard';
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/profile', label: 'Profile', icon: UserCog },
+  { href: '/dashboard', label: { en: 'Dashboard', ar: 'لوحة التحكم' }, icon: LayoutDashboard },
+  { href: '/profile', label: { en: 'Profile', ar: 'الملف الشخصي' }, icon: UserCog },
   {
     href: '/learning-path',
-    label: 'Learning Path',
+    label: { en: 'Learning Path', ar: 'مسار التعلّم' },
     icon: GraduationCap,
   },
-  { href: '/courses', label: 'All Courses', icon: BookOpen },
-  { href: '/certificates', label: 'Certificates', icon: Award },
+  { href: '/courses', label: { en: 'All Courses', ar: 'جميع الدورات' }, icon: BookOpen },
+  { href: '/certificates', label: { en: 'Certificates', ar: 'الشهادات' }, icon: Award },
 ];
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, isUserLoading } = useUser();
   const { role, loading: roleLoading } = useCurrentRole();
+  const { lang } = useLang();
   const showStudentMenu =
     !!user && !isUserLoading && !roleLoading && (role === 'student' || role === 'reviewer');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header variant="app" />
-      <div className="flex-1">
+    <SiteShell headerVariant="app">
+      <div className="min-h-0 flex-1">
         {showStudentMenu ? (
           <SidebarProvider>
             <Sidebar variant="inset" collapsible="icon" className="pt-16">
@@ -51,7 +52,9 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                     CA
                   </div>
                   <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="truncate text-sm font-semibold">Learning workspace</p>
+                    <p className="truncate text-sm font-semibold">
+                      {lang === 'ar' ? 'مساحة التعلّم' : 'Learning workspace'}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">CloudAI Academy</p>
                   </div>
                 </div>
@@ -59,15 +62,15 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
               <SidebarContent className="px-2 py-3">
               <SidebarMenu>
                 {menuItems.map((item) => (
-                  <SidebarMenuItem key={item.label}>
+                  <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                      tooltip={item.label}
+                      tooltip={item.label[lang]}
                     >
                       <Link href={item.href}>
                         <item.icon />
-                        <span>{item.label}</span>
+                        <span>{item.label[lang]}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -81,15 +84,16 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="min-w-0">{children}</div>
         )}
       </div>
-      <Footer />
-    </div>
+    </SiteShell>
   );
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <RouteGuard>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </RouteGuard>
     </FirebaseClientProvider>
   );
 }

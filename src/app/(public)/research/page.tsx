@@ -10,8 +10,6 @@ import {
   Scale,
   Users,
 } from 'lucide-react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,33 +85,33 @@ const studentTracks: StudentTrack[] = [
 
 export default function ResearchPage() {
   const { lang } = useLang();
+  const tr = (en: string, ar: string) => (lang === 'ar' ? ar : en);
 
-  // TODO(i18n): Add Arabic strings for this page; for now we intentionally keep English copy so the language toggle works without broken content.
   const t = {
     hero: {
-      title: 'Building a Reproducible Research Environment for AI + Cloud',
-      sub: 'Launch-phase programs in LLM systems, MLOps, data analytics, and Responsible AI—focused on reproducibility, evaluation, and real-world impact.',
-      ctaJoin: 'Join a Project (Students & Researchers)',
-      ctaPropose: 'Propose a Project',
-      ctaPartner: 'Partner with Us',
-      ctaContact: 'Contact',
-      note: 'No publications yet—this is a launch initiative. We are building our first technical reports and open-source artifacts.',
+      title: tr('Building a Reproducible Research Environment for AI + Cloud', 'بناء بيئة أبحاث قابلة لإعادة الإنتاج في الذكاء الاصطناعي والسحابة'),
+      sub: tr('Launch-phase programs in LLM systems, MLOps, data analytics, and Responsible AI—focused on reproducibility, evaluation, and real-world impact.', 'برامج في أنظمة النماذج اللغوية وعمليات تعلّم الآلة وتحليل البيانات والذكاء الاصطناعي المسؤول، مع التركيز على إعادة الإنتاج والتقييم والأثر الواقعي.'),
+      ctaJoin: tr('Join a Project (Students & Researchers)', 'انضم إلى مشروع'),
+      ctaPropose: tr('Propose a Project', 'اقترح مشروعاً'),
+      ctaPartner: tr('Partner with Us', 'كن شريكاً معنا'),
+      ctaContact: tr('Contact', 'تواصل معنا'),
+      note: tr('No publications yet—this is a launch initiative. We are building our first technical reports and open-source artifacts.', 'لا توجد منشورات بعد؛ هذه مبادرة في مرحلة الإطلاق لبناء أول تقاريرنا التقنية وموادنا مفتوحة المصدر.'),
     },
     trust: {
       items: [
-        { title: 'Reproducibility-first standards', href: '#standards', Icon: ClipboardCheck },
-        { title: 'Clear authorship & credit policy', href: '#standards', Icon: Scale },
-        { title: 'Artifact review checklist', href: '#reports', Icon: CheckCircle2 },
-        { title: 'Open collaboration model', href: '#collaborate', Icon: Users },
+        { title: tr('Reproducibility-first standards', 'معايير تبدأ بقابلية إعادة الإنتاج'), href: '#standards', Icon: ClipboardCheck },
+        { title: tr('Clear authorship & credit policy', 'سياسة واضحة للتأليف ونسب المساهمات'), href: '#standards', Icon: Scale },
+        { title: tr('Artifact review checklist', 'قائمة فحص لمراجعة المواد'), href: '#reports', Icon: CheckCircle2 },
+        { title: tr('Open collaboration model', 'نموذج تعاون مفتوح'), href: '#collaborate', Icon: Users },
       ],
     },
     initiatives: {
-      title: 'Active Initiatives (Open for Contributors)',
-      sub: 'Early-stage initiatives designed to produce reusable artifacts: code, evaluation, and short technical reports.',
-      cta: 'Join this initiative',
+      title: tr('Active Initiatives (Open for Contributors)', 'مبادرات نشطة ومفتوحة للمساهمين'),
+      sub: tr('Early-stage initiatives designed to produce reusable artifacts: code, evaluation, and short technical reports.', 'مبادرات مبكرة لإنتاج شفرة وتقييمات وتقارير تقنية مختصرة قابلة لإعادة الاستخدام.'),
+      cta: tr('Join this initiative', 'انضم إلى هذه المبادرة'),
     },
     standards: {
-      title: 'How We Work (Launch Standards)',
+      title: tr('How We Work (Launch Standards)', 'كيف نعمل: معايير الإطلاق'),
       bullets: [
         'Reproducibility-first: code + configs + evaluation notes',
         'Transparent contribution workflow (issues → PRs → review)',
@@ -123,33 +121,33 @@ export default function ResearchPage() {
         'Documentation as a deliverable',
         'Regular research meetings + demos',
       ],
-      cta: 'View Standards',
+      cta: tr('View Standards', 'عرض المعايير'),
     },
     students: {
-      title: 'For Students: How to Join',
-      sub: 'Choose a track based on time, confidence, and what you want to ship.',
-      cta: 'Apply to Join a Track',
+      title: tr('For Students: How to Join', 'للطلاب: كيفية الانضمام'),
+      sub: tr('Choose a track based on time, confidence, and what you want to ship.', 'اختر مساراً يناسب وقتك وخبرتك والمخرج الذي تريد إنجازه.'),
+      cta: tr('Apply to Join a Track', 'قدّم للانضمام إلى مسار'),
     },
     reports: {
-      title: 'Technical Reports (Pilot)',
+      title: tr('Technical Reports (Pilot)', 'التقارير التقنية التجريبية'),
       bullets: [
         'We will publish short technical reports with code and evaluation artifacts.',
         'This is a pilot stage—mentor review + artifact checks (not formal peer review yet).',
       ],
-      ctaSubmit: 'Register Interest to Submit',
-      ctaMentor: 'Review / Mentor',
+      ctaSubmit: tr('Register Interest to Submit', 'سجّل اهتمامك بالنشر'),
+      ctaMentor: tr('Review / Mentor', 'المراجعة / الإرشاد'),
     },
     schedule: {
-      title: 'Community Schedule (Launch)',
+      title: tr('Community Schedule (Launch)', 'جدول المجتمع في مرحلة الإطلاق'),
       items: [
         { title: 'Weekly reading group', Icon: CalendarClock },
         { title: 'Biweekly project demos', Icon: CalendarClock },
         { title: 'Monthly public workshop/talk', Icon: CalendarClock },
       ],
-      cta: 'Get notified',
+      cta: tr('Get notified', 'احصل على الإشعارات'),
     },
     collaborate: {
-      title: 'How We Collaborate',
+      title: tr('How We Collaborate', 'كيف نتعاون'),
       cards: [
         {
           title: 'Join a Project',
@@ -180,15 +178,14 @@ export default function ResearchPage() {
           cta: 'Partner',
         },
       ],
-      pipeline: 'Propose → Build → Evaluate → Publish (Technical Report)',
+      pipeline: tr('Propose → Build → Evaluate → Publish (Technical Report)', 'اقتراح ← بناء ← تقييم ← نشر تقرير تقني'),
     },
   };
 
   const contactHref = 'mailto:info@cloudaiacademy.ca';
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1">
         <section className="bg-muted/40 py-12 md:py-16">
           <div className="container">
@@ -514,8 +511,6 @@ export default function ResearchPage() {
           </div>
         </section>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }
-
