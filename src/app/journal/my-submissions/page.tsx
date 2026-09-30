@@ -1,7 +1,5 @@
 "use client";
 
-import Header from "@/components/landing/header";
-import Footer from "@/components/landing/footer";
 import { useLang } from "@/components/i18n/lang";
 import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import {
@@ -77,6 +75,7 @@ export default function JournalMySubmissionsPage() {
       pageSubtitle:
         "Track the status of articles you have submitted to the CloudAI Journal.",
       title: "Title",
+      pdf: "PDF",
       status: "Status",
       submittedAt: "Submitted",
       acceptedAt: "Accepted",
@@ -86,12 +85,15 @@ export default function JournalMySubmissionsPage() {
       issueUnassigned: "Not yet assigned",
       empty: "You have not submitted any articles yet.",
       loading: "Loading your submissions...",
+      open: "Open PDF",
+      uploadRevision: "Upload revision",
     },
     ar: {
       pageTitle: "مقالاتي المرسلة إلى المجلة",
       pageSubtitle:
         "تابِع حالة الأبحاث والمقالات التي قمت بإرسالها إلى مجلة CloudAI.",
       title: "العنوان",
+      pdf: "ملف PDF",
       status: "الحالة",
       submittedAt: "تاريخ الإرسال",
       acceptedAt: "تاريخ القبول",
@@ -101,6 +103,8 @@ export default function JournalMySubmissionsPage() {
       issueUnassigned: "لم يُحدَّد عدد بعد",
       empty: "لم تقم بإرسال أي مقالات بعد.",
       loading: "جارٍ تحميل مقالاتك...",
+      open: "فتح PDF",
+      uploadRevision: "رفع نسخة منقحة",
     },
   }[lang];
 
@@ -163,8 +167,7 @@ export default function JournalMySubmissionsPage() {
   if (!isUiLoading && !journalEnabled) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 bg-background py-10 md:py-16">
         <div className="container max-w-5xl">
           <section dir={dir} className="space-y-6">
@@ -183,12 +186,63 @@ export default function JournalMySubmissionsPage() {
                   {isLoading ? t.loading : null}
                 </p>
               </div>
-              <div className="overflow-x-auto">
+              <div className="space-y-3 p-4 md:hidden">
+                {isLoading &&
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-36 w-full rounded-lg" />
+                  ))}
+                {!isLoading && !hasSubmissions && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">{t.empty}</p>
+                )}
+                {!isLoading &&
+                  formattedSubmissions.map((article) => (
+                    <article key={article.id} className="space-y-4 rounded-lg border bg-background p-4">
+                      <div className="space-y-1">
+                        <h2 className="font-semibold leading-snug">{article.title}</h2>
+                        <p className="text-xs text-muted-foreground">{article.status}</p>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t.issue}</dt>
+                          <dd>{article.issueId || t.issueUnassigned}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t.submittedAt}</dt>
+                          <dd>{article.createdAtDate?.toLocaleDateString() || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t.publishedAt}</dt>
+                          <dd>{toDateValue((article as any).publishedAt)?.toLocaleDateString?.() || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t.license}</dt>
+                          <dd>{(article as any).license || "—"}</dd>
+                        </div>
+                      </dl>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleOpenPdf(article.id)}>
+                          {t.open}
+                        </Button>
+                        {(article.status === "REVISION_REQUIRED_MINOR" ||
+                          article.status === "REVISION_REQUIRED_MAJOR") && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => router.push(`/journal/revise/${article.id}`)}
+                          >
+                            {t.uploadRevision}
+                          </Button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t.title}</TableHead>
-                      <TableHead>PDF</TableHead>
+                      <TableHead>{t.pdf}</TableHead>
                       <TableHead>{t.status}</TableHead>
                       <TableHead>{t.issue}</TableHead>
                       <TableHead>{t.submittedAt}</TableHead>
@@ -241,7 +295,7 @@ export default function JournalMySubmissionsPage() {
                                 variant="outline"
                                 onClick={() => handleOpenPdf(article.id)}
                               >
-                                Open
+                                {t.open}
                               </Button>
                               {(article.status === "REVISION_REQUIRED_MINOR" ||
                                 article.status === "REVISION_REQUIRED_MAJOR") && (
@@ -252,7 +306,7 @@ export default function JournalMySubmissionsPage() {
                                     router.push(`/journal/revise/${article.id}`)
                                   }
                                 >
-                                  Upload revision
+                                  {t.uploadRevision}
                                 </Button>
                               )}
                             </div>
@@ -286,7 +340,6 @@ export default function JournalMySubmissionsPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

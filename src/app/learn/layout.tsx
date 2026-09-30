@@ -4,7 +4,7 @@ import { SiteShell } from '@/components/layout/site-shell';
 export default function LearnLayout({ children }: { children: React.ReactNode }) {
   return (
     <RouteGuard>
-      <SiteShell headerVariant="app" showFooter={false}>
+      <SiteShell showFooter={false}>
         {children}
       </SiteShell>
     </RouteGuard>

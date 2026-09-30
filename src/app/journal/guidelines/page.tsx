@@ -3,8 +3,6 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 import { useDoc, useMemoFirebase } from '@/firebase';
@@ -122,8 +120,7 @@ export default function JournalGuidelinesPage() {
   if (!isUiLoading && !journalEnabled) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-muted">
       <main className="flex-1 bg-muted text-foreground">
         <section dir={dir} className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-10">
           <div className="space-y-2">
@@ -166,7 +163,6 @@ export default function JournalGuidelinesPage() {
           </p>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -6,10 +6,11 @@ import { SiteShell } from '@/components/layout/site-shell';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const content = pathname === '/admin' ? children : <RouteGuard>{children}</RouteGuard>;
+  const isAdminEntry = pathname === '/admin';
+  const content = isAdminEntry ? children : <RouteGuard>{children}</RouteGuard>;
 
   return (
-    <SiteShell headerVariant="app" showFooter={false}>
+    <SiteShell headerVariant={isAdminEntry ? 'app' : 'public'} showFooter={false}>
       {content}
     </SiteShell>
   );

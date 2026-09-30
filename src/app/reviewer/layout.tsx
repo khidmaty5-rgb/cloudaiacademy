@@ -4,7 +4,7 @@ import { SiteShell } from '@/components/layout/site-shell';
 export default function ReviewerLayout({ children }: { children: React.ReactNode }) {
   return (
     <RouteGuard>
-      <SiteShell>{children}</SiteShell>
+      <SiteShell showFooter={false}>{children}</SiteShell>
     </RouteGuard>
   );
 }

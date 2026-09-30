@@ -1,7 +1,5 @@
 "use client";
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { useLang } from '@/components/i18n/lang';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -244,8 +242,7 @@ export default function JournalSubmitPage() {
   if (!isUiLoading && !journalEnabled) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16 bg-background">
         <div className="container max-w-3xl">
           <section dir={dir} className="space-y-6">
@@ -393,7 +390,6 @@ export default function JournalSubmitPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
