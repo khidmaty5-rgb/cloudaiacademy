@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { useLang } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
@@ -379,8 +377,7 @@ export default function AdminLandingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-5xl mx-auto space-y-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1048,7 +1045,6 @@ export default function AdminLandingPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc } from 'firebase/firestore';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -267,8 +265,7 @@ export default function AdminUsersPage() {
 
   if (isLoading) {
      return (
-        <div className="flex min-h-screen flex-col bg-background">
-          <Header />
+        <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
           <main className="flex-1 py-10 md:py-16">
             <div className="container">
                <div className="flex justify-between items-center mb-8">
@@ -294,15 +291,13 @@ export default function AdminUsersPage() {
               </div>
             </div>
           </main>
-          <Footer />
         </div>
      )
   }
 
   // Render the page only if the user profile has been confirmed to be an admin
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           <div className="flex justify-between items-center mb-8">
@@ -326,7 +321,6 @@ export default function AdminUsersPage() {
 
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

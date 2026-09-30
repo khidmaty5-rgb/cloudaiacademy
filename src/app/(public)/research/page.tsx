@@ -30,62 +30,74 @@ type StudentTrack = {
   deliverable: string;
 };
 
-const initiatives: Initiative[] = [
-  {
-    slug: 'rag-evaluation-starter-kit',
-    title: 'RAG Evaluation Starter Kit',
-    goal: 'Build a baseline harness for RAG evaluation with repeatable metrics and reporting templates.',
-    who: 'Students / Researchers / Engineers',
-    timeline: '4–8 weeks',
-    deliverables: 'Repo + evaluation + short report',
-  },
-  {
-    slug: 'llmops-pipeline-reference',
-    title: 'LLMOps Pipeline Reference',
-    goal: 'Create a reference pipeline for training/evaluation/versioning with CI checks and reproducibility notes.',
-    who: 'Researchers / Engineers',
-    timeline: '6–10 weeks',
-    deliverables: 'Repo + CI checks + documentation + short report',
-  },
-  {
-    slug: 'responsible-ai-checklist',
-    title: 'Responsible AI Project Checklist',
-    goal: 'Publish a practical checklist and documentation template for privacy, safety, and governance in student projects.',
-    who: 'Students / Researchers',
-    timeline: '3–6 weeks',
-    deliverables: 'Checklist + templates + example implementation',
-  },
-  {
-    slug: 'cloud-cost-observability-mini-toolkit',
-    title: 'Cloud Cost + Observability Mini-Toolkit',
-    goal: 'Prototype a small toolkit for cost visibility + monitoring patterns for AI workloads.',
-    who: 'Engineers / Students',
-    timeline: '4–8 weeks',
-    deliverables: 'Mini-toolkit + patterns + short report',
-  },
-];
-
-const studentTracks: StudentTrack[] = [
-  {
-    title: 'Reading Group Track',
-    timeline: '2–4 weeks',
-    deliverable: 'Paper summary + small reproduction attempt',
-  },
-  {
-    title: 'Build Track',
-    timeline: '4–8 weeks',
-    deliverable: 'Repo + baseline + documentation',
-  },
-  {
-    title: 'Publish Track',
-    timeline: '8–12 weeks',
-    deliverable: 'Technical report + artifact checklist',
-  },
-];
-
 export default function ResearchPage() {
   const { lang } = useLang();
   const tr = (en: string, ar: string) => (lang === 'ar' ? ar : en);
+
+  const initiatives: Initiative[] = [
+    {
+      slug: 'rag-evaluation-starter-kit',
+      title: tr('RAG Evaluation Starter Kit', 'حزمة بداية لتقييم أنظمة RAG'),
+      goal: tr(
+        'Build a baseline harness for RAG evaluation with repeatable metrics and reporting templates.',
+        'بناء إطار أساسي لتقييم أنظمة RAG بمقاييس قابلة للتكرار وقوالب موحّدة للتقارير.'
+      ),
+      who: tr('Students / Researchers / Engineers', 'الطلاب / الباحثون / المهندسون'),
+      timeline: tr('4–8 weeks', '4–8 أسابيع'),
+      deliverables: tr('Repository + evaluation + short report', 'مستودع شفرة + تقييم + تقرير مختصر'),
+    },
+    {
+      slug: 'llmops-pipeline-reference',
+      title: tr('LLMOps Pipeline Reference', 'مرجع لمسار عمليات النماذج اللغوية'),
+      goal: tr(
+        'Create a reference pipeline for training, evaluation, and versioning with CI checks and reproducibility notes.',
+        'إنشاء مسار مرجعي للتدريب والتقييم وإدارة الإصدارات، مع فحوصات التكامل المستمر وملاحظات إعادة الإنتاج.'
+      ),
+      who: tr('Researchers / Engineers', 'الباحثون / المهندسون'),
+      timeline: tr('6–10 weeks', '6–10 أسابيع'),
+      deliverables: tr('Repository + CI checks + documentation + short report', 'مستودع شفرة + فحوصات CI + توثيق + تقرير مختصر'),
+    },
+    {
+      slug: 'responsible-ai-checklist',
+      title: tr('Responsible AI Project Checklist', 'قائمة فحص لمشروعات الذكاء الاصطناعي المسؤول'),
+      goal: tr(
+        'Publish a practical checklist and documentation template for privacy, safety, and governance in student projects.',
+        'نشر قائمة فحص عملية وقالب توثيق للخصوصية والسلامة والحوكمة في مشروعات الطلاب.'
+      ),
+      who: tr('Students / Researchers', 'الطلاب / الباحثون'),
+      timeline: tr('3–6 weeks', '3–6 أسابيع'),
+      deliverables: tr('Checklist + templates + example implementation', 'قائمة فحص + قوالب + مثال تطبيقي'),
+    },
+    {
+      slug: 'cloud-cost-observability-mini-toolkit',
+      title: tr('Cloud Cost + Observability Mini-Toolkit', 'حزمة مصغّرة لتكلفة السحابة وقابلية المراقبة'),
+      goal: tr(
+        'Prototype a small toolkit for cost visibility and monitoring patterns for AI workloads.',
+        'تطوير نموذج أولي لحزمة صغيرة توضّح التكلفة وأنماط مراقبة أحمال عمل الذكاء الاصطناعي.'
+      ),
+      who: tr('Engineers / Students', 'المهندسون / الطلاب'),
+      timeline: tr('4–8 weeks', '4–8 أسابيع'),
+      deliverables: tr('Mini-toolkit + patterns + short report', 'حزمة مصغّرة + أنماط تطبيق + تقرير مختصر'),
+    },
+  ];
+
+  const studentTracks: StudentTrack[] = [
+    {
+      title: tr('Reading Group Track', 'مسار مجموعة القراءة'),
+      timeline: tr('2–4 weeks', '2–4 أسابيع'),
+      deliverable: tr('Paper summary + small reproduction attempt', 'ملخص ورقة بحثية + محاولة مصغّرة لإعادة الإنتاج'),
+    },
+    {
+      title: tr('Build Track', 'مسار البناء'),
+      timeline: tr('4–8 weeks', '4–8 أسابيع'),
+      deliverable: tr('Repository + baseline + documentation', 'مستودع شفرة + خط أساس + توثيق'),
+    },
+    {
+      title: tr('Publish Track', 'مسار النشر'),
+      timeline: tr('8–12 weeks', '8–12 أسبوعاً'),
+      deliverable: tr('Technical report + artifact checklist', 'تقرير تقني + قائمة فحص للمواد'),
+    },
+  ];
 
   const t = {
     hero: {
@@ -113,15 +125,19 @@ export default function ResearchPage() {
     standards: {
       title: tr('How We Work (Launch Standards)', 'كيف نعمل: معايير الإطلاق'),
       bullets: [
-        'Reproducibility-first: code + configs + evaluation notes',
-        'Transparent contribution workflow (issues → PRs → review)',
-        'Authorship & credit guidelines',
-        'Ethical AI and privacy-by-design',
-        'Lightweight artifact review before publishing a report',
-        'Documentation as a deliverable',
-        'Regular research meetings + demos',
+        tr('Reproducibility-first: code + configs + evaluation notes', 'إعادة الإنتاج أولاً: الشفرة + الإعدادات + ملاحظات التقييم'),
+        tr('Transparent contribution workflow (issues → PRs → review)', 'مسار مساهمة شفاف: مسائل ← طلبات دمج ← مراجعة'),
+        tr('Authorship and credit guidelines', 'إرشادات واضحة للتأليف ونسب المساهمات'),
+        tr('Ethical AI and privacy by design', 'ذكاء اصطناعي أخلاقي وخصوصية مدمجة في التصميم'),
+        tr('Lightweight artifact review before publishing a report', 'مراجعة مبسطة للمواد قبل نشر التقرير'),
+        tr('Documentation as a deliverable', 'التوثيق جزء أساسي من المخرجات'),
+        tr('Regular research meetings and demos', 'اجتماعات بحثية وعروض دورية'),
       ],
       cta: tr('View Standards', 'عرض المعايير'),
+      note: tr(
+        'These standards keep launch-stage work reviewable, reusable, and ready for collaboration.',
+        'تحافظ هذه المعايير على قابلية مراجعة أعمال مرحلة الإطلاق وإعادة استخدامها والتعاون عليها.'
+      ),
     },
     students: {
       title: tr('For Students: How to Join', 'للطلاب: كيفية الانضمام'),
@@ -131,8 +147,8 @@ export default function ResearchPage() {
     reports: {
       title: tr('Technical Reports (Pilot)', 'التقارير التقنية التجريبية'),
       bullets: [
-        'We will publish short technical reports with code and evaluation artifacts.',
-        'This is a pilot stage—mentor review + artifact checks (not formal peer review yet).',
+        tr('We will publish short technical reports with code and evaluation artifacts.', 'سننشر تقارير تقنية مختصرة تتضمن الشفرة ومواد التقييم.'),
+        tr('This is a pilot stage with mentor review and artifact checks—not formal peer review yet.', 'هذه مرحلة تجريبية تشمل مراجعة المرشد وفحص المواد، وليست مراجعة أكاديمية رسمية بعد.'),
       ],
       ctaSubmit: tr('Register Interest to Submit', 'سجّل اهتمامك بالنشر'),
       ctaMentor: tr('Review / Mentor', 'المراجعة / الإرشاد'),
@@ -140,42 +156,46 @@ export default function ResearchPage() {
     schedule: {
       title: tr('Community Schedule (Launch)', 'جدول المجتمع في مرحلة الإطلاق'),
       items: [
-        { title: 'Weekly reading group', Icon: CalendarClock },
-        { title: 'Biweekly project demos', Icon: CalendarClock },
-        { title: 'Monthly public workshop/talk', Icon: CalendarClock },
+        { title: tr('Weekly reading group', 'مجموعة قراءة أسبوعية'), Icon: CalendarClock },
+        { title: tr('Biweekly project demos', 'عروض للمشروعات كل أسبوعين'), Icon: CalendarClock },
+        { title: tr('Monthly public workshop or talk', 'ورشة أو محاضرة عامة شهرية'), Icon: CalendarClock },
       ],
       cta: tr('Get notified', 'احصل على الإشعارات'),
+      note: tr(
+        'Times and access links are shared directly with active contributors.',
+        'تُشارك المواعيد وروابط الحضور مباشرة مع المساهمين النشطين.'
+      ),
     },
     collaborate: {
       title: tr('How We Collaborate', 'كيف نتعاون'),
       cards: [
         {
-          title: 'Join a Project',
-          desc: 'Pick an initiative or join an open issue, then ship a reproducible artifact with mentoring support.',
+          title: tr('Join a Project', 'انضم إلى مشروع'),
+          desc: tr('Pick an initiative or join an open issue, then ship a reproducible artifact with mentoring support.', 'اختر مبادرة أو مهمة مفتوحة، ثم أنجز مادة قابلة لإعادة الإنتاج بدعم من مرشد.'),
           href: '/research/join',
           Icon: Users,
-          cta: 'Join',
+          cta: tr('Join', 'انضم'),
         },
         {
-          title: 'Propose a Project',
-          desc: 'Bring an idea and we will help scope it into a measurable deliverable with clear evaluation.',
+          title: tr('Propose a Project', 'اقترح مشروعاً'),
+          desc: tr('Bring an idea and we will help scope it into a measurable deliverable with clear evaluation.', 'قدّم فكرتك وسنساعدك على تحويلها إلى مخرج قابل للقياس والتقييم الواضح.'),
           href: '/research/propose',
           Icon: ArrowRight,
-          cta: 'Propose',
+          cta: tr('Propose', 'اقترح'),
         },
         {
-          title: 'Mentor / Review',
-          desc: 'Help students and contributors by reviewing artifacts, documentation, and technical report drafts.',
+          title: tr('Mentor / Review', 'الإرشاد / المراجعة'),
+          desc: tr('Help students and contributors by reviewing artifacts, documentation, and technical report drafts.', 'ساعد الطلاب والمساهمين من خلال مراجعة المواد والتوثيق ومسودات التقارير التقنية.'),
           href: '/research/mentor',
           Icon: CheckCircle2,
-          cta: 'Mentor',
+          cta: tr('Mentor', 'أرشد'),
         },
         {
-          title: 'Partner / Sponsor',
-          desc: 'Support initiatives with data, infrastructure, compute credits, or real-world problem statements.',
+          title: tr('Partner / Sponsor', 'الشراكة / الرعاية'),
+          desc: tr('Support initiatives with data, infrastructure, compute credits, or real-world problem statements.', 'ادعم المبادرات بالبيانات أو البنية التحتية أو موارد الحوسبة أو تحديات واقعية.'),
           href: '/research/partner',
           Icon: Handshake,
-          cta: 'Partner',
+          cta: tr('Partner', 'شارك'),
         },
       ],
       pipeline: tr('Propose → Build → Evaluate → Publish (Technical Report)', 'اقتراح ← بناء ← تقييم ← نشر تقرير تقني'),
@@ -230,7 +250,7 @@ export default function ResearchPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {t.trust.items.map(({ title, href, Icon }) => (
                 <a key={title} href={href} className="group" aria-label={title}>
-                  <Card className="h-full bg-card/50 border-accent/30 transition hover:border-accent/60 hover:shadow-md">
+                  <Card className="h-full border-border/70 bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-md">
                     <CardHeader className="flex flex-row items-center gap-3 space-y-0">
                       <div className="rounded-full bg-accent/10 p-2 text-accent transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
                         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -259,7 +279,7 @@ export default function ResearchPage() {
 
             <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
               {initiatives.map((initiative) => (
-                <Card key={initiative.slug} className="bg-card/50 border-accent/30">
+                <Card key={initiative.slug} className="border-border/70 bg-card shadow-sm">
                   <CardHeader className="space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <CardTitle dir="auto" className="font-headline text-lg">
@@ -276,19 +296,19 @@ export default function ResearchPage() {
                   <CardContent className="space-y-5">
                     <dl className="space-y-3 text-sm">
                       <div className="flex gap-2">
-                        <dt className="w-28 shrink-0 text-muted-foreground">Who it’s for</dt>
+                        <dt className="w-28 shrink-0 text-muted-foreground">{tr('Who it’s for', 'الفئة المناسبة')}</dt>
                         <dd dir="auto" className="font-medium text-foreground">
                           {initiative.who}
                         </dd>
                       </div>
                       <div className="flex gap-2">
-                        <dt className="w-28 shrink-0 text-muted-foreground">Timeline</dt>
+                        <dt className="w-28 shrink-0 text-muted-foreground">{tr('Timeline', 'المدة')}</dt>
                         <dd dir="auto" className="font-medium text-foreground">
                           {initiative.timeline}
                         </dd>
                       </div>
                       <div className="flex gap-2">
-                        <dt className="w-28 shrink-0 text-muted-foreground">Deliverables</dt>
+                        <dt className="w-28 shrink-0 text-muted-foreground">{tr('Deliverables', 'المخرجات')}</dt>
                         <dd dir="auto" className="font-medium text-foreground">
                           {initiative.deliverables}
                         </dd>
@@ -317,7 +337,7 @@ export default function ResearchPage() {
               </div>
 
               <div className="mt-10 grid gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-2 bg-card/50 border-accent/30">
+                <Card className="border-border/70 bg-card shadow-sm lg:col-span-2">
                   <CardContent className="pt-6">
                     <ul className="space-y-3">
                       {t.standards.bullets.map((item) => (
@@ -332,19 +352,14 @@ export default function ResearchPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card/50 border-accent/30">
+                <Card className="border-border/70 bg-card shadow-sm">
                   <CardContent className="pt-6 space-y-4">
                     <p dir="auto" className="text-sm text-muted-foreground">
-                      Standards exist to keep work reviewable and reusable—especially at launch.
+                      {t.standards.note}
                     </p>
                     <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                       <Link href="/research/standards">{t.standards.cta}</Link>
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      {lang === 'ar'
-                        ? 'TODO: Arabic content for standards page.'
-                        : 'TODO: Arabic translations for standards content.'}
-                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -365,7 +380,7 @@ export default function ResearchPage() {
 
             <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
               {studentTracks.map((track) => (
-                <Card key={track.title} className="bg-card/50 border-accent/30">
+                <Card key={track.title} className="border-border/70 bg-card shadow-sm">
                   <CardHeader className="space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <CardTitle dir="auto" className="font-headline text-lg">
@@ -378,7 +393,7 @@ export default function ResearchPage() {
                   </CardHeader>
                   <CardContent>
                     <p dir="auto" className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Deliverable:</span> {track.deliverable}
+                      <span className="font-medium text-foreground">{tr('Deliverable:', 'المخرج:')}</span> {track.deliverable}
                     </p>
                   </CardContent>
                 </Card>
@@ -402,7 +417,7 @@ export default function ResearchPage() {
             </div>
 
             <div className="mx-auto mt-10 max-w-3xl">
-              <Card className="bg-card/50 border-accent/30">
+              <Card className="border-border/70 bg-card shadow-sm">
                 <CardContent className="pt-6 space-y-6">
                   <ul className="space-y-3 text-sm text-muted-foreground">
                     {t.reports.bullets.map((item) => (
@@ -437,7 +452,7 @@ export default function ResearchPage() {
 
             <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
               {t.schedule.items.map(({ title, Icon }) => (
-                <Card key={title} className="bg-card/50 border-accent/30">
+                <Card key={title} className="border-border/70 bg-card shadow-sm">
                   <CardHeader className="flex flex-row items-center gap-3 space-y-0">
                     <div className="rounded-full bg-accent/10 p-2 text-accent">
                       <Icon className="h-5 w-5" aria-hidden="true" />
@@ -448,7 +463,7 @@ export default function ResearchPage() {
                   </CardHeader>
                   <CardContent>
                     <p dir="auto" className="text-sm text-muted-foreground">
-                      Cadence-based; times and links shared with contributors.
+                      {t.schedule.note}
                     </p>
                   </CardContent>
                 </Card>
@@ -473,7 +488,7 @@ export default function ResearchPage() {
 
             <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               {t.collaborate.cards.map(({ title, desc, href, Icon, cta }) => (
-                <Card key={title} className="bg-card/50 border-accent/30">
+                <Card key={title} className="border-border/70 bg-card shadow-sm">
                   <CardHeader className="space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="rounded-full bg-accent/10 p-2 text-accent">
@@ -491,7 +506,7 @@ export default function ResearchPage() {
                     <Button asChild variant="outline" className="w-full">
                       <Link href={href}>
                         {cta}
-                        <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                        <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" aria-hidden="true" />
                       </Link>
                     </Button>
                   </CardContent>
@@ -500,7 +515,7 @@ export default function ResearchPage() {
             </div>
 
             <div className="mx-auto mt-10 max-w-3xl">
-              <Card className="bg-card/50 border-accent/30">
+              <Card className="border-border/70 bg-card shadow-sm">
                 <CardContent className="pt-6">
                   <p dir="auto" className="text-center text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">{t.collaborate.pipeline}</span>

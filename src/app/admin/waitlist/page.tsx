@@ -12,8 +12,6 @@ import {
 import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useToast } from '@/hooks/use-toast';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -182,8 +180,7 @@ export default function AdminWaitlistPage() {
 
   if (roleLoading || (canView && requestsLoading && !requests)) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-4xl mx-auto space-y-4">
             <Skeleton className="h-8 w-1/3" />
@@ -191,15 +188,13 @@ export default function AdminWaitlistPage() {
             <Skeleton className="h-64 w-full" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!canView) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <Card className="border-destructive/30 bg-destructive/10">
@@ -210,14 +205,12 @@ export default function AdminWaitlistPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-4xl mx-auto space-y-6">
           <div>
@@ -331,7 +324,6 @@ export default function AdminWaitlistPage() {
           </Card>
         </div>
       </main>
-      <Footer />
 
       <AlertDialog
         open={deleteConfirmOpen}

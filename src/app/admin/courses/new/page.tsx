@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import CourseForm from '@/components/admin/CourseForm';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLang } from '@/components/i18n/lang';
@@ -24,22 +22,19 @@ export default function NewCoursePage() {
 
   if (roleLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-2xl mx-auto">
             <Skeleton className="h-8 w-1/2 mb-8" />
             <Skeleton className="h-96 w-full" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-2xl mx-auto">
           {canView ? (
@@ -56,7 +51,6 @@ export default function NewCoursePage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

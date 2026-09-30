@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, getFirestore, orderBy, query } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
@@ -603,8 +601,7 @@ export default function AdminJournalPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container space-y-6">
             <Skeleton className="h-8 w-64" />
@@ -612,7 +609,6 @@ export default function AdminJournalPage() {
             <Skeleton className="h-80 w-full" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -624,8 +620,7 @@ export default function AdminJournalPage() {
       (profileRole === 'admin' || profileRole === 'editor') &&
       canView !== true;
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container">
             <p className="text-center text-muted-foreground">{t.noPermission}</p>
@@ -648,14 +643,12 @@ export default function AdminJournalPage() {
             )}
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container space-y-8">
           <header className="space-y-1">
@@ -1591,7 +1584,6 @@ export default function AdminJournalPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

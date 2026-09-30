@@ -20,8 +20,6 @@ import {
 } from 'firebase/firestore';
 import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -923,15 +921,13 @@ export default function AdminCertificatesPage() {
 
   if (isUserLoading || roleLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto space-y-4">
             <Skeleton className="h-8 w-1/2" />
             <Skeleton className="h-64 w-full" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -941,8 +937,7 @@ export default function AdminCertificatesPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-6xl mx-auto space-y-8">
           <div>
@@ -1665,7 +1660,6 @@ export default function AdminCertificatesPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

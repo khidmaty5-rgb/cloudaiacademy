@@ -5,8 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getFirestore, collection, query, orderBy } from 'firebase/firestore';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -132,8 +130,7 @@ export default function LearnCoursePage() {
 
   if (isLoading) {
     return (
-       <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+       <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
             <div className='max-w-3xl mx-auto'>
                 <Skeleton className="h-8 w-3/4 mb-2" />
@@ -148,15 +145,13 @@ export default function LearnCoursePage() {
                 </Card>
             </div>
         </main>
-        <Footer />
        </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -170,21 +165,18 @@ export default function LearnCoursePage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <p className="text-muted-foreground">{ar ? 'الدورة غير موجودة.' : 'Course not found.'}</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -359,8 +351,7 @@ export default function LearnCoursePage() {
           ? (ar ? 'ستتم مراجعة طلبك قبل أن تتمكن من الوصول إلى الدروس.' : 'Your request will be reviewed before you can access lessons.')
           : (ar ? 'يجب التسجيل قبل عرض الدروس.' : 'You need to enroll before viewing lessons.');
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -461,21 +452,18 @@ export default function LearnCoursePage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!courseLessons) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <p className="text-muted-foreground">{ar ? 'لا توجد دروس لهذه الدورة.' : 'No lessons found for this course.'}</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -483,8 +471,7 @@ export default function LearnCoursePage() {
   const progress = courseLessons.length > 0 ? Math.round((completedLessons.length / courseLessons.length) * 100) : 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-3xl mx-auto">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">{course.title}</h1>
@@ -535,7 +522,6 @@ export default function LearnCoursePage() {
           </Card>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -4,8 +4,6 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collectionGroup, deleteDoc, doc, getFirestore, collection, query, where } from 'firebase/firestore';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -351,8 +349,7 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10">
           <Skeleton className="h-8 w-1/3 mb-8" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -362,15 +359,13 @@ export default function AdminDashboardPage() {
             <Skeleton className="h-28" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container">
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
@@ -378,14 +373,12 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           {canView ? (
@@ -565,7 +558,6 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

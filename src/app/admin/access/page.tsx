@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -293,8 +291,7 @@ export default function AdminAccessPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container">
             <div className="flex justify-between items-center mb-8">
@@ -329,28 +326,24 @@ export default function AdminAccessPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!canViewPage) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container text-center">
             <p className="text-muted-foreground">{t.noPermission}</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           <div className="flex justify-between items-center mb-8">
@@ -436,7 +429,6 @@ export default function AdminAccessPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

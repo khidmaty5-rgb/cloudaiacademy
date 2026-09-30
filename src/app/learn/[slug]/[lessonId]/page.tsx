@@ -9,8 +9,6 @@ import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { canTeachCourse, isLearnerRole, roleFromClaims } from '@/lib/roles';
 import { updateUserProgress, enrollInCourse } from '@/lib/enrollment';
 import { cancelEnrollmentRequest, requestEnrollment } from '@/lib/enrollment-requests';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -391,8 +389,7 @@ export default function LessonPage() {
 
   if (isLoading) {
      return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-4xl mx-auto">
             <Skeleton className="h-6 w-1/4 mb-4" />
@@ -400,29 +397,25 @@ export default function LessonPage() {
             <Skeleton className="h-40 w-full" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-3xl mx-auto">
             <p className="text-muted-foreground">Course not found.</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -438,7 +431,6 @@ export default function LessonPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -458,8 +450,7 @@ export default function LessonPage() {
           ? 'Your request will be reviewed before you can access lessons.'
           : 'You need to enroll before viewing lessons.';
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -552,15 +543,13 @@ export default function LessonPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (!lesson) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -576,7 +565,6 @@ export default function LessonPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -584,8 +572,7 @@ export default function LessonPage() {
   const isLessonLocked = !!(prevLesson && !completedLessonSet.has(prevLesson.id) && !canPreviewCourse);
   if (isLessonLocked) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10 md:py-16">
           <div className="max-w-3xl mx-auto">
             <Card className="border-destructive/30 bg-destructive/5">
@@ -612,7 +599,6 @@ export default function LessonPage() {
             </Card>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -663,8 +649,7 @@ export default function LessonPage() {
 
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-4xl mx-auto">
           <Link href={`/learn/${slug}`} className="text-sm text-accent hover:underline mb-4 inline-block">
@@ -821,7 +806,6 @@ export default function LessonPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -5,8 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc, where, writeBatch } from 'firebase/firestore';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -255,8 +253,7 @@ export default function AdminCoursesPage() {
 
   if (roleLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 py-10 md:py-16">
           <div className="container">
             <Skeleton className="h-8 w-1/3 mb-8" />
@@ -300,14 +297,12 @@ export default function AdminCoursesPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container">
           {canView ? (
@@ -443,7 +438,6 @@ export default function AdminCoursesPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
