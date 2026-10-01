@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Users, BookOpen, DollarSign, LineChart } from 'lucide-react';
-import { format } from 'date-fns';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
  
@@ -50,19 +49,19 @@ function StatCard({
   description?: string;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <Card className="min-w-0 rounded-2xl shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 pb-2 sm:p-5 sm:pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">{title}</CardTitle>
+        <Icon className="h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
         {isLoading ? (
           <Skeleton className="h-8 w-1/2" />
         ) : (
           <>
-            <div className="text-2xl font-bold">{value}</div>
+            <div dir="auto" className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</div>
             {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{description}</p>
             )}
           </>
         )}
@@ -73,7 +72,11 @@ function StatCard({
 
 const dashboardText = {
   en: {
-    adminDashboard: 'Admin Dashboard',
+    adminDashboard: 'Academy overview',
+    subtitle: 'Manage learning, people, and publishing from one place.',
+    actions: 'Actions',
+    removing: 'Removing…',
+    unenroll: 'Unenroll',
     teacherDashboard: 'Teacher Dashboard',
     totalRevenue: 'Total Revenue',
     revenueNotConfigured: 'Revenue tracking not configured',
@@ -94,7 +97,11 @@ const dashboardText = {
     growthThisMonth: (count: number) => `+${count} this month`,
   },
   ar: {
-    adminDashboard: 'لوحة تحكم المشرف',
+    adminDashboard: 'نظرة عامة على الأكاديمية',
+    subtitle: 'إدارة التعلّم والمستخدمين والنشر من مكان واحد.',
+    actions: 'الإجراءات',
+    removing: 'جارٍ الإلغاء…',
+    unenroll: 'إلغاء التسجيل',
     teacherDashboard: 'لوحة تحكم المعلم',
     totalRevenue: 'إجمالي الإيرادات',
     revenueNotConfigured: 'تتبع الإيرادات غير مُهيأ',
@@ -137,7 +144,7 @@ export default function AdminDashboardPage() {
     const courseLabel = (enrollment?.courseTitle as string | undefined) || courseId;
     const ok =
       typeof window !== 'undefined'
-        ? window.confirm(`Unenroll ${studentLabel} from ${courseLabel}?`)
+        ? window.confirm(lang === 'ar' ? `هل تريد إلغاء تسجيل ${studentLabel} في ${courseLabel}؟` : `Unenroll ${studentLabel} from ${courseLabel}?`)
         : false;
     if (!ok) return;
 
@@ -145,14 +152,14 @@ export default function AdminDashboardPage() {
     setUnenrollingKey(key);
     try {
       await deleteDoc(doc(firestore, 'users', userId, 'enrollments', courseId));
-      toast({ title: 'Student unenrolled.', description: `${studentLabel} — ${courseLabel}` });
+      toast({ title: lang === 'ar' ? 'تم إلغاء تسجيل الطالب.' : 'Student unenrolled.', description: `${studentLabel} — ${courseLabel}` });
     } catch (e) {
       console.error('[AdminUnenroll]', e);
       const code = (e as any)?.code as string | undefined;
       const msg =
         code === 'permission-denied'
-          ? 'Permission denied. Deploy Firestore rules and re-login as admin.'
-          : 'Failed to unenroll.';
+          ? (lang === 'ar' ? 'ليس لديك صلاحية لإلغاء هذا التسجيل.' : 'You do not have permission to remove this enrollment.')
+          : (lang === 'ar' ? 'تعذّر إلغاء التسجيل.' : 'Failed to unenroll.');
       toast({ title: msg, variant: 'destructive' });
     } finally {
       setUnenrollingKey((k) => (k === key ? null : k));
@@ -352,7 +359,7 @@ export default function AdminDashboardPage() {
       <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
         <main className="flex-1 container py-10">
           <Skeleton className="h-8 w-1/3 mb-8" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
@@ -366,7 +373,7 @@ export default function AdminDashboardPage() {
   if (loadError) {
     return (
       <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
-        <main className="flex-1 py-10 md:py-16">
+        <main className="flex-1 py-6 md:py-8">
           <div className="container">
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
               {loadError.message || 'Failed to load dashboard data. Please try again.'}
@@ -379,25 +386,25 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
-      <main className="flex-1 py-10 md:py-16">
+      <main className="flex-1 py-6 md:py-8">
         <div className="container">
           {canView ? (
             <>
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="font-headline text-3xl md:text-4xl font-bold">
+              <div className="mb-6 flex flex-wrap items-start justify-between gap-5">
+                <div><h1 className="font-headline text-2xl font-bold tracking-tight md:text-3xl">
                   {roleLabel === 'Admin'
                     ? t.adminDashboard
                     : roleLabel === 'Teacher'
                     ? t.teacherDashboard
                     : t.adminDashboard}
-                </h1>
-                <div className="flex gap-2">
+                </h1><p className="mt-2 text-sm text-muted-foreground">{t.subtitle}</p></div>
+                <div className="flex flex-wrap gap-2">
                   {isAdmin && (
-                    <Button asChild>
+                    <Button asChild variant="outline" className="rounded-xl">
                       <Link href="/admin/users">{t.manageUsers}</Link>
                     </Button>
                   )}
-                  <Button asChild>
+                  <Button asChild className="rounded-xl">
                     <Link href={isTeacher && !isAdmin ? '/teacher/courses' : '/admin/courses'}>
                       {isTeacher && !isAdmin ? (lang === 'ar' ? 'دوراتي' : 'My Courses') : t.manageCourses}
                     </Link>
@@ -405,7 +412,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-8">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 mt-8">
             {isAdmin && (
               <StatCard
                 title={t.totalRevenue}
@@ -440,11 +447,11 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          <div className={`mt-8 grid gap-8 ${isAdmin ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
+          <div className={`mt-6 grid gap-6 ${isAdmin ? '2xl:grid-cols-2' : 'grid-cols-1'}`}>
             {isAdmin && (
-              <Card>
+              <Card className="min-w-0 rounded-2xl shadow-none">
                 <CardHeader>
-                  <CardTitle>{t.enrollmentsByCourse}</CardTitle>
+                  <CardTitle className="text-lg">{t.enrollmentsByCourse}</CardTitle>
                   <CardDescription>{t.enrollmentsByCourseDesc}</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -452,8 +459,8 @@ export default function AdminDashboardPage() {
                     <Skeleton className="h-80 w-full" />
                   ) : (
                     <ChartContainer
-                      className="h-[350px]"
-                      config={{ count: { label: 'Enrollments', color: 'hsl(var(--accent))' } }}
+                      className="h-[260px] w-full sm:h-[300px]"
+                      config={{ count: { label: t.totalEnrollments, color: 'hsl(var(--accent))' } }}
                     >
                       <RechartsBarChart data={enrollmentsByCourse} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <XAxis
@@ -479,19 +486,19 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
             )}
-            <Card>
+            <Card className="min-w-0 rounded-2xl shadow-none">
               <CardHeader>
-                <CardTitle>{t.recentEnrollments}</CardTitle>
+                <CardTitle className="text-lg">{t.recentEnrollments}</CardTitle>
                 <CardDescription>{t.recentEnrollmentsDesc}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t.student}</TableHead>
-                      <TableHead>{t.course}</TableHead>
-                      <TableHead>{t.date}</TableHead>
-                      {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead className="text-start">{t.student}</TableHead>
+                      <TableHead className="text-start">{t.course}</TableHead>
+                      <TableHead className="text-start">{t.date}</TableHead>
+                      {isAdmin && <TableHead className="text-end">{t.actions}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -508,8 +515,8 @@ export default function AdminDashboardPage() {
                             <Skeleton className="h-4 w-24" />
                           </TableCell>
                           {isAdmin && (
-                            <TableCell className="text-right">
-                              <Skeleton className="h-9 w-24 ml-auto" />
+                            <TableCell className="text-end">
+                              <Skeleton className="h-9 w-24 ms-auto" />
                             </TableCell>
                           )}
                         </TableRow>
@@ -517,13 +524,13 @@ export default function AdminDashboardPage() {
                     ) : recentEnrollments.length > 0 ? (
                       recentEnrollments.map((enrollment) => (
                         <TableRow key={`${enrollment.userId}-${enrollment.courseId}-${enrollment.id}`}>
-                          <TableCell>{enrollment.userEmail || enrollment.userId}</TableCell>
-                          <TableCell>{enrollment.courseTitle}</TableCell>
+                          <TableCell className="max-w-56 break-words"><bdi>{enrollment.userEmail || enrollment.userId}</bdi></TableCell>
+                          <TableCell className="min-w-36"><bdi>{enrollment.courseTitle}</bdi></TableCell>
                           <TableCell>
-                            {(() => { const d = toDateValue(enrollment.enrollmentDate); return d ? format(d, 'PPP') : 'N/A'; })()}
+                            {(() => { const d = toDateValue(enrollment.enrollmentDate); return d ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { dateStyle: 'medium' }).format(d) : '—'; })()}
                           </TableCell>
                           {isAdmin && (
-                            <TableCell className="text-right">
+                            <TableCell className="text-end">
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -531,8 +538,8 @@ export default function AdminDashboardPage() {
                                 disabled={unenrollingKey === `${enrollment.userId}:${enrollment.courseId}`}
                               >
                                 {unenrollingKey === `${enrollment.userId}:${enrollment.courseId}`
-                                  ? 'Removing...'
-                                  : 'Unenroll'}
+                                  ? t.removing
+                                  : t.unenroll}
                               </Button>
                             </TableCell>
                           )}

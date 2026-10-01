@@ -103,11 +103,12 @@ export default function CoursesPage() {
           </div>
 
           <div className="mt-8 mb-10 max-w-3xl mx-auto">
-            <div className="grid sm:grid-cols-3 gap-4">
-                <div className='sm:col-span-3'>
+            <div className="grid sm:grid-cols-2 gap-4">
+                <div className='sm:col-span-2'>
                      <div className="relative">
                         <Search className="absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                         <Input
+                            aria-label={t.searchPlaceholder}
                             placeholder={t.searchPlaceholder}
                             className="w-full ps-10"
                             value={searchTerm}
@@ -117,7 +118,7 @@ export default function CoursesPage() {
                 </div>
               <div className='sm:col-span-1'>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label={t.filterCategory}>
                     <SelectValue placeholder={t.filterCategory} />
                   </SelectTrigger>
                   <SelectContent>
@@ -131,7 +132,7 @@ export default function CoursesPage() {
               </div>
               <div className='sm:col-span-1'>
                 <Select value={level} onValueChange={setLevel}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label={t.filterLevel}>
                     <SelectValue placeholder={t.filterLevel} />
                   </SelectTrigger>
                   <SelectContent>
@@ -151,13 +152,13 @@ export default function CoursesPage() {
                {error.message || 'Failed to load courses. Please try again.'}
              </div>
           ) : isLoading ? (
-             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-96 w-full" />
                 ))}
              </div>
           ) : filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
               {filteredCourses.map((course) => {
                 const image = getCourseImage(course as any);
                 const isContain = image.fit === 'contain';

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
+import { useLang } from '@/components/i18n/lang';
 
 type Props = {
   className?: string;
 };
 
 export function ThemeToggle({ className }: Props) {
+  const { lang } = useLang();
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function ThemeToggle({ className }: Props) {
     <Button
       variant="ghost"
       size="icon"
-      aria-label="Toggle theme"
+      aria-label={lang === 'ar' ? (isDark ? 'تفعيل المظهر الفاتح' : 'تفعيل المظهر الداكن') : (isDark ? 'Use light theme' : 'Use dark theme')}
       className={className}
       onClick={toggle}
     >

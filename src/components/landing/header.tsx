@@ -1,985 +1,154 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Menu,
-  LogOut,
-  LayoutDashboard,
-  UserCog,
-  Shield,
-  FileText,
-  QrCode,
-  ChevronDown,
-} from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { ArrowUpRight, LayoutDashboard, LogOut, Menu, QrCode, Settings2, UserRound } from 'lucide-react';
+import { doc, getFirestore } from 'firebase/firestore';
 import { Logo } from '@/components/logo';
+import { useLang } from '@/components/i18n/lang';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { signOutUser } from '@/lib/auth';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { doc, getFirestore, setDoc } from 'firebase/firestore';
-import { useLang, LangToggle } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { signOutUser } from '@/lib/auth';
+import { roleHomePath } from '@/lib/route-access';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
-const navLinks = [
-  { href: '/', id: 'home' as const },
-  { href: '/courses', id: 'courses' as const },
-  { href: '/research', id: 'research' as const },
-  { href: '/journal', id: 'journal' as const },
-  { href: '/print/qr', id: 'qr' as const },
-];
+const publicLinks = [
+  { href: '/', en: 'Home', ar: 'الرئيسية' },
+  { href: '/courses', en: 'Courses', ar: 'الدورات' },
+  { href: '/research', en: 'Research', ar: 'الأبحاث' },
+  { href: '/journal', en: 'Journal', ar: 'المجلة' },
+] as const;
 
-type Role = 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin' | null;
-
-type HeaderVariant = 'public' | 'app';
-type HeaderProps = {
-  variant?: HeaderVariant;
-};
-
-type UserProfileMenuProps = {
-  role: Role;
-  canAccessAdmin: boolean;
-  isUserLoading: boolean;
-  isProfileLoading: boolean;
-  showJournalNav: boolean;
-  onToggleJournalNav: () => void;
-  showHero: boolean;
-  onToggleHero: () => void;
-  showFeatures: boolean;
-  onToggleFeatures: () => void;
-  showStats: boolean;
-  onToggleStats: () => void;
-  showTestimonials: boolean;
-  onToggleTestimonials: () => void;
-  showPricing: boolean;
-  onTogglePricing: () => void;
-  showFaq: boolean;
-  onToggleFaq: () => void;
-};
-
-function UserProfileMenu({
-  role,
-  canAccessAdmin,
-  isUserLoading,
-  isProfileLoading,
-  showJournalNav,
-  onToggleJournalNav,
-  showHero,
-  onToggleHero,
-  showFeatures,
-  onToggleFeatures,
-  showStats,
-  onToggleStats,
-  showTestimonials,
-  onToggleTestimonials,
-  showPricing,
-  onTogglePricing,
-  showFaq,
-  onToggleFaq,
-}: UserProfileMenuProps) {
-  const { user } = useUser();
-  const router = useRouter();
-  const { lang } = useLang();
-  const tr = (en: string, ar: string) => (lang === 'ar' ? ar : en);
-
-  const handleLogout = async () => {
-    await signOutUser();
-    try {
-      if (typeof window !== 'undefined') {
-        const keys: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('firebase:')) keys.push(k);
-        }
-        keys.forEach((k) => {
-          try { localStorage.removeItem(k); } catch {}
-        });
-        try { indexedDB.deleteDatabase('firebaseLocalStorageDb'); } catch {}
-      }
-    } catch {}
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    } else {
-      router.push('/login');
-    }
-  };
-
-  const getInitials = (name?: string | null) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .filter(Boolean)
-      .map((n) => n[0])
-      .join('');
-  };
-
-  if (isUserLoading || isProfileLoading) {
-    return <div className="h-10 w-10 animate-pulse rounded-full bg-white/20" />;
-  }
-
-  if (!user) {
-    return (
-      <>
-        <Button
-          asChild
-          variant="outline"
-          className="hidden border-accent text-accent hover:bg-accent hover:text-accent-foreground xl:inline-flex"
-        >
-          <Link href="/login">{tr('Login', 'تسجيل الدخول')}</Link>
-        </Button>
-        <Button
-          asChild
-          className="hidden bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
-        >
-          <Link href="/signup">{tr('Sign Up', 'إنشاء حساب')}</Link>
-        </Button>
-      </>
-    );
-  }
-
-  const effectiveAdminLabel =
-    role === 'admin'
-      ? tr('Admin', 'مشرف')
-      : role === 'teacher'
-        ? tr('Teacher', 'مدرّس')
-        : role === 'editor'
-          ? tr('Editor', 'محرّر')
-          : role === 'reviewer'
-            ? tr('Reviewer', 'مراجع')
-            : null;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10 border-2 border-accent">
-            <AvatarImage
-              src={user.photoURL ?? undefined}
-              alt={user.displayName ?? 'User'}
-            />
-            <AvatarFallback className="bg-accent text-accent-foreground font-bold">
-              {getInitials(user.displayName)}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <Avatar className="h-8 w-8 border border-accent">
-            <AvatarImage
-              src={user.photoURL ?? undefined}
-              alt={user.displayName ?? 'User'}
-            />
-            <AvatarFallback className="bg-accent text-accent-foreground font-bold">
-              {getInitials(user.displayName)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.displayName || user.email}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {effectiveAdminLabel ?? tr('Student', 'طالب')}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link
-            href={
-              role === 'admin'
-                ? '/admin/dashboard'
-                : role === 'editor'
-                  ? '/admin/journal'
-                  : role === 'teacher'
-                    ? '/teacher/dashboard'
-                    : role === 'reviewer'
-                      ? '/reviewer'
-                      : '/dashboard'
-            }
-          >
-            <LayoutDashboard className="me-2 h-4 w-4" />
-            {tr('Dashboard', 'لوحة التحكم')}
-          </Link>
-        </DropdownMenuItem>
-        {(role === 'admin' || role === 'editor') && (
-          <DropdownMenuItem asChild>
-            <Link href="/admin/journal">
-              <FileText className="me-2 h-4 w-4" />
-              {tr('Journal Dashboard', 'لوحة المجلة')}
-            </Link>
-          </DropdownMenuItem>
-        )}
-        {(role === 'reviewer' || role === 'admin' || role === 'editor') && (
-          <DropdownMenuItem asChild>
-            <Link href="/reviewer">
-              <FileText className="me-2 h-4 w-4" />
-              {tr('Reviewer Dashboard', 'لوحة المراجع')}
-            </Link>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="/profile">
-            <UserCog className="me-2 h-4 w-4" />
-            {tr('Profile', 'الملف الشخصي')}
-          </Link>
-        </DropdownMenuItem>
-        {canAccessAdmin && (
-          <DropdownMenuItem asChild>
-            <Link href={role === 'teacher' ? '/teacher/dashboard' : '/admin/dashboard'}>
-              <Shield className="me-2 h-4 w-4" />
-              {effectiveAdminLabel ?? 'Admin'}
-            </Link>
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleJournalNav}>
-            {showJournalNav ? tr('Hide Journal', 'إخفاء المجلة') : tr('Show Journal', 'إظهار المجلة')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleHero}>
-            {showHero ? tr('Hide Hero on Home', 'إخفاء الواجهة الرئيسية') : tr('Show Hero on Home', 'إظهار الواجهة الرئيسية')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleFeatures}>
-            {showFeatures ? tr('Hide Why Choose section', 'إخفاء قسم لماذا تختارنا') : tr('Show Why Choose section', 'إظهار قسم لماذا تختارنا')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleStats}>
-            {showStats ? tr('Hide Stats on Home', 'إخفاء الإحصاءات') : tr('Show Stats on Home', 'إظهار الإحصاءات')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleTestimonials}>
-            {showTestimonials ? tr('Hide Testimonials on Home', 'إخفاء آراء المتعلمين') : tr('Show Testimonials on Home', 'إظهار آراء المتعلمين')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onTogglePricing}>
-            {showPricing ? tr('Hide Pricing on Home', 'إخفاء الأسعار') : tr('Show Pricing on Home', 'إظهار الأسعار')}
-          </DropdownMenuItem>
-        )}
-        {role === 'admin' && (
-          <DropdownMenuItem onClick={onToggleFaq}>
-            {showFaq ? tr('Hide FAQ on Home', 'إخفاء الأسئلة الشائعة') : tr('Show FAQ on Home', 'إظهار الأسئلة الشائعة')}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="me-2 h-4 w-4" />
-          {tr('Log out', 'تسجيل الخروج')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-export default function Header({ variant = 'public' }: HeaderProps = {}) {
-  const [isOpen, setIsOpen] = useState(false);
+// Role-specific destinations belong to WorkspaceShell, not a second public mega-menu.
+export default function Header(_props: { variant?: 'public' | 'app' } = {}) {
+  const { lang, dir, setLang } = useLang();
   const { user, isUserLoading } = useUser();
+  const { role, loading: roleLoading } = useCurrentRole();
   const pathname = usePathname();
   const router = useRouter();
-  const { lang } = useLang();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const firestore = getFirestore();
-  const { isAdmin, isTeacher, isReviewer, isEditor, loading: roleLoading } = useCurrentRole();
-  const isAppVariant = variant === 'app';
+  const settingsRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
+  const { data: settings } = useDoc(settingsRef);
+  const links = publicLinks.filter(link => link.href !== '/journal' || settings?.showJournalNav !== false);
+  const ready = !!user && !isUserLoading && !roleLoading;
+  const accountName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
+  const tr = (en: string, ar: string) => lang === 'ar' ? ar : en;
+  useEffect(() => { setOpen(false); }, [pathname]);
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOutUser();
+      router.replace('/login');
+    } catch {
+      toast({ variant: 'destructive', title: tr('Could not sign out. Please try again.', 'تعذّر تسجيل الخروج. حاول مجددًا.') });
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
-
-  // Prefer claims for gating; fall back to profile when claims are unavailable
-  const effectiveRole: Role = user
-    ? (isAdmin
-        ? 'admin'
-        : isEditor
-          ? 'editor'
-          : isTeacher
-            ? 'teacher'
-            : isReviewer
-              ? 'reviewer'
-              : ((userProfile?.role as Role) ?? 'student'))
-    : null;
-  const canAccessAdmin = effectiveRole === 'admin' || effectiveRole === 'editor' || effectiveRole === 'teacher';
-  const isAdminRoute = !!pathname && pathname !== '/admin' && pathname.startsWith('/admin');
-  const isTeacherRoute = !!pathname && pathname.startsWith('/teacher');
-  const isReviewerRoute = !!pathname && pathname.startsWith('/reviewer');
-  const isLearnRoute = !!pathname && pathname.startsWith('/learn');
-  const isTelegramRoute = pathname === '/dashboard/telegram';
-  const isWorkspaceVariant =
-    isAppVariant ||
-    isAdminRoute ||
-    isTeacherRoute ||
-    isReviewerRoute ||
-    isLearnRoute ||
-    isTelegramRoute;
-
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: uiSettings } = useDoc(settingsDocRef);
-  const showJournalNav = uiSettings?.showJournalNav !== false;
-  const showHero = uiSettings?.showHero !== false;
-  const showFeatures = uiSettings?.showFeatures !== false;
-  const showStats = uiSettings?.showStats !== false;
-  const showTestimonials = uiSettings?.showTestimonials !== false;
-  const showPricing = uiSettings?.showPricing !== false;
-  const showFaq = uiSettings?.showFaq !== false;
-
-  const baseLinks = showJournalNav ? navLinks : navLinks.filter((l) => l.id !== 'journal');
-  const visibleLinks =
-    effectiveRole === 'editor' || effectiveRole === 'reviewer'
-      ? baseLinks.filter((l) => l.id === 'home' || l.id === 'journal')
-      : baseLinks;
-
-  const toggleJournalNav = async () => {
-    const next = !showJournalNav;
-    await setDoc(settingsDocRef as any, { showJournalNav: next }, { merge: true });
-  };
-  const toggleHero = async () => {
-    const next = !showHero;
-    await setDoc(settingsDocRef as any, { showHero: next }, { merge: true });
-  };
-  const toggleFeatures = async () => {
-    const next = !showFeatures;
-    await setDoc(settingsDocRef as any, { showFeatures: next }, { merge: true });
-  };
-  const toggleStats = async () => {
-    const next = !showStats;
-    await setDoc(settingsDocRef as any, { showStats: next }, { merge: true });
-  };
-  const toggleTestimonials = async () => {
-    const next = !showTestimonials;
-    await setDoc(settingsDocRef as any, { showTestimonials: next }, { merge: true });
-  };
-  const togglePricing = async () => {
-    const next = !showPricing;
-    await setDoc(settingsDocRef as any, { showPricing: next }, { merge: true });
-  };
-  const toggleFaq = async () => {
-    const next = !showFaq;
-    await setDoc(settingsDocRef as any, { showFaq: next }, { merge: true });
-  };
-
-  const navLabel = (id: 'home' | 'courses' | 'research' | 'journal' | 'qr') => {
-    if (id === 'research') return lang === 'ar' ? 'الأبحاث' : 'Research';
-    if (id === 'qr') return lang === 'ar' ? 'طباعة QR' : 'Print QR';
-    const map: Record<'en' | 'ar', Record<'home' | 'courses' | 'journal', string>> = {
-      en: { home: 'Home', courses: 'Courses', journal: 'Journal' },
-      ar: { home: 'الرئيسية', courses: 'الدورات', journal: 'المجلة' },
-    };
-    return map[lang][id as 'home' | 'courses' | 'journal'];
-  };
-
-  const t = (key: 'dashboard' | 'learningPath' | 'admin') => {
-    const m = {
-      en: {
-        dashboard: 'Dashboard',
-        learningPath: 'Learning Path',
-        admin: 'Admin',
-      },
-      ar: {
-        dashboard: 'لوحة التحكم',
-        learningPath: 'مسار التعلّم',
-        admin: 'المشرف',
-      },
-    } as const;
-    return m[lang][key];
-  };
-
-  const dedupeByHref = <T extends { href: string }>(items: readonly T[]) => {
-    const seen = new Set<string>();
-    return items.filter((item) => {
-      if (seen.has(item.href)) return false;
-      seen.add(item.href);
-      return true;
+  function navigation(mobile = false) {
+    return links.map(link => {
+      const active = link.href === '/' ? pathname === '/' : pathname === link.href || pathname?.startsWith(link.href + '/');
+      return (
+        <Link
+          key={link.href}
+          href={link.href}
+          onClick={() => setOpen(false)}
+          aria-current={active ? 'page' : undefined}
+          className={cn(
+            'rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            mobile ? 'flex min-h-12 items-center px-4' : 'inline-flex h-10 items-center px-4',
+            active ? 'bg-accent/15 text-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground',
+          )}
+        >
+          {link[lang]}
+        </Link>
+      );
     });
-  };
-
-  const adminNavItems = dedupeByHref([
-    {
-      href: '/admin/dashboard',
-      label: lang === 'ar' ? 'لوحة تحكم المشرف' : 'Dashboard',
-    },
-    {
-      href: '/admin/courses',
-      label: lang === 'ar' ? 'الدورات' : 'Courses',
-    },
-    {
-      href: '/admin/waitlist',
-      label: lang === 'ar' ? 'قائمة الانتظار' : 'Waitlist',
-    },
-    {
-      href: '/admin/analytics',
-      label: lang === 'ar' ? 'التحليلات' : 'Analytics',
-    },
-    {
-      href: '/admin/journal',
-      label: lang === 'ar' ? 'المجلة' : 'Journal',
-    },
-    {
-      href: '/admin/access',
-      label: lang === 'ar' ? 'التحكم بالوصول' : 'Access',
-    },
-    {
-      href: '/admin/users',
-      label: lang === 'ar' ? 'إدارة المستخدمين' : 'Users',
-    },
-    {
-      href: '/admin/announcements',
-      label: lang === 'ar' ? 'الإعلانات' : 'Announcements',
-    },
-    {
-      href: '/admin/seed',
-      label: lang === 'ar' ? 'تهيئة البيانات' : 'Seed',
-    },
-    {
-      href: '/admin/landing',
-      label: lang === 'ar' ? 'إعدادات الصفحة الرئيسية' : 'Landing Page',
-    },
-    {
-      href: '/admin/payment',
-      label: 'Payments',
-    },
-  ] as const);
-
-  const adminNavItemsWithCertificates = [
-    ...adminNavItems,
-    ...(isAdmin
-      ? [
-          {
-            href: '/admin/certificates',
-            label: lang === 'ar' ? 'الشهادات' : 'Certificates',
-          },
-        ]
-      : []),
-  ] as const;
-
-  const teachingNavItems = [
-    { href: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة المعلم' : 'Teaching' },
-    { href: '/teacher/courses', label: lang === 'ar' ? 'دوراتي' : 'My Courses' },
-  ] as const;
-
-  const filteredAdminNavItems = isTeacher
-    ? adminNavItemsWithCertificates.filter(
-        (i) =>
-          i.href !== '/admin/courses' &&
-          i.href !== '/admin/users' &&
-          i.href !== '/admin/seed' &&
-          i.href !== '/admin/journal' &&
-          i.href !== '/admin/access' &&
-          i.href !== '/admin/payment' &&
-          i.href !== '/admin/analytics' &&
-          i.href !== '/admin/landing' &&
-          i.href !== '/admin/announcements',
-      )
-    : adminNavItemsWithCertificates;
-
-  const roleAdjustedAdminNavItems = isEditor
-    ? adminNavItemsWithCertificates.filter((item) => item.href === '/admin/journal')
-    : filteredAdminNavItems;
-
-  const learnerNavItems = [
-    { href: '/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard' },
-    { href: '/profile', label: lang === 'ar' ? 'الملف الشخصي' : 'Profile' },
-    { href: '/learning-path', label: lang === 'ar' ? 'مسار التعلّم' : 'Learning Path' },
-    { href: '/courses', label: lang === 'ar' ? 'الدورات' : 'Courses' },
-    { href: '/certificates', label: lang === 'ar' ? 'الشهادات' : 'Certificates' },
-  ] as const;
-
-  const reviewerNavItems = [
-    { href: '/reviewer', label: lang === 'ar' ? 'لوحة المحكم' : 'Review queue' },
-    { href: '/journal', label: lang === 'ar' ? 'المجلة' : 'Journal' },
-  ] as const;
-
-  const telegramNavItems = [
-    {
-      href:
-        effectiveRole === 'admin'
-          ? '/admin/dashboard'
-          : effectiveRole === 'teacher'
-            ? '/teacher/dashboard'
-            : '/dashboard',
-      label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard',
-    },
-    { href: '/dashboard/telegram', label: lang === 'ar' ? 'تيليجرام' : 'Telegram' },
-  ] as const;
-
-  const canAccessReviewWorkspace =
-    effectiveRole === 'reviewer' || effectiveRole === 'editor' || effectiveRole === 'admin';
-  const workspaceNavItems = isAdminRoute
-    ? canAccessAdmin && !roleLoading ? roleAdjustedAdminNavItems : []
-    : isTeacherRoute
-      ? canAccessAdmin && !roleLoading ? teachingNavItems : []
-      : isReviewerRoute
-        ? canAccessReviewWorkspace && !roleLoading ? reviewerNavItems : []
-        : isTelegramRoute
-          ? telegramNavItems
-        : learnerNavItems;
-  const workspacePrimaryItems = isAdminRoute
-    ? workspaceNavItems.slice(0, 4)
-    : workspaceNavItems;
-  const workspaceOverflowItems = isAdminRoute ? workspaceNavItems.slice(4) : [];
-  const workspaceLabel = isAdminRoute
-    ? lang === 'ar' ? 'الإدارة' : 'Admin'
-    : isTeacherRoute
-      ? lang === 'ar' ? 'التدريس' : 'Teaching'
-      : isReviewerRoute
-        ? lang === 'ar' ? 'التحكيم' : 'Review'
-        : isTelegramRoute
-          ? lang === 'ar' ? 'تيليجرام' : 'Telegram'
-        : lang === 'ar' ? 'التعلّم' : 'Learning';
-
-  const handleLogoClick = () => {
-    router.push('/');
-  };
-
-  // Stable dashboard target to avoid flicker while role claims load
-  const preferredDashboardHref =
-    effectiveRole === 'admin' ? '/admin/dashboard'
-    : effectiveRole === 'editor' ? '/admin/journal'
-    : effectiveRole === 'teacher' ? '/teacher/dashboard'
-    : effectiveRole === 'reviewer' ? '/reviewer'
-    : '/dashboard';
-
-  const isActiveHref = (href: string) => {
-    if (!pathname) return false;
-    if (href === '/') return pathname === '/';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
-
-  const navPillClassName = (active: boolean) =>
-    [
-      'inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
-      active
-        ? 'bg-accent/20 text-accent hover:bg-accent/25'
-        : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground',
-    ].join(' ');
+  }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-sm">
-      <div className={`${isWorkspaceVariant ? 'w-full px-4 sm:px-6 lg:px-8' : 'container'} flex h-16 min-w-0 items-center gap-2 sm:gap-3`}>
-        <button
-          type="button"
-          onClick={handleLogoClick}
-          className="flex shrink-0 items-center gap-2"
-        >
-          <Logo size={44} textClassName="text-lg text-primary-foreground sm:text-xl" />
-        </button>
-
-        {isWorkspaceVariant && (
-          <span className="hidden rounded-full border border-primary-foreground/15 bg-primary-foreground/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/70 sm:inline-flex">
-            {workspaceLabel}
-          </span>
-        )}
-
-        {!isWorkspaceVariant && (
-        <div className="hidden min-w-0 flex-1 justify-center lg:flex">
-        <nav className="flex items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
-          {/* Always show public nav */}
-           {visibleLinks.filter((link) => link.id !== 'qr').map((link) => (
-             <Link
-               key={link.id}
-               href={link.href}
-                className={navPillClassName(isActiveHref(link.href))}
-             >
-               {navLabel(link.id)}
-             </Link>
-           ))}
-          {user && (
-            <>
-              <Link
-                href={preferredDashboardHref}
-                className={navPillClassName(isActiveHref(preferredDashboardHref))}
-              >
-                {t('dashboard')}
-              </Link>
-              {!canAccessAdmin && !roleLoading && (
-                <Link
-                  href="/learning-path"
-                  className={navPillClassName(isActiveHref('/learning-path'))}
-                >
-                  {t('learningPath')}
-                </Link>
-              )}
-            </>
-          )}
-          {/* Add Teaching/Admin dropdown */}
-          {canAccessAdmin && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={[
-                    navPillClassName(isActiveHref('/admin') || isActiveHref('/teacher')),
-                    "relative pr-7 after:absolute after:right-3 after:top-1/2 after:-translate-y-1/2 after:content-['v'] after:text-xs after:opacity-70",
-                  ].join(' ')}
-                >
-                  {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
-                  <DropdownMenuItem asChild key={item.href}>
-                    <Link href={item.href}>{item.label}</Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+    <header dir={dir} className="sticky top-0 z-40 border-b bg-background/95 text-foreground backdrop-blur">
+      <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
+        <Link href="/" aria-label={tr('CloudAI Academy home', 'الصفحة الرئيسية لأكاديمية CloudAI')} className="min-w-0 shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Logo size={36} textClassName="text-sm text-foreground sm:text-lg" />
+        </Link>
+        <nav aria-label={tr('Main navigation', 'القائمة الرئيسية')} className="ms-auto hidden items-center gap-1 xl:flex">
+          {navigation()}
         </nav>
-        </div>
-        )}
-
-        {isWorkspaceVariant && !isAppVariant && (
-          <div className="hidden min-w-0 flex-1 justify-center lg:flex">
-            <nav className="flex max-w-full items-center gap-1 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 p-1">
-              {workspacePrimaryItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={navPillClassName(isActiveHref(item.href))}
-                >
-                  {item.label}
-                </Link>
-              ))}
-              {workspaceOverflowItems.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={navPillClassName(
-                        workspaceOverflowItems.some((item) => isActiveHref(item.href)),
-                      )}
-                    >
-                      {lang === 'ar' ? 'المزيد' : 'More'}
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-52">
-                    {workspaceOverflowItems.map((item) => (
-                      <DropdownMenuItem asChild key={item.href}>
-                        <Link href={item.href}>{item.label}</Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </nav>
-          </div>
-        )}
-
-        <div className="ms-auto flex shrink-0 items-center gap-2">
-          {!isAppVariant ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="hidden h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-accent hover:bg-primary-foreground/10 hover:text-accent focus-visible:ring-accent/60 lg:inline-flex"
-            >
-              <Link href="/print/qr" aria-label={navLabel('qr')} title={navLabel('qr')}>
-                <QrCode className="h-5 w-5" />
-              </Link>
-            </Button>
-          ) : null}
-          <LangToggle className="hidden lg:flex" />
-          <ThemeToggle className="hidden h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60 lg:inline-flex" />
-          <div className={isWorkspaceVariant ? '' : 'flex justify-end xl:min-w-44'}>
-            <UserProfileMenu
-              role={effectiveRole}
-              canAccessAdmin={canAccessAdmin}
-              isUserLoading={isUserLoading}
-              isProfileLoading={isProfileLoading}
-              showJournalNav={showJournalNav}
-              onToggleJournalNav={toggleJournalNav}
-              showHero={showHero}
-              onToggleHero={toggleHero}
-              showFeatures={showFeatures}
-              onToggleFeatures={toggleFeatures}
-              showStats={showStats}
-              onToggleStats={toggleStats}
-              showTestimonials={showTestimonials}
-              onToggleTestimonials={toggleTestimonials}
-              showPricing={showPricing}
-              onTogglePricing={togglePricing}
-              showFaq={showFaq}
-              onToggleFaq={toggleFaq}
-            />
-          </div>
-
-          <div className="lg:hidden">
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-primary-foreground/10"
-                >
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">{lang === 'ar' ? 'فتح القائمة' : 'Open menu'}</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side={lang === 'ar' ? 'left' : 'right'}
-                className="border-primary-foreground/10 bg-primary text-primary-foreground"
-              >
-                <SheetHeader>
-                  <div className="border-b border-primary-foreground/10 p-4">
-                    <Logo size={64} textClassName="text-primary-foreground" />
-                  </div>
-                  <SheetTitle className="sr-only">{lang === 'ar' ? 'قائمة الهاتف' : 'Mobile menu'}</SheetTitle>
-                </SheetHeader>
-                <nav className="grid gap-4 p-4">
-                  <LangToggle className="mb-2" />
-                  <ThemeToggle className="mb-2 h-9 w-9 rounded-full border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-accent/60" />
-                  {!isWorkspaceVariant && (
-                    <>
-                       {visibleLinks.map((link) => (
-                         <Link
-                           key={link.id}
-                           href={link.href}
-                           onClick={() => setIsOpen(false)}
-                           className={['text-lg font-medium hover:text-accent', link.id === 'qr' ? 'font-semibold text-accent' : ''].join(' ')}
-                         >
-                           {navLabel(link.id)}
-                         </Link>
-                       ))}
-                      {user && (
-                        <>
-                          <Link
-                            href={preferredDashboardHref}
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {t('dashboard')}
-                          </Link>
-                          {!canAccessAdmin && (
-                            <Link
-                              href="/learning-path"
-                              onClick={() => setIsOpen(false)}
-                              className="text-lg font-medium hover:text-accent"
-                            >
-                              {t('learningPath')}
-                            </Link>
-                          )}
-                        </>
-                      )}
-                      {canAccessAdmin && (
-                        <div className="mt-2">
-                          <p className="px-2 text-xs text-primary-foreground/60">
-                            {isTeacher ? (lang==='ar' ? 'التدريس' : 'Teaching') : (lang==='ar' ? 'الإدارة' : 'Admin')}
-                          </p>
-                          {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={() => setIsOpen(false)}
-                              className="text-lg font-medium hover:text-accent block"
-                            >
-                              {item.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                      {!user && (
-                        <>
-                          <Link
-                            href="/login"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
-                          </Link>
-                          <Link
-                            href="/signup"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'إنشاء حساب' : 'Sign Up'}
-                          </Link>
-                        </>
-                      )}
-                      {canAccessAdmin && (
-                        <Link
-                          href="/admin/dashboard"
-                          onClick={() => setIsOpen(false)}
-                          className="text-lg font-semibold hover:text-accent"
-                        >
-                          {t('admin')}
-                        </Link>
-                      )}
-                    </>
-                  )}
-                  {!isAdminRoute && isAppVariant && (
-                    <>
-                      {user ? (
-                        <>
-                          <Link
-                            href={preferredDashboardHref}
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {t('dashboard')}
-                          </Link>
-                          <Link
-                            href="/profile"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'الملف الشخصي' : 'Profile'}
-                          </Link>
-                          {!canAccessAdmin && (
-                            <Link
-                              href="/learning-path"
-                              onClick={() => setIsOpen(false)}
-                              className="text-lg font-medium hover:text-accent"
-                            >
-                              {t('learningPath')}
-                            </Link>
-                          )}
-                          <Link
-                            href="/courses"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {navLabel('courses')}
-                          </Link>
-                          <Link
-                            href="/certificates"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'الشهادات' : 'Certificates'}
-                          </Link>
-                              {canAccessAdmin && (
-                            <div className="mt-2">
-                              <p className="px-2 text-xs text-primary-foreground/60">
-                                {isTeacher ? (lang === 'ar' ? 'التدريس' : 'Teaching') : (lang === 'ar' ? 'الإدارة' : 'Admin')}
-                              </p>
-                              {(isTeacher ? teachingNavItems : adminNavItemsWithCertificates).map((item) => (
-                                <Link
-                                  key={item.href}
-                                  href={item.href}
-                                  onClick={() => setIsOpen(false)}
-                                  className="text-lg font-medium hover:text-accent block"
-                                >
-                                  {item.label}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href="/login"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
-                          </Link>
-                          <Link
-                            href="/signup"
-                            onClick={() => setIsOpen(false)}
-                            className="text-lg font-medium hover:text-accent"
-                          >
-                            {lang === 'ar' ? 'إنشاء حساب' : 'Sign Up'}
-                          </Link>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {(isLearnRoute || isTelegramRoute) && !isAppVariant && (
-                    <>
-                      {workspaceNavItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className={[
-                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
-                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
-                          ].join(' ')}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                  {isAdminRoute && canAccessAdmin && (
-                    <>
-                      {filteredAdminNavItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className="text-lg font-medium hover:text-accent"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                  {isTeacherRoute && canAccessAdmin && (
-                    <>
-                      {teachingNavItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className={[
-                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
-                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
-                          ].join(' ')}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                  {isReviewerRoute && (
-                    <>
-                      {reviewerNavItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className={[
-                            'rounded-lg px-3 py-2 text-lg font-medium hover:bg-primary-foreground/10 hover:text-accent',
-                            isActiveHref(item.href) ? 'bg-primary-foreground/10 text-accent' : '',
-                          ].join(' ')}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
+        <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2 xl:ms-2">
+          <Button variant="ghost" size="sm" className="hidden rounded-xl px-2 sm:inline-flex" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} aria-label={tr('التبديل إلى العربية', 'Switch to English')}>
+            {tr('العربية', 'English')}
+          </Button>
+          <ThemeToggle className="hidden size-9 rounded-xl text-muted-foreground sm:inline-flex" />
+          {isUserLoading || (user && roleLoading) ? (
+            <span className="size-9 animate-pulse rounded-full bg-muted" aria-label={tr('Loading account', 'جارٍ تحميل الحساب')} />
+          ) : ready ? (
+            <>
+              <Button asChild className="hidden rounded-xl lg:inline-flex">
+                <Link href={roleHomePath(role)}>{tr('My workspace', 'مساحة العمل')}<ArrowUpRight className="ms-2 size-4 rtl:-rotate-90" /></Link>
+              </Button>
+              <DropdownMenu dir={dir}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="size-9 rounded-full border-accent/30 bg-accent/10" aria-label={tr('Account menu', 'قائمة الحساب')}>
+                    {accountName.charAt(0).toUpperCase()}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60 rounded-xl p-2">
+                  <DropdownMenuLabel className="truncate">{accountName}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild><Link href={roleHomePath(role)}><LayoutDashboard className="me-2 size-4" />{tr('My workspace', 'مساحة العمل')}</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/profile"><UserRound className="me-2 size-4" />{tr('Profile', 'الملف الشخصي')}</Link></DropdownMenuItem>
+                  {role === 'admin' && <DropdownMenuItem asChild><Link href="/admin/landing"><Settings2 className="me-2 size-4" />{tr('Website settings', 'إعدادات الموقع')}</Link></DropdownMenuItem>}
+                  <DropdownMenuItem asChild><Link href="/print/qr"><QrCode className="me-2 size-4" />{tr('Academy QR code', 'رمز QR للأكاديمية')}</Link></DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={signingOut} onSelect={() => void handleSignOut()}><LogOut className="me-2 size-4" />{tr('Sign out', 'تسجيل الخروج')}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <div className="hidden items-center gap-2 sm:flex">
+              <Button asChild variant="ghost" className="rounded-xl"><Link href="/login">{tr('Sign in', 'تسجيل الدخول')}</Link></Button>
+              <Button asChild className="hidden rounded-xl md:inline-flex"><Link href="/signup">{tr('Get started', 'ابدأ الآن')}</Link></Button>
+            </div>
+          )}
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="size-9 rounded-xl xl:hidden" aria-label={tr('Open navigation', 'فتح القائمة')}><Menu className="size-5" /></Button>
+            </SheetTrigger>
+            <SheetContent dir={dir} side={dir === 'rtl' ? 'right' : 'left'} closeLabel={tr('Close navigation', 'إغلاق القائمة')} className="flex w-[min(90vw,22rem)] flex-col overflow-y-auto p-5">
+              <SheetHeader className="border-b pb-5 pt-4 text-start">
+                <SheetTitle>CloudAI Academy</SheetTitle>
+                <SheetDescription>{tr('Learn, build, and share knowledge.', 'تعلّم وابتكر وشارك المعرفة.')}</SheetDescription>
+              </SheetHeader>
+              <nav aria-label={tr('Main navigation', 'القائمة الرئيسية')} className="space-y-1 py-4">{navigation(true)}</nav>
+              {ready ? (
+                <Button asChild className="min-h-11 rounded-xl"><Link href={roleHomePath(role)} onClick={() => setOpen(false)}>{tr('My workspace', 'مساحة العمل')}<ArrowUpRight className="ms-2 size-4 rtl:-rotate-90" /></Link></Button>
+              ) : !isUserLoading && !user ? (
+                <div className="grid gap-2">
+                  <Button asChild className="min-h-11 rounded-xl"><Link href="/signup" onClick={() => setOpen(false)}>{tr('Get started', 'ابدأ الآن')}</Link></Button>
+                  <Button asChild variant="outline" className="min-h-11 rounded-xl"><Link href="/login" onClick={() => setOpen(false)}>{tr('Sign in', 'تسجيل الدخول')}</Link></Button>
+                </div>
+              ) : null}
+              <div className="mt-auto space-y-3 border-t pt-5">
+                <Link href="/print/qr" onClick={() => setOpen(false)} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground hover:bg-muted"><QrCode className="size-4" />{tr('Academy QR code', 'رمز QR للأكاديمية')}</Link>
+                <div className="flex items-center justify-between">
+                  <Button variant="outline" className="rounded-xl" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} aria-label={tr('التبديل إلى العربية', 'Switch to English')}>{tr('العربية', 'English')}</Button>
+                  <ThemeToggle className="rounded-xl" />
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
