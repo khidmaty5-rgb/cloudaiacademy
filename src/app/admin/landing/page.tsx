@@ -39,6 +39,9 @@ type FeatureItemDraft = FeatureItem;
 type FeaturesConfigDraft = Omit<FeaturesConfig, 'items'> & { items: FeatureItemDraft[] };
 
 type LandingSettingsDraft = {
+  showJournalNav: boolean;
+  showStats: boolean;
+  showTestimonials: boolean;
   showHero: boolean;
   showFeatures: boolean;
   showPricing: boolean;
@@ -262,7 +265,7 @@ export default function AdminLandingPage() {
   );
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: uiSettings, isLoading: isSettingsLoading } = useDoc<any>(settingsDocRef);
+  const { data: uiSettings, isLoading: isSettingsLoading, error: settingsError } = useDoc<any>(settingsDocRef);
 
   const [draft, setDraft] = useState<LandingSettingsDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -289,6 +292,9 @@ export default function AdminLandingPage() {
       const faqEn = sanitizeFaqConfig(settings?.faq?.en, DEFAULT_FAQ.en);
       const faqAr = sanitizeFaqConfig(settings?.faq?.ar, DEFAULT_FAQ.ar);
       return {
+        showJournalNav: settings?.showJournalNav !== false,
+        showStats: settings?.showStats !== false,
+        showTestimonials: settings?.showTestimonials !== false,
         showHero,
         showFeatures,
         showPricing,
@@ -303,9 +309,9 @@ export default function AdminLandingPage() {
   );
 
   useEffect(() => {
-    if (draft) return;
+    if (draft || isSettingsLoading || settingsError) return;
     setDraft(makeDraftFromSettings(uiSettings));
-  }, [draft, makeDraftFromSettings, uiSettings]);
+  }, [draft, isSettingsLoading, settingsError, makeDraftFromSettings, uiSettings]);
 
   const updateHeroLang = (language: SupportedLang, updater: (current: HeroConfigDraft) => HeroConfigDraft) => {
     setDraft((prev) => {
@@ -336,12 +342,15 @@ export default function AdminLandingPage() {
   };
 
   const handleSave = async () => {
-    if (!draft) return;
+    if (!draft || isSettingsLoading || settingsError) return;
     if (!user) return;
     if (!isAdmin) return;
     setIsSaving(true);
     try {
       const payload = {
+        showJournalNav: draft.showJournalNav,
+        showStats: draft.showStats,
+        showTestimonials: draft.showTestimonials,
         showHero: draft.showHero,
         showFeatures: draft.showFeatures,
         showPricing: draft.showPricing,
@@ -412,7 +421,7 @@ export default function AdminLandingPage() {
               >
                 {t.resetDefaults}
               </Button>
-              <Button type="button" onClick={handleSave} disabled={!draft || isSaving}>
+              <Button type="button" onClick={handleSave} disabled={!draft || isSaving || isSettingsLoading || !!settingsError}>
                 {isSaving ? t.saving : t.save}
               </Button>
             </div>
@@ -420,6 +429,8 @@ export default function AdminLandingPage() {
 
           {isLoading ? (
             <p className="text-muted-foreground">{t.loading}</p>
+          ) : settingsError ? (
+            <p role="alert" className="text-destructive">{lang === 'ar' ? 'تعذّر تحميل الإعدادات. أعد تحميل الصفحة قبل الحفظ.' : 'Could not load settings. Reload the page before saving.'}</p>
           ) : !canViewPage ? (
             <p className="text-muted-foreground">{t.noPermission}</p>
           ) : !draft ? null : (
@@ -429,6 +440,16 @@ export default function AdminLandingPage() {
                   <CardTitle>{t.sections}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {([
+                    ['showJournalNav', 'Show journal in website navigation', 'إظهار المجلة في قائمة الموقع'],
+                    ['showStats', 'Show homepage statistics', 'إظهار إحصاءات الصفحة الرئيسية'],
+                    ['showTestimonials', 'Show learner testimonials', 'إظهار آراء المتعلمين'],
+                  ] as const).map(([key, en, ar]) => (
+                    <div key={key} className="flex items-center justify-between gap-4">
+                      <label htmlFor={key} className="font-medium">{lang === 'ar' ? ar : en}</label>
+                      <Switch id={key} checked={draft[key]} onCheckedChange={checked => setDraft(prev => prev ? { ...prev, [key]: checked } : prev)} />
+                    </div>
+                  ))}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">{t.showHero}</p>

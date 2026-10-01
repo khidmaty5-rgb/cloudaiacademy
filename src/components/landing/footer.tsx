@@ -3,9 +3,6 @@
 import type { ComponentType } from 'react';
 import { Logo } from '@/components/logo';
 import {
-  Twitter,
-  Linkedin,
-  Youtube,
   Mail,
   Phone,
   MapPin,
@@ -40,12 +37,10 @@ export default function Footer() {
   const { data: ui } = useDoc<any>(settingsDocRef);
   const showPricing = ui?.showPricing !== false; // default: show
   const showFaq = ui?.showFaq !== false; // default: show
+  const showTestimonials = ui?.showTestimonials !== false;
 
   const socialLinks: Array<{ label: string; href: string; Icon: IconComponent }> = [
     { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61585817696624', Icon: FacebookIcon },
-    { label: 'Twitter', href: '#', Icon: Twitter },
-    { label: 'LinkedIn', href: '#', Icon: Linkedin },
-    { label: 'YouTube', href: '#', Icon: Youtube },
   ];
 
   const t = {
@@ -100,9 +95,6 @@ export default function Footer() {
                   href={href}
                   target={href.startsWith('http') ? '_blank' : undefined}
                   rel={href.startsWith('http') ? 'noreferrer noopener' : undefined}
-                  onClick={(e) => {
-                    if (href === '#') e.preventDefault();
-                  }}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/15 hover:text-accent"
                   aria-label={label}
                   title={label}
@@ -145,25 +137,25 @@ export default function Footer() {
               {showPricing && (
                 <li>
                   <Link
-                    href="#pricing"
+                    href="/#pricing"
                     className="text-primary-foreground/70 hover:text-accent"
                   >
                     {t[lang].pricing}
                   </Link>
                 </li>
               )}
-              <li>
+              {showTestimonials && <li>
                 <Link
-                  href="#testimonials"
+                  href="/#testimonials"
                   className="text-primary-foreground/70 hover:text-accent"
                 >
                   {t[lang].testimonials}
                 </Link>
-              </li>
+              </li>}
               {showFaq && (
                 <li>
                   <Link
-                    href="#faq"
+                    href="/#faq"
                     className="text-primary-foreground/70 hover:text-accent"
                   >
                     {t[lang].faq}
