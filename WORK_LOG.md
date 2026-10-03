@@ -1,15 +1,22 @@
 # CloudAI Academy work log
 
+## 2026-10-03 — Live-session layout completion
+
+- Applied the previously blocked fix: loading, login-required, and access-denied live-session states now use SiteShell. Signed-in visitors retain the shared workspace navigation; the focused Jitsi classroom is unchanged.
+- Confirmed PR #16 merged as `8eeb9a850cbc96715041a75334f9f21cdb35046f`; production CI and Vercel deployment both succeeded. Production CI: https://github.com/khidmaty5-rgb/cloudaiacademy/actions/runs/36868332673.
+- Follow-up validation: TypeScript, ESLint with zero errors, all 19 role/navigation tests, and diff checks passed. Remote build and deployment pending. Existing unrelated untracked image and Word temporary file remain untouched.
+- Remaining QA limitations: only the admin account has real authenticated browser coverage; other roles were checked with policy tests and isolated UI fixtures. Stored English course content still needs a separate translation pass.
+
 ## 2026-10-01 — Handover recovery
 
 - Confirmed target: CloudAI Academy, not the current Khidmaty Mobile workspace.
-- Branch remains `codex/role-navigation-redesign`; current redesign is uncommitted and not deployed.
+- Redesign committed as `2f2594f` on `codex/role-navigation-redesign`, then merged in PR #16. Deployment confirmed on Oct 3 (see above).
 - Corrected build status: the previous local production build did not finish. No `.next/BUILD_ID` exists; process activity was not evidence of successful compilation or static generation.
 - TypeScript, 19 role/navigation checks, full-source lint with zero errors, and diff whitespace checks passed before this handover. Fixture browser checks used simulated identities, not five real logins.
 - Next implementation: simplify the still-crowded public header; retain role tools in the shared workspace and visibility controls in Website settings. Then revalidate and release only after passing checks.
 - Implemented Oct 1: compact public header with a single workspace entry, public mobile drawer, translated account controls, and no duplicate staff mega-menu. Removed non-working placeholder social links; footer section links now respect visibility and point to the homepage. Website settings cannot save after a failed settings read.
 - Verified Oct 1: TypeScript, full-source ESLint (zero errors), 19 role/navigation tests, and diff checks pass. Real signed-in admin browser checks passed: public-to-workspace navigation, menu search, courses retaining the workspace, Arabic account controls, Arabic mobile drawer, and 320/390px navigation. Closed-page width at 320px equals the viewport. No account roles or course data were edited as part of these checks.
-- Release pending: production build and remote CI. No new production deployment yet. English-only course titles/descriptions are stored content, not translated by this navigation pass.
+- All six PR checks passed, including the remote production build and Vercel preview. The local Windows build was stopped without completion; it must not be reported as passing. English-only course titles/descriptions are stored content, not translated by this navigation pass.
 
 ## 2026-09-30 — Navigation and workspace redesign (in progress)
 

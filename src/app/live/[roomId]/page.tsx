@@ -3,8 +3,7 @@ import { use } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { getFirestore, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/landing/header';
-import Footer from '@/components/landing/footer';
+import { SiteShell } from '@/components/layout/site-shell';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -46,24 +45,21 @@ export default function LiveRoomPage({ params }: PageProps) {
   const isLoading = isUserLoading || roleLoading || isCourseLoading || isEnrollmentLoading;
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <SiteShell>
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto space-y-4">
             <Skeleton className="h-7 w-1/2" />
             <Skeleton className="h-28 w-full" />
           </div>
         </main>
-        <Footer />
-      </div>
+      </SiteShell>
     );
   }
 
   if (!user) {
     const nextHref = `/live/${encodeURIComponent(roomId)}`;
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <SiteShell>
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <Card className="border-accent">
@@ -82,8 +78,7 @@ export default function LiveRoomPage({ params }: PageProps) {
             </Card>
           </div>
         </main>
-        <Footer />
-      </div>
+      </SiteShell>
     );
   }
 
@@ -105,8 +100,7 @@ export default function LiveRoomPage({ params }: PageProps) {
 
   if (!canJoinLive) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
+      <SiteShell>
         <main className="flex-1 py-10 md:py-16">
           <div className="container max-w-3xl mx-auto">
             <Card className="border-destructive/30 bg-destructive/5">
@@ -120,8 +114,7 @@ export default function LiveRoomPage({ params }: PageProps) {
             </Card>
           </div>
         </main>
-        <Footer />
-      </div>
+      </SiteShell>
     );
   }
 
