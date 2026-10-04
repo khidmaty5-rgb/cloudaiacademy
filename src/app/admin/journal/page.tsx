@@ -727,7 +727,7 @@ export default function AdminJournalPage() {
                 <CardDescription>
                   {isArticlesLoading
                     ? (lang === 'ar' ? 'جارٍ تحميل الإرسالات…' : 'Loading submissions…')
-                    : `${filteredArticles.length} ${lang === 'ar' ? 'مقال' : 'articles'}`}
+                    : `${filteredArticles.length} ${lang === 'ar' ? 'مقال' : filteredArticles.length === 1 ? 'article' : 'articles'}`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="min-w-0">
@@ -851,7 +851,7 @@ export default function AdminJournalPage() {
                         const reviewRound = Number.isFinite(rrRaw) && rrRaw > 0 ? rrRaw : null;
                         return (
                           <TableRow key={article.id}>
-                            <TableCell className="max-w-xs">
+                            <TableCell className="min-w-64 max-w-sm">
                               <div className="font-medium truncate">
                                 <button
                                   type="button"
