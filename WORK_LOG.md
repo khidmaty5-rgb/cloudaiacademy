@@ -1,5 +1,15 @@
 # CloudAI Academy work log
 
+## 2026-10-03 — Layout audit repair release
+
+- Completed the audit's layout implementation: responsive user cards and loading states; full-width editorial queue with expandable issue tools; Arabic editorial filters, actions and dates; viewport-bounded dialogs; readable light/dark accent contrast; consistent workspace gutters, headings and card treatment; Arabic web font; reduced-motion support; denser course cards with decorative thumbnail alt text; compact-width teaching, learner and settings grids.
+- Navigation keeps expanded sections within a mounted workspace, searches route aliases, respects journal visibility, and identifies teaching course editing. Public/workspace selection waits for authentication. Optional homepage sections wait for settings before showing defaults.
+- Browser fixture verification uses real components and inert sample data: English/Arabic user cards at 390px and 1024px, Arabic editorial layout at both widths, dark mode. Mobile role controls measured x=41px / width=293px, fully within the content area. No whole-page horizontal overflow in these checks.
+- Local TypeScript, 19 role/navigation tests, seven layout contracts and full lint passed (existing warnings remain). Final build, release and production verification are tracked below when complete.
+- No production account roles, submissions, prices, payment rules or stored course content were changed. Course currency and stored translations require authoritative content values; prices are intentionally preserved.
+- Real authenticated coverage remains the administrator account; role fixtures and policy tests must not be described as successful real logins for all roles.
+
+
 ## 2026-10-03 — Live-session layout completion
 
 - Applied the previously blocked fix: loading, login-required, and access-denied live-session states now use SiteShell. Signed-in visitors retain the shared workspace navigation; the focused Jitsi classroom is unchanged.
@@ -33,3 +43,11 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-03 — Deep layout audit: first repair batch
+
+- Target: CloudAI Academy only. User requested implementation after the layout audit.
+- User management: content-width adaptive cards, readable wrapping identities, full-width role controls below identity, neutral surfaces, localized empty states/dates, wrapping page actions.
+- Session layout: wait for authentication before selecting public/workspace shell; removed public layout wrapper swapping. Authorization and role mutations unchanged.
+- Initial checks: TypeScript and 19 existing role tests passed; targeted lint has no errors (existing warnings remain).
+- Added two source-contract regressions. Browser geometry verification, production build, commit/push and deployment remain pending. Do not describe this batch as deployed or all-role verified.
+- Remaining audit work: contrast, editorial table layout/Arabic, menu state/visibility, homepage settings loading, course content/pricing, shared page templates, real role visual QA.

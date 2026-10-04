@@ -48,6 +48,9 @@ jobs:
       - name: Test role access matrix
         run: npm run test:roles
 
+      - name: Test responsive layout contracts
+        run: npm run test:layout
+
       - name: Typecheck
         run: npm run typecheck
 

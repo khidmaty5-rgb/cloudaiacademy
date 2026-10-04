@@ -18,10 +18,10 @@ export default function Features() {
 
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
   const showFeatures = ui?.showFeatures !== false; // default: show
 
-  if (!showFeatures) return null;
+  if (settingsLoading || !showFeatures) return null;
 
   const content = sanitizeFeaturesConfig(ui?.features?.[lang], DEFAULT_FEATURES[lang]);
 
@@ -66,4 +66,3 @@ export default function Features() {
     </section>
   );
 }
-

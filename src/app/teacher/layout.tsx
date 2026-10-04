@@ -14,7 +14,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     <RouteGuard>
     <SiteShell showFooter={false}>
       <main className="flex-1">
-        <PageContainer className="py-8 md:py-10">
+        <PageContainer>
           {loading ? (
             <Card className="h-40" />
           ) : (!isTeacher && !isAdmin) ? (

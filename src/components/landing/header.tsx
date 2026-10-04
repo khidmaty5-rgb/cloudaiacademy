@@ -37,8 +37,8 @@ export default function Header(_props: { variant?: 'public' | 'app' } = {}) {
   const [signingOut, setSigningOut] = useState(false);
   const firestore = getFirestore();
   const settingsRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: settings } = useDoc(settingsRef);
-  const links = publicLinks.filter(link => link.href !== '/journal' || settings?.showJournalNav !== false);
+  const { data: settings, isLoading: settingsLoading } = useDoc(settingsRef);
+  const links = publicLinks.filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false));
   const ready = !!user && !isUserLoading && !roleLoading;
   const accountName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
   const tr = (en: string, ar: string) => lang === 'ar' ? ar : en;

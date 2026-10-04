@@ -55,7 +55,7 @@ export default function TeacherDashboardPage() {
     <div className="space-y-6">
       <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'لوحة التدريس' : 'Teaching Dashboard'}</h1>
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-80 w-full" />
           ))}
@@ -63,7 +63,7 @@ export default function TeacherDashboardPage() {
       ) : courses.length === 0 ? (
         <div className="text-muted-foreground">{ar ? 'لم يتم تعيين أي دورات لك بعد.' : 'You are not assigned to any courses yet.'}</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
           {courses.map((course) => {
             const image = getCourseImage(course as any);
             const isContain = image.fit === 'contain';

@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, getFirestore, query, orderBy, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format } from 'date-fns';
 import { Shield, BookOpen, GraduationCap, FileText } from 'lucide-react';
 import {
   Select,
@@ -30,6 +29,8 @@ const usersText = {
     email: 'Email',
     name: 'Name',
     role: 'Role',
+    noUsers: 'No users in this role.',
+    unavailable: 'Not available',
     dateJoined: 'Date Joined',
     access: 'Access',
     requirePayment: 'Require Payment',
@@ -52,6 +53,8 @@ const usersText = {
     email: 'البريد الإلكتروني',
     name: 'الاسم',
     role: 'الدور',
+    noUsers: 'لا يوجد مستخدمون بهذا الدور.',
+    unavailable: 'غير متوفر',
     dateJoined: 'تاريخ الانضمام',
     access: 'الصلاحية',
     requirePayment: 'يتطلب الدفع',
@@ -115,7 +118,7 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
 
     return (
         <Select defaultValue={currentRole} onValueChange={handleRoleChange}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-full shrink-0" aria-label={t.role}>
                 <SelectValue placeholder={t.selectRolePlaceholder} />
             </SelectTrigger>
             <SelectContent>
@@ -159,7 +162,7 @@ function UserList() {
 
     if (areUsersLoading || roleLoading) {
       return (
-        <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader>
@@ -167,7 +170,7 @@ function UserList() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {Array.from({ length: 4 }).map((_, j) => (
-                  <div key={j} className="flex items-center justify-between">
+                  <div key={j} className="flex flex-wrap items-center justify-between gap-3">
                     <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-8 w-28" />
                   </div>
@@ -197,24 +200,24 @@ function UserList() {
       const S = roleStyles[role];
       const Icon = S.Icon;
       return (
-        <Card className={`border ${S.border} border-l-4 ${S.bg}`}>
+        <Card className="min-w-0 rounded-xl border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
               <Icon className={`h-5 w-5 ${S.iconColor}`} />
               <span>{title}</span>
-              <span className="ml-1 text-muted-foreground">({grouped[role].length})</span>
+              <span className="ms-auto rounded-full bg-muted px-2 py-0.5 text-sm text-muted-foreground">{grouped[role].length}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {grouped[role].length === 0 ? (
-              <p className="text-sm text-muted-foreground">No users.</p>
+              <p className="text-sm text-muted-foreground">{t.noUsers}</p>
             ) : (
               grouped[role].map((appUser) => (
-                <div key={appUser.id} className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{appUser.email}</p>
-                    <p className="truncate text-xs text-muted-foreground">{`${appUser.firstName} ${appUser.lastName}`}</p>
-                    <p className="truncate text-xs text-muted-foreground">{(() => { const d = toDateValue(appUser.dateJoined); return d ? format(d, 'PPP') : 'N/A'; })()}</p>
+                <div key={appUser.id} className="min-w-0 space-y-3 border-t pt-4">
+                  <div className="min-w-0 space-y-1">
+                    <p dir="auto" className="break-all text-sm font-medium">{appUser.email}</p>
+                    <p dir="auto" className="break-words text-sm text-muted-foreground">{`${appUser.firstName} ${appUser.lastName}`}</p>
+                    <p className="text-xs text-muted-foreground">{(() => { const d = toDateValue(appUser.dateJoined); return d ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { dateStyle: 'medium' }).format(d) : t.unavailable; })()}</p>
                   </div>
                   <RoleSelector userId={appUser.id} currentRole={appUser.role} />
                 </div>
@@ -226,7 +229,7 @@ function UserList() {
     };
 
     return (
-      <div className="grid gap-6 md:grid-cols-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-6">
         {renderCard('admin', t.admin)}
         {renderCard('teacher', t.teacher)}
         {renderCard('reviewer', t.reviewer)}
@@ -272,7 +275,7 @@ export default function AdminUsersPage() {
                 <Skeleton className="h-10 w-64" />
                 <Skeleton className="h-10 w-36" />
               </div>
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-6">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Card key={i}>
                     <CardHeader>
@@ -280,7 +283,7 @@ export default function AdminUsersPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {Array.from({ length: 4 }).map((_, j) => (
-                        <div key={j} className="flex items-center justify-between">
+                        <div key={j} className="flex flex-wrap items-center justify-between gap-3">
                           <Skeleton className="h-4 w-40" />
                           <Skeleton className="h-8 w-28" />
                         </div>
@@ -298,9 +301,9 @@ export default function AdminUsersPage() {
   // Render the page only if the user profile has been confirmed to be an admin
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
-      <main className="flex-1 py-10 md:py-16">
+      <main className="flex-1 py-6 md:py-8">
         <div className="container">
-          <div className="flex justify-between items-center mb-8">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl md:text-4xl font-bold">
               {t.pageTitle}
             </h1>

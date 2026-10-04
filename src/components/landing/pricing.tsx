@@ -33,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function Pricing() {
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
   const paymentDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
   const { data: paymentDoc } = useDoc<any>(paymentDocRef);
   const payment = useMemo(
@@ -244,7 +244,7 @@ export default function Pricing() {
     }
   };
 
-  if (!showPricing) return null;
+  if (settingsLoading || !showPricing) return null;
 
   return (
     <section id="pricing" className="py-20 md:py-28 bg-background">

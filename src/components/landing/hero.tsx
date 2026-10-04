@@ -23,10 +23,10 @@ export default function Hero() {
 
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
 
   const showHero = ui?.showHero !== false; // default: show
-  if (!showHero) return null;
+  if (settingsLoading || !showHero) return null;
 
   const content = sanitizeHeroConfig(ui?.hero?.[lang], DEFAULT_HERO[lang]);
 

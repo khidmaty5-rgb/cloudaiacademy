@@ -18,13 +18,14 @@ function CourseCard({ course }: { course: any }) {
     <Link href={`/courses/${course.slug}`} className="block h-full">
       <Card className="group h-full overflow-hidden border border-border/70 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl">
         <CardHeader className="p-0">
-          <div className="relative w-full bg-white" style={{ aspectRatio: '3/2' }}>
+          <div className="relative w-full bg-white" style={{ aspectRatio: '16/9' }}>
             <div className={`absolute inset-0 ${isContain ? 'p-8' : ''}`}>
               <div className="relative h-full w-full">
                 <Image
                   src={image.src}
-                  alt={course.title}
+                  alt=""
                   fill
+                  sizes="(max-width: 639px) 100vw, (max-width: 1279px) 50vw, 33vw"
                   className={`${isContain ? 'object-contain' : 'object-cover'} bg-white ${isContain ? '' : 'group-hover:scale-105'} transition-transform duration-300`}
                   data-ai-hint={image.hint}
                 />
@@ -32,12 +33,12 @@ function CourseCard({ course }: { course: any }) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex min-h-64 flex-col p-6">
+        <CardContent className="flex min-h-56 flex-col p-6">
           <Badge dir="auto" variant="secondary" className="mb-2 w-fit bg-accent/10 text-accent">
             {course.category}
           </Badge>
           <CardTitle dir="auto" className="mb-2 line-clamp-2 font-headline">{course.title}</CardTitle>
-          <p dir="auto" className="mb-4 line-clamp-3 text-sm text-muted-foreground">{course.description}</p>
+          <p dir="auto" className="mb-4 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
           <div className="mt-auto mb-4 text-2xl font-bold text-accent">{course.price}</div>
           <div className="flex flex-wrap justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">

@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useLang, type Lang } from '@/components/i18n/lang';
-import { useUser } from '@/firebase';
+import { useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, getFirestore } from 'firebase/firestore';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { signOutUser } from '@/lib/auth';
 import { roleHomePath, type AppRole } from '@/lib/route-access';
@@ -53,8 +54,11 @@ function WorkspaceNavigation({ links, lang, pathname, onNavigate }: {
   links: readonly WorkspaceLink[]; lang: Lang; pathname: string; onNavigate?: () => void;
 }) {
   const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const active = activeWorkspaceLink(pathname, links);
-  const matching = links.filter(link => `${link.label.en} ${link.label.ar} ${link.section.en} ${link.section.ar}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const activeSection = active?.section.en;
+  useEffect(() => { if (activeSection) setExpanded(previous => ({ ...previous, [activeSection]: true })); }, [activeSection]);
+  const matching = links.filter(link => `${link.label.en} ${link.label.ar} ${link.section.en} ${link.section.ar} ${link.href}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const groups = Array.from(new Set(matching.map(link => link.section.en))).map(key => ({
     key, links: matching.filter(link => link.section.en === key),
   }));
@@ -65,8 +69,8 @@ function WorkspaceNavigation({ links, lang, pathname, onNavigate }: {
       <Input type="search" value={query} onChange={event => setQuery(event.target.value)} aria-label={lang === 'ar' ? 'البحث في القائمة' : 'Search navigation'} placeholder={lang === 'ar' ? 'ابحث عن أداة…' : 'Find a tool…'} className="rounded-xl border-transparent bg-muted/60 ps-9 focus-visible:bg-background" />
     </div></div>}
     <nav aria-label={lang === 'ar' ? 'قائمة مساحة العمل' : 'Workspace navigation'} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-5">
-      {groups.map((group, index) => <details key={`${group.key}:${pathname}:${!!query}`} open={!!query || links.length <= 12 || index === 0 || group.key === active?.section.en} className="group/nav-section">
-        <summary className="mb-1 flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+      {groups.map((group, index) => <details key={group.key} open={!!query || (expanded[group.key] ?? (links.length <= 12 || index === 0 || group.key === active?.section.en))} className="group/nav-section">
+        <summary onClick={event => { event.preventDefault(); setExpanded(previous => ({ ...previous, [group.key]: !(previous[group.key] ?? (links.length <= 12 || index === 0 || group.key === active?.section.en)) })); }} className="mb-1 flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
           <span className="flex-1">{group.links[0].section[lang]}</span><ChevronDown className="size-3.5 transition-transform group-open/nav-section:rotate-180" aria-hidden="true" />
         </summary>
         <div className="space-y-1">{group.links.map(link => {
@@ -92,7 +96,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const ready = !!user && !isUserLoading && !loading;
-  const links = useMemo(() => ready ? navigationForRole(role) : [], [ready, role]);
+  const settingsRef = useMemoFirebase(() => doc(getFirestore(), 'settings', 'ui'), []);
+  const { data: settings, isLoading: settingsLoading } = useDoc(settingsRef);
+  const links = useMemo(() => ready ? navigationForRole(role).filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false)) : [], [ready, role, settingsLoading, settings]);
   const current = activeWorkspaceLink(pathname, links);
   const roleLabel = ready ? roleLabels[role][lang] : (lang === 'ar' ? 'مساحة العمل' : 'Workspace');
   const displayName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
@@ -128,11 +134,11 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             {sidebar()}
           </SheetContent>
         </Sheet>
-        <div className="min-w-0 flex-1"><div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex"><span>{roleLabel}</span><ChevronRight className="size-3 rtl:rotate-180" /><span>{current?.section[lang] ?? (lang === 'ar' ? 'الأكاديمية' : 'Academy')}</span></div><p className="truncate text-sm font-semibold">{current?.label[lang] ?? (pathname.startsWith('/learn/') ? (lang === 'ar' ? 'مساحة الدرس' : 'Lesson workspace') : 'CloudAI Academy')}</p></div>
+        <div className="min-w-0 flex-1"><div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex"><Link href={roleHomePath(role)} className="hover:text-foreground hover:underline">{roleLabel}</Link><ChevronRight className="size-3 rtl:rotate-180" /><span>{current?.section[lang] ?? (lang === 'ar' ? 'الأكاديمية' : 'Academy')}</span></div><p className="truncate text-sm font-semibold">{current?.label[lang] ?? (pathname.startsWith('/learn/') ? (lang === 'ar' ? 'مساحة الدرس' : 'Lesson workspace') : 'CloudAI Academy')}</p></div>
         <Button variant="ghost" size="sm" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="shrink-0 rounded-xl px-2.5" aria-label={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}>{lang === 'ar' ? 'English' : 'العربية'}</Button>
-        <ThemeToggle className="size-9 shrink-0 rounded-xl text-muted-foreground" />
+        <ThemeToggle className="size-11 shrink-0 rounded-xl text-muted-foreground" />
         <DropdownMenu dir={dir}>
-          <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-9 shrink-0 rounded-full border-accent/30 bg-accent/10 font-semibold" aria-label={lang === 'ar' ? 'قائمة الحساب' : 'Account menu'}>{displayName.charAt(0).toUpperCase()}</Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 shrink-0 rounded-full border-accent/30 bg-accent/10 font-semibold" aria-label={lang === 'ar' ? 'قائمة الحساب' : 'Account menu'}>{displayName.charAt(0).toUpperCase()}</Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60 rounded-xl p-2">
             <DropdownMenuLabel><p className="truncate">{displayName}</p><p className="mt-1 text-xs font-normal text-muted-foreground">{roleLabel}</p></DropdownMenuLabel><DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link href="/profile"><UserRound className="size-4" />{lang === 'ar' ? 'الملف الشخصي' : 'Profile'}</Link></DropdownMenuItem>

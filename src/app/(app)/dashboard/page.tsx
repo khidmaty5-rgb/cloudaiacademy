@@ -330,8 +330,8 @@ export default function DashboardPage() {
             {t.startLearning}
           </p>
 
-          <div className="mt-8 grid gap-10 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-10">
+          <div className="mt-8 grid gap-8 xl:grid-cols-3">
+            <div className="min-w-0 xl:col-span-2 space-y-8">
                  <div>
                     <AnnouncementsFeed />
                 </div>

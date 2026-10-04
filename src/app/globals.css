@@ -16,15 +16,15 @@
     --secondary: 212 29% 23%; /* Navy-light #2A3A4D */
     --secondary-foreground: 0 0% 100%;
     --muted: 220 14% 96%;
-    --muted-foreground: 216 11% 53%; /* #7A8494 */
-    --accent: 24 100% 62%;    /* Orange #FF8A3D */
+    --muted-foreground: 216 15% 40%;
+    --accent: 22 85% 36%;    /* Accessible orange for text and controls */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --border: 215 20% 88%;
     --input: 215 20% 88%;
     --ring: 24 100% 62%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     /* Charts use support colors */
     --chart-1: 211 100% 65%;  /* Sky #4DA3FF */
     --chart-2: 162 57% 50%;   /* Mint #37C99E */
@@ -48,13 +48,13 @@
     --muted: 213 18% 20%;
     --muted-foreground: 214 12% 58%; /* #8B949E */
     --accent: 24 100% 62%;      /* Orange */
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 213 37% 7%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 213 18% 20%;
     --input: 213 18% 20%;
     --ring: 24 100% 62%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     --chart-1: 211 100% 65%;
     --chart-2: 162 57% 50%;
     --chart-3: 254 100% 74%;
@@ -80,14 +80,14 @@
   }
 
 html[lang='ar'] body {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--font-arabic), "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
 html[lang='ar'] h1,
 html[lang='ar'] h2,
 html[lang='ar'] h3,
 html[lang='ar'] h4 {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--font-arabic), "Segoe UI", Tahoma, Arial, sans-serif;
 }
   h1,
   h2,
@@ -103,6 +103,36 @@ html[lang='ar'] h4 {
 }
 
 @layer utilities {
+  .close-label-ar { display: none; }
+  html[lang='ar'] .close-label-en { display: none; }
+  html[lang='ar'] .close-label-ar { display: inline; }
+  /* One content rhythm across authenticated roles; individual forms retain
+     their narrower maximum widths, while management pages use the full lane. */
+  .workspace-shell #workspace-content > div > main,
+  .workspace-shell #workspace-content > main {
+    padding-block: clamp(1.5rem, 3vw, 2rem);
+  }
+  .workspace-shell #workspace-content .container {
+    width: 100%;
+    max-width: 80rem;
+    padding-inline: clamp(1rem, 2.5vw, 2rem);
+  }
+  .workspace-shell #workspace-content h1 {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+  }
+  .workspace-shell #workspace-content input,
+  .workspace-shell #workspace-content textarea {
+    min-width: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
   .font-signature {
     font-family: "Monotype Corsiva", "Segoe Script", "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
   }

@@ -168,7 +168,7 @@ export default function AdminPaymentSettingsPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">{t.provider}</label>
                       <Select
@@ -231,16 +231,16 @@ export default function AdminPaymentSettingsPage() {
                           checked={draft.intervals.month}
                           onCheckedChange={(checked) => setInterval('month', !!checked)}
                         />
-                        <span className="text-sm">Monthly</span>
+                        <span className="text-sm">{lang === 'ar' ? 'شهريًا' : 'Monthly'}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <Switch
                           checked={draft.intervals.year}
                           onCheckedChange={(checked) => setInterval('year', !!checked)}
                         />
-                        <span className="text-sm">Yearly</span>
+                        <span className="text-sm">{lang === 'ar' ? 'سنويًا' : 'Yearly'}</span>
                       </div>
-                      <div className="min-w-[220px] space-y-2">
+                      <div className="w-full min-w-0 sm:w-56 space-y-2">
                         <label className="text-sm font-medium">{t.defaultInterval}</label>
                         <Select
                           value={draft.intervals.default}
