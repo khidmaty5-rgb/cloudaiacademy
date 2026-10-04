@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { getAuth } from 'firebase/auth';
+import { useEditorCopy } from './editor-copy';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -31,31 +32,31 @@ import {
 
 const WHITEBOARD_TEMPLATE_KEY = 'lessons/shared/whiteboard.pdf';
 
-const lessonSchema = z.object({
-  title: z.string().min(3, 'Title is too short'),
-  content: z.string().min(10, 'Content is too short'),
-  embedUrl: z.string().url().optional().or(z.literal('')),
+const createLessonSchema = (t: (text: string) => string) => z.object({
+  title: z.string().min(3, t("Title is too short")),
+  content: z.string().min(10, t("Content is too short")),
+  embedUrl: z.string().url(t('Enter a valid URL')).optional().or(z.literal('')),
   whiteboardPlatform: z
     .enum(['excalidraw', 'miro', 'ms-whiteboard'])
     .optional()
     .or(z.literal('none'))
     .or(z.literal('')),
-  whiteboardUrl: z.string().url().optional().or(z.literal('')),
+  whiteboardUrl: z.string().url(t('Enter a valid URL')).optional().or(z.literal('')),
   codingPlatform: z
     .enum(['replit', 'codesandbox', 'stackblitz', 'colab', 'livecodes'])
     .optional()
     .or(z.literal('none'))
     .or(z.literal('')),
-  codingUrl: z.string().url().optional().or(z.literal('')),
+  codingUrl: z.string().url(t('Enter a valid URL')).optional().or(z.literal('')),
   labPlatform: z
     .enum(['labex', 'whizlabs', 'vmware-hol', 'virtual-labs'])
     .optional()
     .or(z.literal('none'))
     .or(z.literal('')),
-  labUrl: z.string().url().optional().or(z.literal('')),
+  labUrl: z.string().url(t('Enter a valid URL')).optional().or(z.literal('')),
 });
 
-type LessonFormValues = z.infer<typeof lessonSchema>;
+type LessonFormValues = z.infer<ReturnType<typeof createLessonSchema>>;
 
 type LessonFormProps = {
   courseId: string;
@@ -64,6 +65,8 @@ type LessonFormProps = {
 };
 
 export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormProps) {
+  const { t } = useEditorCopy();
+  const lessonSchema = createLessonSchema(t);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [whiteboardToggling, setWhiteboardToggling] = useState(false);
@@ -110,17 +113,17 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
 
       if (isEditMode) {
         await updateLesson(courseId, lesson.id, payload);
-        toast({ title: 'Lesson Updated!' });
+        toast({ title: t("Lesson Updated!") });
       } else {
         await addLesson(courseId, payload);
-        toast({ title: 'Lesson Added!' });
+        toast({ title: t("Lesson Added!") });
       }
       onSuccess?.();
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Operation Failed',
-        description: error.message || 'An unexpected error occurred.',
+        title: t("Operation Failed"),
+        description: error.message || t("An unexpected error occurred."),
       });
     } finally {
       setIsLoading(false);
@@ -134,16 +137,16 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
       if (checked) {
         await updateLesson(courseId, lesson.id, { pdfPath: WHITEBOARD_TEMPLATE_KEY });
         setCurrentPdfPath(WHITEBOARD_TEMPLATE_KEY);
-        toast({ title: 'Whiteboard PDF enabled for this lesson.' });
+        toast({ title: t("Whiteboard PDF enabled for this lesson.") });
       } else {
         await updateLesson(courseId, lesson.id, { pdfPath: null });
         setCurrentPdfPath(null);
-        toast({ title: 'Whiteboard PDF disabled for this lesson.' });
+        toast({ title: t("Whiteboard PDF disabled for this lesson.") });
       }
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
+        title: t("Update Failed"),
         description: err?.message || String(err),
       });
     } finally {
@@ -184,12 +187,12 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
       });
       if (!putResp.ok) throw new Error(`Upload failed with status ${putResp.status}`);
 
-      toast({ title: 'Shared whiteboard template uploaded.' });
+      toast({ title: t("Shared whiteboard template uploaded.") });
       setTemplateFile(null);
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Template Upload Failed',
+        title: t("Template Upload Failed"),
         description: err?.message || String(err),
       });
     } finally {
@@ -217,11 +220,11 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Failed to copy template');
 
-      toast({ title: 'Shared whiteboard template updated from this lesson.' });
+      toast({ title: t("Shared whiteboard template updated from this lesson.") });
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Copy Failed',
+        title: t("Copy Failed"),
         description: err?.message || String(err),
       });
     } finally {
@@ -237,9 +240,9 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Lesson Title</FormLabel>
+              <FormLabel>{t("Lesson Title")}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Introduction to Firestore" {...field} />
+                <Input dir="auto" placeholder={t("e.g., Introduction to Firestore")} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -250,10 +253,10 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Lesson Content</FormLabel>
+              <FormLabel>{t("Lesson Content")}</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="The main text content for the lesson."
+                <Textarea dir="auto"
+                  placeholder={t("The main text content for the lesson.")}
                   rows={8}
                   {...field}
                 />
@@ -267,9 +270,9 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
           name="embedUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Code Embed URL (Optional)</FormLabel>
+              <FormLabel>{t("Code Embed URL (Optional)")}</FormLabel>
               <FormControl>
-                <Input placeholder="https://stackblitz.com/..." {...field} />
+                <Input dir="auto" placeholder="https://stackblitz.com/..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -277,7 +280,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
         />
 
         <div className="pt-2">
-          <h3 className="text-lg font-semibold">External Learning Tools</h3>
+          <h3 className="text-lg font-semibold">{t("External Learning Tools")}</h3>
           <div className="mt-4 grid grid-cols-1 gap-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
@@ -285,15 +288,15 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="whiteboardPlatform"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Whiteboard Platform</FormLabel>
+                    <FormLabel>{t("Whiteboard Platform")}</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={t("None")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t("None")}</SelectItem>
                         <SelectItem value="excalidraw">Excalidraw</SelectItem>
                         <SelectItem value="miro">Miro</SelectItem>
                         <SelectItem value="ms-whiteboard">Microsoft Whiteboard</SelectItem>
@@ -308,9 +311,9 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="whiteboardUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Whiteboard URL</FormLabel>
+                    <FormLabel>{t("Whiteboard URL")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://excalidraw.com/..." {...field} />
+                      <Input dir="auto" placeholder="https://excalidraw.com/..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -324,15 +327,15 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="codingPlatform"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Coding Platform</FormLabel>
+                    <FormLabel>{t("Coding Platform")}</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={t("None")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t("None")}</SelectItem>
                         <SelectItem value="replit">Replit</SelectItem>
                         <SelectItem value="codesandbox">CodeSandbox</SelectItem>
                         <SelectItem value="stackblitz">StackBlitz</SelectItem>
@@ -349,9 +352,9 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="codingUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Coding URL</FormLabel>
+                    <FormLabel>{t("Coding URL")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://stackblitz.com/edit/..." {...field} />
+                      <Input dir="auto" placeholder="https://stackblitz.com/edit/..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -365,15 +368,15 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="labPlatform"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cloud Lab Platform</FormLabel>
+                    <FormLabel>{t("Cloud Lab Platform")}</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={t("None")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t("None")}</SelectItem>
                         <SelectItem value="labex">LabEx</SelectItem>
                         <SelectItem value="whizlabs">Whizlabs</SelectItem>
                         <SelectItem value="vmware-hol">VMware Hands-on Labs</SelectItem>
@@ -389,9 +392,9 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 name="labUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cloud Lab URL</FormLabel>
+                    <FormLabel>{t("Cloud Lab URL")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://labs.whizlabs.com/..." {...field} />
+                      <Input dir="auto" placeholder="https://labs.whizlabs.com/..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -402,7 +405,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
         </div>
 
         <div className="pt-2">
-          <h3 className="text-lg font-semibold">Whiteboard PDF</h3>
+          <h3 className="text-lg font-semibold">{t("Whiteboard PDF")}</h3>
           <div className="mt-3 space-y-4">
             <div className="flex items-start gap-2">
               <Checkbox
@@ -412,17 +415,13 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                 onCheckedChange={(v) => toggleSharedWhiteboard(v === true)}
               />
               <div className="space-y-1">
-                <Label htmlFor="use-shared-whiteboard">
-                  Use shared whiteboard PDF (reusable across all lessons)
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  One global file is reused everywhere. No per-lesson uploads.
-                </p>
+                <Label htmlFor="use-shared-whiteboard">{t("Use shared whiteboard PDF (reusable across all lessons)")}</Label>
+                <p className="text-xs text-muted-foreground">{t("One global file is reused everywhere. No per-lesson uploads.")}</p>
               </div>
             </div>
 
             <div className="rounded-md border p-3 space-y-3">
-              <p className="text-sm font-medium">Shared template (global)</p>
+              <p className="text-sm font-medium">{t("Shared template (global)")}</p>
               <Input
                 type="file"
                 accept="application/pdf"
@@ -436,7 +435,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                   onClick={uploadSharedTemplate}
                   disabled={!templateFile || templateUploading || templateCopying}
                 >
-                  {templateUploading ? 'Uploading...' : 'Upload / Replace Whiteboard Template'}
+                  {templateUploading ? t("Uploading...") : t("Upload / Replace Whiteboard Template")}
                 </Button>
                 {isEditMode && currentPdfPath && currentPdfPath !== WHITEBOARD_TEMPLATE_KEY ? (
                   <Button
@@ -445,13 +444,11 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                     onClick={copyLessonPdfToTemplate}
                     disabled={templateUploading || templateCopying}
                   >
-                    {templateCopying ? 'Copying...' : 'Use This Lesson PDF as Template'}
+                    {templateCopying ? t("Copying...") : t("Use This Lesson PDF as Template")}
                   </Button>
                 ) : null}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Upload once, then just check the box above on any lesson to activate it.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("Upload once, then just check the box above on any lesson to activate it.")}</p>
             </div>
           </div>
         </div>
@@ -459,11 +456,11 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
         <Button type="submit" disabled={isLoading} className="w-full">
           {isLoading
             ? isEditMode
-              ? 'Saving Changes...'
-              : 'Adding Lesson...'
+              ? t("Saving Changes...")
+              : t("Adding Lesson...")
             : isEditMode
-            ? 'Save Changes'
-            : 'Add Lesson'}
+            ? t("Save Changes")
+            : t("Add Lesson")}
         </Button>
       </form>
     </Form>

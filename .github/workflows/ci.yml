@@ -51,6 +51,9 @@ jobs:
       - name: Test responsive layout contracts
         run: npm run test:layout
 
+      - name: Test learning record integrity
+        run: node --test tests/roles/learning-records.test.mjs
+
       - name: Typecheck
         run: npm run typecheck
 

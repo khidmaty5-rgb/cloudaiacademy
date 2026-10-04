@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useEditorCopy } from './editor-copy';
 import LessonForm from './LessonForm';
 import { Pencil, PlusCircle } from 'lucide-react';
 
@@ -28,6 +29,7 @@ type LessonManagerProps = {
 };
 
 export default function LessonManager({ course }: LessonManagerProps) {
+  const { t } = useEditorCopy();
   const firestore = getFirestore();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -59,28 +61,28 @@ export default function LessonManager({ course }: LessonManagerProps) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="font-headline text-2xl font-bold">Manage Lessons</h2>
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <h2 className="font-headline text-2xl font-bold">{t("Manage Lessons")}</h2>
          <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger asChild>
                 <Button onClick={handleAddNew}>
-                <PlusCircle className="mr-2" /> Add Lesson
+                <PlusCircle className="size-4" /> {t("Add Lesson")}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>{selectedLesson ? 'Edit Lesson' : 'Add New Lesson'}</DialogTitle>
+                    <DialogTitle>{selectedLesson ? t('Edit Lesson') : t('Add New Lesson')}</DialogTitle>
                 </DialogHeader>
-                <LessonForm courseId={course.id} lesson={selectedLesson} onSuccess={onFormSuccess} />
+                <LessonForm key={selectedLesson?.id ?? "new"} courseId={course.id} lesson={selectedLesson} onSuccess={onFormSuccess} />
             </DialogContent>
         </Dialog>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Course Lessons</CardTitle>
+          <CardTitle>{t("Course Lessons")}</CardTitle>
           <CardDescription>
-            Add, edit, and reorder the lessons for this course.
+            {t("Add and edit the lessons for this course.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -95,10 +97,10 @@ export default function LessonManager({ course }: LessonManagerProps) {
               {lessons.map((lesson, index) => (
                 <li key={lesson.id}>
                   <div
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50"
                   >
-                    <div className="font-medium">{index + 1}. {lesson.title}</div>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(lesson)}>
+                    <div className="min-w-0 break-words font-medium" dir="auto">{index + 1}. {lesson.title}</div>
+                    <Button variant="ghost" size="icon" className="shrink-0" aria-label={`${t("Edit Lesson")}: ${lesson.title}`} onClick={() => handleEdit(lesson)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </div>
@@ -107,7 +109,7 @@ export default function LessonManager({ course }: LessonManagerProps) {
             </ul>
           ) : (
             <p className="text-center text-muted-foreground py-4">
-              No lessons have been added to this course yet.
+              {t("No lessons have been added to this course yet.")}
             </p>
           )}
         </CardContent>

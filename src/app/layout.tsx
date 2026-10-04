@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Space_Grotesk, Noto_Sans_Arabic } from 'next/font/google';
+import { Inter, Space_Grotesk, Cairo } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   description: 'Unlock Your Potential in Cloud & AI.',
 };
 
-const arabic = Noto_Sans_Arabic({ subsets: ['arabic'], display: 'swap', variable: '--font-arabic' });
+const arabic = Cairo({ subsets: ['arabic'], display: 'swap', variable: '--font-arabic' });
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   const { children } = props;

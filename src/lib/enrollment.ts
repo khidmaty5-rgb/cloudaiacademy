@@ -1,6 +1,6 @@
 'use client';
 
-import { getFirestore, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Enrollment } from '@/types/models';
 
@@ -13,13 +13,17 @@ export async function enrollInCourse(userId: string, courseId: string) {
 
   const enrollmentRef = doc(firestore, 'users', userId, 'enrollments', courseId);
   
-  await setDoc(enrollmentRef, {
-    userId,
-    courseId,
-    enrollmentDate: serverTimestamp(),
-    progress: 0,
-    completedLessons: [],
-  } satisfies Enrollment, { merge: true });
+  await runTransaction(firestore, async transaction => {
+    const existing = await transaction.get(enrollmentRef);
+    if (existing.exists()) return;
+    transaction.set(enrollmentRef, {
+      userId,
+      courseId,
+      enrollmentDate: serverTimestamp(),
+      progress: 0,
+      completedLessons: [],
+    } satisfies Enrollment);
+  });
 }
 
 

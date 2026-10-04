@@ -2,6 +2,7 @@
 
 import {
   doc,
+  collection,
   updateDoc,
   serverTimestamp,
   setDoc,
@@ -46,25 +47,17 @@ type LessonData = {
   labUrl?: string;
 };
 
-// Helper to create a slug from a title, can be used for lesson IDs
-const createId = (title: string) => {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9 -]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-};
-
 export async function addLesson(courseId: string, data: LessonData) {
   if (!courseId) {
     throw new Error('Course ID is required to add a lesson.');
   }
-  const lessonId = createId(data.title);
-  const lessonsRef = doc(firestore, 'courses', courseId, 'lessons', lessonId);
+  // Titles are content, not identifiers: repeated or Arabic titles must never
+  // overwrite an existing lesson. Existing lesson IDs and URLs are unchanged.
+  const lessonsRef = doc(collection(firestore, 'courses', courseId, 'lessons'));
 
   await setDoc(lessonsRef, {
     ...data,
-    id: lessonId,
+    id: lessonsRef.id,
     createdAt: serverTimestamp(),
   });
 }
