@@ -424,6 +424,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
               <p className="text-sm font-medium">{t("Shared template (global)")}</p>
               <Input
                 type="file"
+                aria-label={t("Upload / Replace Whiteboard Template")}
                 accept="application/pdf"
                 disabled={templateUploading || templateCopying}
                 onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
@@ -431,7 +432,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  className="bg-accent text-accent-foreground"
+                  className="h-auto min-h-10 max-w-full whitespace-normal bg-accent py-2 text-accent-foreground"
                   onClick={uploadSharedTemplate}
                   disabled={!templateFile || templateUploading || templateCopying}
                 >
@@ -441,6 +442,7 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
                   <Button
                     type="button"
                     variant="outline"
+                    className="h-auto min-h-10 max-w-full whitespace-normal py-2"
                     onClick={copyLessonPdfToTemplate}
                     disabled={templateUploading || templateCopying}
                   >
