@@ -1,5 +1,13 @@
 # CloudAI Academy work log
 
+## 2026-10-04 — Cairo and editor integrity
+
+- Replaced the Arabic font with Cairo; translated course and lesson editor labels, validation and action feedback. Reduced form spacing, improved RTL field direction and instructor label associations, named lesson edit controls and reset forms between selected lessons.
+- New lessons use generated document IDs instead of title-derived IDs, protecting duplicate and Arabic titles. Existing lesson IDs stay unchanged.
+- Enrollment uses a transaction and leaves existing enrollment progress and metadata untouched.
+- Local TypeScript, 19 role tests, seven layout tests and three new learning-record regression tests pass. Lint has no errors; existing warnings remain. Regression tests use mocked Firestore and do not establish real concurrent emulator coverage.
+- Build and deployment verification pending. No production data has been edited.
+
 ## 2026-10-03 — Layout audit repair release
 
 - Completed the audit's layout implementation: responsive user cards and loading states; full-width editorial queue with expandable issue tools; Arabic editorial filters, actions and dates; viewport-bounded dialogs; readable light/dark accent contrast; consistent workspace gutters, headings and card treatment; Arabic web font; reduced-motion support; denser course cards with decorative thumbnail alt text; compact-width teaching, learner and settings grids.

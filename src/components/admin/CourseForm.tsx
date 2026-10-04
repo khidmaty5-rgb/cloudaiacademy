@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useEditorCopy } from './editor-copy';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -32,14 +34,14 @@ import { useCurrentRole } from '@/hooks/useCurrentRole';
 
 const livePlatformSchema = z.enum(['none', 'jitsi', 'google-meet']);
 
-const courseSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters long'),
+const createCourseSchema = (t: (text: string) => string) => z.object({
+  title: z.string().min(3, t("Title must be at least 3 characters long")),
   courseCode: z
     .string()
     .trim()
-    .min(2, 'Course code must be at least 2 characters')
-    .max(12, 'Course code must be 12 characters or less')
-    .regex(/^[A-Za-z0-9-]+$/, 'Use only letters, numbers, and hyphens')
+    .min(2, t("Course code must be at least 2 characters"))
+    .max(12, t("Course code must be 12 characters or less"))
+    .regex(/^[A-Za-z0-9-]+$/, t("Use only letters, numbers, and hyphens"))
     .transform((v) => v.toUpperCase()),
   imageUrl: z.preprocess(
     (v) => {
@@ -51,33 +53,35 @@ const courseSchema = z.object({
       .string()
       .refine(
         (v) => v.startsWith('/') || v.startsWith('http://') || v.startsWith('https://'),
-        'Use a full URL or a /images/... path',
+        t("Use a full URL or a /images/... path"),
       )
       .optional(),
   ),
-  description: z.string().min(10, 'Description is too short'),
-  category: z.string().min(1, 'Category is required'),
-  price: z.string().min(1, 'Price is required'),
-  duration: z.string().min(1, 'Duration is required'),
+  description: z.string().min(10, t("Description is too short")),
+  category: z.string().min(1, t("Category is required")),
+  price: z.string().min(1, t("Price is required")),
+  duration: z.string().min(1, t("Duration is required")),
   status: z.enum(['DRAFT', 'PUBLISHED']).default('DRAFT'),
   isFull: z.boolean().default(false),
   totalHours: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
-    z.number().int().positive().optional(),
+    z.number().int(t('Enter a whole number')).positive(t('Enter a positive number')).optional(),
   ),
   level: z.enum(['Beginner', 'Intermediate', 'Advanced']),
   livePlatform: livePlatformSchema.default('none'),
   liveJitsiRoom: z.string().optional(),
-  liveMeetUrl: z.union([z.string().url('Must be a valid https://meet.google.com/... URL'), z.literal('')]).optional(),
+  liveMeetUrl: z.union([z.string().url(t('Enter a valid URL')), z.literal('')]).optional(),
 });
 
-type CourseFormValues = z.infer<typeof courseSchema>;
+type CourseFormValues = z.infer<ReturnType<typeof createCourseSchema>>;
 
 type CourseFormProps = {
   course?: CourseFormValues & { id?: string };
 };
 
 export default function CourseForm({ course }: CourseFormProps) {
+  const { t, lang } = useEditorCopy();
+  const courseSchema = createCourseSchema(t);
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -126,7 +130,7 @@ export default function CourseForm({ course }: CourseFormProps) {
     try {
       // simple guard: if google-meet selected, ensure URL is present
       if (data.livePlatform === 'google-meet' && !data.liveMeetUrl) {
-        toast({ variant: 'destructive', title: 'Live URL required', description: 'Please provide the Google Meet URL.' });
+        toast({ variant: 'destructive', title: t("Live URL required"), description: t("Please provide the Google Meet URL.") });
         setIsLoading(false);
         return;
       }
@@ -159,14 +163,14 @@ export default function CourseForm({ course }: CourseFormProps) {
       if (isEditMode) {
         await updateCourse(course.id!, { ...cleanedForSave, ...(extra || {}) });
         toast({
-          title: 'Course Updated!',
-          description: `${cleaned.title} has been successfully updated.`,
+          title: t("Course Updated!"),
+          description: lang === 'ar' ? `تم تحديث ${cleaned.title} بنجاح.` : `${cleaned.title} has been successfully updated.`,
         });
       } else {
         await addCourse(cleanedForSave, extra);
         toast({
-          title: 'Course Created!',
-          description: `${cleaned.title} has been successfully added.`,
+          title: t("Course Created!"),
+          description: lang === 'ar' ? `تمت إضافة ${cleaned.title} بنجاح.` : `${cleaned.title} has been successfully added.`,
         });
       }
       router.push('/admin/courses');
@@ -174,8 +178,8 @@ export default function CourseForm({ course }: CourseFormProps) {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Operation Failed',
-        description: error.message || 'An unexpected error occurred.',
+        title: t("Operation Failed"),
+        description: error.message || t("An unexpected error occurred."),
       });
     } finally {
       setIsLoading(false);
@@ -184,15 +188,15 @@ export default function CourseForm({ course }: CourseFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Course Title</FormLabel>
+              <FormLabel>{t("Course Title")}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Introduction to Cloud Computing" {...field} />
+                <Input dir="auto" placeholder={t("e.g., Introduction to Cloud Computing")} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -203,10 +207,10 @@ export default function CourseForm({ course }: CourseFormProps) {
           name="courseCode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Course Code</FormLabel>
+              <FormLabel>{t("Course Code")}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="e.g., AWSFND, PY101, AI-BASICS"
+                  placeholder={t("e.g., AWSFND, PY101, AI-BASICS")}
                   autoCapitalize="characters"
                   spellCheck={false}
                   {...field}
@@ -222,16 +226,16 @@ export default function CourseForm({ course }: CourseFormProps) {
           name="imageUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Course image URL (optional)</FormLabel>
+              <FormLabel>{t("Course image URL (optional)")}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="e.g., /images/course-aws.png"
+                  placeholder={t("e.g., /images/course-aws.png")}
                   spellCheck={false}
                   {...field}
                 />
               </FormControl>
               <p className="text-xs text-muted-foreground">
-                Tip: put an image in <span className="font-mono">public/images</span> and use <span className="font-mono">/images/filename.png</span>.
+                {lang === 'ar' ? 'أدخل رابط الصورة أو مسارها، مثل /images/filename.png.' : 'Enter an image URL or path, such as /images/filename.png.'}
               </p>
               <FormMessage />
             </FormItem>
@@ -242,10 +246,10 @@ export default function CourseForm({ course }: CourseFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Course Description</FormLabel>
+              <FormLabel>{t("Course Description")}</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="A brief summary of what the course covers."
+                <Textarea dir="auto"
+                  placeholder={t("A brief summary of what the course covers.")}
                   {...field}
                 />
               </FormControl>
@@ -259,9 +263,9 @@ export default function CourseForm({ course }: CourseFormProps) {
             name="category"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>{t("Category")}</FormLabel>
                 <FormControl>
-                    <Input placeholder="e.g., AI, Cloud, Web Dev" {...field} />
+                    <Input dir="auto" placeholder={t("e.g., AI, Cloud, Web Dev")} {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -272,9 +276,9 @@ export default function CourseForm({ course }: CourseFormProps) {
             name="price"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Price</FormLabel>
+                <FormLabel>{t("Price")}</FormLabel>
                 <FormControl>
-                    <Input placeholder="e.g., $299 or Free" {...field} />
+                    <Input dir="auto" placeholder={t("e.g., $299 or Free")} {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -288,21 +292,19 @@ export default function CourseForm({ course }: CourseFormProps) {
              name="status"
              render={({ field }) => (
                <FormItem>
-                 <FormLabel>Visibility</FormLabel>
+                 <FormLabel>{t("Visibility")}</FormLabel>
                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                    <FormControl>
                      <SelectTrigger>
-                       <SelectValue placeholder="Select visibility" />
+                       <SelectValue placeholder={t("Select visibility")} />
                      </SelectTrigger>
                    </FormControl>
                    <SelectContent>
-                     <SelectItem value="DRAFT">Draft (hidden)</SelectItem>
-                     <SelectItem value="PUBLISHED">Published (public)</SelectItem>
+                     <SelectItem value="DRAFT">{t("Draft (hidden)")}</SelectItem>
+                     <SelectItem value="PUBLISHED">{t("Published (public)")}</SelectItem>
                    </SelectContent>
                  </Select>
-                 <p className="text-xs text-muted-foreground">
-                   Draft courses won’t appear on public course lists.
-                 </p>
+                 <p className="text-xs text-muted-foreground">{t("Draft courses won’t appear on public course lists.")}</p>
                  <FormMessage />
                </FormItem>
              )}
@@ -314,15 +316,13 @@ export default function CourseForm({ course }: CourseFormProps) {
              control={form.control}
              name="isFull"
              render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-md border p-4">
                 <FormControl>
                   <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(!!v)} />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel>Course is full (use waiting list)</FormLabel>
-                  <p className="text-sm text-muted-foreground">
-                    If enabled, students will see "Join Waiting List" instead of "Enroll Now".
-                  </p>
+                  <FormLabel>{t("Course is full (use waiting list)")}</FormLabel>
+                  <p className="text-sm text-muted-foreground">{t("If enabled, students will see \"Join Waiting List\" instead of \"Enroll Now\".")}</p>
                 </div>
               </FormItem>
             )}
@@ -334,13 +334,13 @@ export default function CourseForm({ course }: CourseFormProps) {
           name="totalHours"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Total Hours (for certificate)</FormLabel>
+              <FormLabel>{t("Total Hours (for certificate)")}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
                   min={1}
                   step={1}
-                  placeholder="e.g., 15"
+                  placeholder={t("e.g., 15")}
                   value={(field.value ?? '') as any}
                   onChange={(e) => field.onChange(e.target.value)}
                 />
@@ -352,16 +352,14 @@ export default function CourseForm({ course }: CourseFormProps) {
 
         {isAdmin && (
           <div className="space-y-4 border-t pt-6">
-            <FormLabel>Instructors</FormLabel>
+            <h3 className="font-semibold">{t("Instructors")}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <FormLabel className="text-sm text-muted-foreground">Primary Instructor</FormLabel>
+                <Label htmlFor="primary-instructor" className="text-sm text-muted-foreground">{t("Primary Instructor")}</Label>
                 <Select onValueChange={(v) => setOwnerId(v)} defaultValue={ownerId}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select primary instructor" />
+                  <SelectTrigger id="primary-instructor">
+                      <SelectValue placeholder={t("Select primary instructor")} />
                     </SelectTrigger>
-                  </FormControl>
                   <SelectContent>
                     {teacherOptions.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -370,7 +368,7 @@ export default function CourseForm({ course }: CourseFormProps) {
                 </Select>
               </div>
               <div>
-                <FormLabel className="text-sm text-muted-foreground">Additional Instructors</FormLabel>
+                <p className="text-sm text-muted-foreground">{t("Additional Instructors")}</p>
                 <div className="space-y-2 max-h-56 overflow-auto p-2 border rounded-md">
                   {teacherOptions.map((t) => {
                     const checked = instructorIds.includes(t.id);
@@ -398,22 +396,22 @@ export default function CourseForm({ course }: CourseFormProps) {
         )}
         {isAdmin && (
           <div className="space-y-4 border-t pt-6">
-            <FormLabel>Live session</FormLabel>
+            <h3 className="font-semibold">{t("Live session")}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="livePlatform"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Live platform</FormLabel>
+                    <FormLabel>{t("Live platform")}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select live platform" />
+                          <SelectValue placeholder={t("Select live platform")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t("None")}</SelectItem>
                         <SelectItem value="jitsi">Jitsi</SelectItem>
                         <SelectItem value="google-meet">Google Meet</SelectItem>
                       </SelectContent>
@@ -429,9 +427,9 @@ export default function CourseForm({ course }: CourseFormProps) {
                   name="liveJitsiRoom"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Jitsi room name</FormLabel>
+                      <FormLabel>{t("Jitsi room name")}</FormLabel>
                       <FormControl>
-                        <Input placeholder={`CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || 'course-slug'}`} {...field} />
+                        <Input dir="auto" placeholder={`CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || 'course-slug'}`} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -445,9 +443,9 @@ export default function CourseForm({ course }: CourseFormProps) {
                   name="liveMeetUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Google Meet URL</FormLabel>
+                      <FormLabel>{t("Google Meet URL")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://meet.google.com/abc-defg-hij" {...field} />
+                        <Input dir="auto" placeholder="https://meet.google.com/abc-defg-hij" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -463,9 +461,9 @@ export default function CourseForm({ course }: CourseFormProps) {
             name="duration"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Duration</FormLabel>
+                <FormLabel>{t("Duration")}</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., 8 weeks" {...field} />
+                  <Input dir="auto" placeholder={t("e.g., 8 weeks")} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -476,20 +474,20 @@ export default function CourseForm({ course }: CourseFormProps) {
             name="level"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Level</FormLabel>
+                <FormLabel>{t("Level")}</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a level" />
+                      <SelectValue placeholder={t("Select a level")} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Beginner">Beginner</SelectItem>
-                    <SelectItem value="Intermediate">Intermediate</SelectItem>
-                    <SelectItem value="Advanced">Advanced</SelectItem>
+                    <SelectItem value="Beginner">{t("Beginner")}</SelectItem>
+                    <SelectItem value="Intermediate">{t("Intermediate")}</SelectItem>
+                    <SelectItem value="Advanced">{t("Advanced")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -500,11 +498,11 @@ export default function CourseForm({ course }: CourseFormProps) {
         <Button type="submit" disabled={isLoading} className="w-full">
           {isLoading
             ? isEditMode
-              ? 'Saving Changes...'
-              : 'Creating Course...'
+              ? t("Saving Changes...")
+              : t("Creating Course...")
             : isEditMode
-            ? 'Save Changes'
-            : 'Create Course'}
+            ? t("Save Changes")
+            : t("Create Course")}
         </Button>
       </form>
     </Form>

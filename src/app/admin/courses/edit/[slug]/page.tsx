@@ -62,7 +62,7 @@ export default function EditCoursePage() {
               <h1 className="font-headline text-3xl md:text-4xl font-bold mb-8">
                 {isTeacher ? t.teacherPageTitle : t.pageTitle}
               </h1>
-              <div className="space-y-12">
+              <div className="space-y-6">
                 {isAdmin && (
                   <>
                     <CourseForm course={course as any} />
