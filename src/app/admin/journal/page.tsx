@@ -37,7 +37,7 @@ import {
   createJournalIssue,
   updateJournalArticleStatusAndIssue,
 } from '@/lib/journal';
-import { format } from 'date-fns';
+
 import { getAuth } from 'firebase/auth';
 import {
   Dialog,
@@ -79,6 +79,8 @@ export default function AdminJournalPage() {
   const { isAdmin, isEditor, loading: roleLoading } = useCurrentRole();
   const { toast } = useToast();
   const { lang } = useLang();
+  const dateText = (value: Date) => new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { dateStyle: 'medium' }).format(value);
+  const statusText = (status: string) => lang === 'ar' ? ({ SUBMITTED: 'مُرسل', UNDER_REVIEW: 'قيد التحكيم', REVISION_REQUIRED_MINOR: 'تعديلات طفيفة مطلوبة', REVISION_REQUIRED_MAJOR: 'تعديلات كبيرة مطلوبة', REVISED_SUBMITTED: 'أُرسلت التعديلات', ACCEPTED: 'مقبول', PUBLISHED: 'منشور', REJECTED: 'مرفوض', WITHDRAWN: 'مسحوب' } as Record<string, string>)[status] ?? status : status.replaceAll('_', ' ').toLowerCase();
 
   const t = {
     en: {
@@ -658,8 +660,10 @@ export default function AdminJournalPage() {
             <p className="text-sm text-muted-foreground">{t.pageDesc}</p>
           </header>
 
-          <section className="grid gap-6 md:grid-cols-2">
-            <Card>
+          <section className="min-w-0 space-y-6">
+            <details className="rounded-xl border bg-card p-4">
+              <summary className="min-h-11 cursor-pointer py-2 font-semibold">{lang === 'ar' ? 'إدارة الأعداد — إنشاء أو تحديث عدد' : 'Manage issues — create or update an issue'}</summary>
+            <Card className="mt-3 border-0 shadow-none">
               <CardHeader>
                 <CardTitle>{t.issuesTitle}</CardTitle>
                 <CardDescription>{t.issuesDesc}</CardDescription>
@@ -667,8 +671,9 @@ export default function AdminJournalPage() {
               <CardContent>
                 <form onSubmit={handleSaveIssue} className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">{t.issuesLabel}</label>
+                    <label htmlFor="issue-label" className="text-sm font-medium">{t.issuesLabel}</label>
                     <Input
+                      id="issue-label"
                       value={issueForm.label}
                       onChange={(e) =>
                         setIssueForm((prev) => ({
@@ -681,8 +686,9 @@ export default function AdminJournalPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">{t.issuesYear}</label>
+                    <label htmlFor="issue-year" className="text-sm font-medium">{t.issuesYear}</label>
                     <Input
+                      id="issue-year"
                       type="number"
                       value={issueForm.year}
                       onChange={(e) =>
@@ -695,8 +701,9 @@ export default function AdminJournalPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">{t.issuesId}</label>
+                    <label htmlFor="issue-id" className="text-sm font-medium">{t.issuesId}</label>
                     <Input
+                      id="issue-id"
                       value={issueForm.id}
                       onChange={(e) =>
                         setIssueForm((prev) => ({
@@ -713,32 +720,32 @@ export default function AdminJournalPage() {
                 </form>
               </CardContent>
             </Card>
-
-            <Card>
+            </details>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>{t.articleTableTitle}</CardTitle>
                 <CardDescription>
                   {isArticlesLoading
-                    ? 'Loading submissions...'
-                    : `${filteredArticles.length} article(s)`}
+                    ? (lang === 'ar' ? 'جارٍ تحميل الإرسالات…' : 'Loading submissions…')
+                    : `${filteredArticles.length} ${lang === 'ar' ? 'مقال' : 'articles'}`}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <div className="mb-4 flex flex-wrap gap-3 text-xs">
+              <CardContent className="min-w-0">
+                <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-sm">
                   <Select
                     value={statusFilter}
                     onValueChange={(v) =>
                       setStatusFilter(v as any)
                     }
                   >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Status" />
+                    <SelectTrigger className="w-full" aria-label={t.status}>
+                      <SelectValue placeholder={t.status} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ALL">All statuses</SelectItem>
+                      <SelectItem value="ALL">{lang === 'ar' ? 'كل الحالات' : 'All statuses'}</SelectItem>
                       {statusOptions.map((s) => (
                         <SelectItem key={s} value={s}>
-                          {s}
+                          {statusText(s)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -749,14 +756,14 @@ export default function AdminJournalPage() {
                       setLanguageFilter(v as any)
                     }
                   >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Language" />
+                    <SelectTrigger className="w-full" aria-label={t.language}>
+                      <SelectValue placeholder={t.language} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ALL">All languages</SelectItem>
-                      <SelectItem value="en">en</SelectItem>
-                      <SelectItem value="ar">ar</SelectItem>
-                      <SelectItem value="both">both</SelectItem>
+                      <SelectItem value="ALL">{lang === 'ar' ? 'كل اللغات' : 'All languages'}</SelectItem>
+                      <SelectItem value="en">{lang === 'ar' ? 'الإنجليزية' : 'English'}</SelectItem>
+                      <SelectItem value="ar">{lang === 'ar' ? 'العربية' : 'Arabic'}</SelectItem>
+                      <SelectItem value="both">{lang === 'ar' ? 'اللغتان' : 'Both languages'}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select
@@ -765,12 +772,12 @@ export default function AdminJournalPage() {
                       setIssueFilter(v as any)
                     }
                   >
-                    <SelectTrigger className="w-[170px]">
+                    <SelectTrigger className="w-full" aria-label={t.issueSelectLabel}>
                       <SelectValue placeholder={t.issueSelectLabel} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">
-                        All issues
+                        {lang === 'ar' ? 'كل الأعداد' : 'All issues'}
                       </SelectItem>
                       <SelectItem value="UNASSIGNED">
                         {t.issueNone}
@@ -785,24 +792,26 @@ export default function AdminJournalPage() {
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search title or author"
-                    className="w-full md:w-auto md:flex-1 text-xs"
+                    placeholder={lang === 'ar' ? 'ابحث بالعنوان أو المؤلف' : 'Search title or author'}
+                    aria-label={lang === 'ar' ? 'ابحث بالعنوان أو المؤلف' : 'Search title or author'}
+                    className="w-full text-sm"
                   />
                 </div>
-                <Table>
-                  <TableHeader>
+                {filteredArticles.length > 0 && <p className="mb-3 text-xs text-muted-foreground">{lang === 'ar' ? 'اسحب الجدول أفقيًا لعرض جميع التفاصيل والإجراءات.' : 'Scroll the table horizontally to see all details and actions.'}</p>}
+                <Table className={filteredArticles.length > 0 || isArticlesLoading ? 'min-w-[70rem]' : ''}>
+                  <TableHeader className={!filteredArticles.length && !isArticlesLoading ? 'hidden' : ''}>
                     <TableRow>
-                      <TableHead>Title</TableHead>
+                      <TableHead>{lang === 'ar' ? 'العنوان' : 'Title'}</TableHead>
                       <TableHead>{t.language}</TableHead>
                       <TableHead>{t.status}</TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead>Round</TableHead>
+                      <TableHead>{lang === 'ar' ? 'الإصدار' : 'Version'}</TableHead>
+                      <TableHead>{lang === 'ar' ? 'الجولة' : 'Round'}</TableHead>
                       <TableHead>{t.issueSelectLabel}</TableHead>
                       <TableHead>{t.createdAt}</TableHead>
-                      <TableHead>Accepted</TableHead>
-                      <TableHead>Published</TableHead>
-                      <TableHead>License</TableHead>
-                      <TableHead>Keywords</TableHead>
+                      <TableHead>{lang === 'ar' ? 'تاريخ القبول' : 'Accepted'}</TableHead>
+                      <TableHead>{lang === 'ar' ? 'تاريخ النشر' : 'Published'}</TableHead>
+                      <TableHead>{lang === 'ar' ? 'الترخيص' : 'License'}</TableHead>
+                      <TableHead>{lang === 'ar' ? 'الكلمات المفتاحية' : 'Keywords'}</TableHead>
                       <TableHead>PDF</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -847,7 +856,7 @@ export default function AdminJournalPage() {
                                 <button
                                   type="button"
                                   onClick={() => openDetailsDialog(article)}
-                                  className="truncate text-left hover:underline"
+                                  className="whitespace-normal text-start hover:underline"
                                 >
                                   {article.title}
                                 </button>
@@ -876,7 +885,7 @@ export default function AdminJournalPage() {
                                 <SelectContent>
                                   {statusOptions.map((s) => (
                                     <SelectItem key={s} value={s}>
-                                      {s}
+                                      {statusText(s)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -916,14 +925,14 @@ export default function AdminJournalPage() {
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {createdAt
-                                ? format(new Date(createdAt), 'PPP')
+                                ? dateText(new Date(createdAt))
                                 : '—'}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {acceptedAt ? format(new Date(acceptedAt), 'PPP') : '—'}
+                              {acceptedAt ? dateText(new Date(acceptedAt)) : '—'}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {publishedAt ? format(new Date(publishedAt), 'PPP') : '—'}
+                              {publishedAt ? dateText(new Date(publishedAt)) : '—'}
                             </TableCell>
                             <TableCell className="text-xs">{(article as any).license || '—'}</TableCell>
                             <TableCell className="text-xs max-w-[200px] truncate">
@@ -938,14 +947,14 @@ export default function AdminJournalPage() {
                                   variant="outline"
                                   onClick={() => handlePreviewPdf(article.id, String(article.title || ''))}
                                 >
-                                  Preview
+                                  {lang === 'ar' ? 'معاينة' : 'Preview'}
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleDownloadPdf(article.id)}
                                 >
-                                  Download
+                                  {lang === 'ar' ? 'تحميل' : 'Download'}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -954,7 +963,7 @@ export default function AdminJournalPage() {
                                     openReplacePdfDialog(article.id, String(article.title || ''))
                                   }
                                 >
-                                  Replace
+                                  {lang === 'ar' ? 'استبدال' : 'Replace'}
                                 </Button>
                                 {article.status === 'PUBLISHED' ? (
                                   <Button size="sm" variant="outline" asChild>
@@ -963,7 +972,7 @@ export default function AdminJournalPage() {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                     >
-                                      View page
+                                      {lang === 'ar' ? 'عرض الصفحة' : 'View page'}
                                     </a>
                                   </Button>
                                 ) : null}
@@ -973,7 +982,7 @@ export default function AdminJournalPage() {
                                     variant="outline"
                                     onClick={() => handleUnpublish(article)}
                                   >
-                                    Unpublish
+                                    {lang === 'ar' ? 'إلغاء النشر' : 'Unpublish'}
                                   </Button>
                                 ) : null}
                                 {isAdmin ? (
@@ -995,7 +1004,7 @@ export default function AdminJournalPage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={12} className="text-center text-sm">
-                          No submissions yet.
+                          {lang === 'ar' ? 'لا توجد إرسالات بعد.' : 'No submissions yet.'}
                         </TableCell>
                       </TableRow>
                     )}
@@ -1015,9 +1024,9 @@ export default function AdminJournalPage() {
                 >
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Replace PDF</DialogTitle>
+                      <DialogTitle>{lang === 'ar' ? 'استبدال ملف PDF' : 'Replace PDF'}</DialogTitle>
                       <DialogDescription>
-                        Upload a new PDF to replace the current manuscript.
+                        {lang === 'ar' ? 'ارفع ملف PDF جديدًا لاستبدال المخطوطة الحالية.' : 'Upload a new PDF to replace the current manuscript.'}
                       </DialogDescription>
                     </DialogHeader>
 
@@ -1031,7 +1040,7 @@ export default function AdminJournalPage() {
                         onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        PDF only. Max 20 MB (client-side).
+                        {lang === 'ar' ? 'ملف PDF فقط. الحد الأقصى 20 ميغابايت.' : 'PDF only. Maximum 20 MB.'}
                       </p>
                     </div>
 
@@ -1041,13 +1050,13 @@ export default function AdminJournalPage() {
                         onClick={() => setPdfDialogOpen(false)}
                         disabled={pdfUploading}
                       >
-                        Cancel
+                        {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                       </Button>
                       <Button
                         onClick={handleReplacePdf}
                         disabled={!pdfDialogArticle || !pdfFile || pdfUploading}
                       >
-                        {pdfUploading ? 'Uploading...' : 'Upload'}
+                        {pdfUploading ? (lang === 'ar' ? 'جارٍ الرفع…' : 'Uploading…') : (lang === 'ar' ? 'رفع' : 'Upload')}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -1104,7 +1113,7 @@ export default function AdminJournalPage() {
                             {(detailsArticle as any).language || '—'}
                           </div>
                           <div>
-                            <span className="font-medium">License:</span>{' '}
+                            <span className="font-medium">{lang === 'ar' ? 'الترخيص:' : 'License:'}</span>{' '}
                             {(detailsArticle as any).license || '—'}
                           </div>
                         </div>
@@ -1226,7 +1235,7 @@ export default function AdminJournalPage() {
                             )}
                           </div>
                           <div className="sm:col-span-2">
-                            <span className="font-medium">Code/Data:</span>{' '}
+                            <span className="font-medium">{lang === 'ar' ? 'الشفرة والبيانات:' : 'Code/Data:'}</span>{' '}
                             {(detailsArticle as any).codeUrl ? (
                               <a
                                 className="text-accent underline-offset-4 hover:underline break-all"
@@ -1245,7 +1254,7 @@ export default function AdminJournalPage() {
                         {Array.isArray((detailsArticle as any).keywords) &&
                         (detailsArticle as any).keywords.length ? (
                           <div className="space-y-1">
-                            <div className="text-sm font-medium">Keywords</div>
+                            <div className="text-sm font-medium">{lang === 'ar' ? 'الكلمات المفتاحية' : 'Keywords'}</div>
                             <div className="text-sm text-muted-foreground">
                               {(detailsArticle as any).keywords.join(', ')}
                             </div>
@@ -1257,7 +1266,7 @@ export default function AdminJournalPage() {
                             {lang === 'ar' ? 'المحكّمون' : 'Reviewers'}
                           </div>
                           {reviewersLoading ? (
-                            <div className="text-sm text-muted-foreground">Loading reviewers...</div>
+                            <div className="text-sm text-muted-foreground">{lang === 'ar' ? 'جارٍ تحميل المحكّمين…' : 'Loading reviewers…'}</div>
                           ) : reviewersError ? (
                             <div className="text-sm text-destructive">{reviewersError}</div>
                           ) : assignedReviewers.length ? (
@@ -1385,7 +1394,7 @@ export default function AdminJournalPage() {
                                     </div>
                                     {submitted ? (
                                       <div className="mt-1 text-xs text-muted-foreground">
-                                        {format(new Date(submitted), 'PPP')}
+                                        {dateText(new Date(submitted))}
                                       </div>
                                     ) : null}
                                     <div className="mt-3 space-y-1">
@@ -1501,7 +1510,7 @@ export default function AdminJournalPage() {
                 >
                   <DialogContent className="max-w-5xl">
                     <DialogHeader>
-                      <DialogTitle>{pdfPreviewTitle || 'PDF Preview'}</DialogTitle>
+                      <DialogTitle>{pdfPreviewTitle || (lang === 'ar' ? 'معاينة PDF' : 'PDF Preview')}</DialogTitle>
                       <DialogDescription>
                         {lang === 'ar'
                           ? 'معاينة الملف قبل التحميل.'
@@ -1510,7 +1519,7 @@ export default function AdminJournalPage() {
                     </DialogHeader>
 
                     {pdfPreviewLoading ? (
-                      <div className="text-sm text-muted-foreground">Loading PDF…</div>
+                      <div className="text-sm text-muted-foreground">{lang === 'ar' ? 'جارٍ تحميل PDF…' : 'Loading PDF…'}</div>
                     ) : pdfPreviewError ? (
                       <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                         {pdfPreviewError}

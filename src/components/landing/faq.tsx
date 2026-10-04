@@ -15,10 +15,10 @@ export default function Faq() {
   const { lang } = useLang();
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
 
   const showFaq = ui?.showFaq !== false; // default: show
-  if (!showFaq) return null;
+  if (settingsLoading || !showFaq) return null;
 
   const config = sanitizeFaqConfig(ui?.faq?.[lang], DEFAULT_FAQ[lang]);
   const faqs = config.items.length > 0 ? config.items : DEFAULT_FAQ[lang].items;
@@ -54,4 +54,3 @@ export default function Faq() {
     </section>
   );
 }
-

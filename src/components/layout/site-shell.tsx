@@ -5,6 +5,7 @@ import { useUser } from '@/firebase';
 import { WorkspaceShell } from '@/components/layout/workspace-shell';
 import Header from '@/components/landing/header';
 import Footer from '@/components/landing/footer';
+import { useLang } from '@/components/i18n/lang';
 
 type SiteShellProps = {
   children: React.ReactNode;
@@ -19,10 +20,18 @@ export function SiteShell({
   headerVariant = 'public',
   showFooter = true,
 }: SiteShellProps) {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
+  const { lang } = useLang();
   const pathname = usePathname() ?? '';
   const workspacePage = pathname !== '/' && pathname !== '/admin' &&
     !pathname.startsWith('/verify/') && !pathname.startsWith('/print/');
+  // Resolve the session before choosing a shell, so the public header never
+  // flashes above a signed-in workspace during a direct page load.
+  if (isUserLoading && workspacePage) return (
+    <div dir={dir} className="flex min-h-dvh items-center justify-center bg-background p-6" role="status" aria-live="polite">
+      <p className="text-sm text-muted-foreground">{lang === 'ar' ? 'جارٍ تحميل مساحة العمل…' : 'Loading your workspace…'}</p>
+    </div>
+  );
   if (user && workspacePage) return <WorkspaceShell>{children}</WorkspaceShell>;
 
   return (

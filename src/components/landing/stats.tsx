@@ -23,10 +23,10 @@ export default function Stats() {
   const stats = lang === 'ar' ? statsAr : statsEn;
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
   const showStats = ui?.showStats !== false; // default: show
 
-  if (!showStats) return null;
+  if (settingsLoading || !showStats) return null;
 
   return (
     <section className="bg-primary text-primary-foreground py-20 md:py-24">

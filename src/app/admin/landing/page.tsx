@@ -585,7 +585,7 @@ export default function AdminLandingPage() {
                             <p className="text-xs text-muted-foreground">{t.heroHighlightsHelp}</p>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium">{t.heroExplore}</label>
                               <Input
@@ -692,7 +692,7 @@ export default function AdminLandingPage() {
                                   </Button>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4">
                                   <div className="space-y-2">
                                     <label className="text-sm font-medium">{t.featureIcon}</label>
                                     <Select
@@ -873,7 +873,7 @@ export default function AdminLandingPage() {
                                 </Button>
                               </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4">
                                 <div className="space-y-2 md:col-span-2">
                                   <label className="text-sm font-medium">{t.planName}</label>
                                   <Input

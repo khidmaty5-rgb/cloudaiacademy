@@ -45,5 +45,6 @@ export function navigationForRole(role: AppRole) {
 
 export function activeWorkspaceLink(pathname: string, links: readonly WorkspaceLink[]) {
   return [...links].sort((a, b) => b.href.length - a.href.length)
-    .find(link => pathname === link.href || pathname.startsWith(`${link.href}/`));
+    .find(link => pathname === link.href || pathname.startsWith(`${link.href}/`))
+    ?? (pathname.startsWith('/admin/courses/') ? links.find(link => link.href === '/teacher/courses') : undefined);
 }

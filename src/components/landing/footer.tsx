@@ -34,10 +34,10 @@ export default function Footer() {
   const { lang } = useLang();
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui } = useDoc<any>(settingsDocRef);
-  const showPricing = ui?.showPricing !== false; // default: show
-  const showFaq = ui?.showFaq !== false; // default: show
-  const showTestimonials = ui?.showTestimonials !== false;
+  const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
+  const showPricing = !settingsLoading && ui?.showPricing !== false;
+  const showFaq = !settingsLoading && ui?.showFaq !== false;
+  const showTestimonials = !settingsLoading && ui?.showTestimonials !== false;
 
   const socialLinks: Array<{ label: string; href: string; Icon: IconComponent }> = [
     { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61585817696624', Icon: FacebookIcon },
