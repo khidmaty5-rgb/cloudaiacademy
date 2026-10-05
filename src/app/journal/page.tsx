@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/i18n/lang";
@@ -20,7 +21,7 @@ import type { JournalArticle, JournalIssue } from "@/types/models";
 const content = {
   en: {
     dir: "ltr" as const,
-    name: "CloudAI Journal of Applied AI & Data",
+    name: academy.journalName,
     badge: "Official journal of CloudAI Academy & Research Lab",
     intro:
       "CloudAI Journal of Applied AI & Data is an open‑access, peer‑reviewed venue of CloudAI Academy & Research Lab (cloudaiacademy.ca). We publish applied, reproducible work at the intersection of AI, data, cloud, and real‑world impact, with a special focus on Libya and emerging markets.",
@@ -54,7 +55,7 @@ const content = {
     submitTitle: "How to Submit",
     submitBody:
       "We are now inviting submissions for Volume 1. Prepare your manuscript using your preferred LaTeX or Word template and send it as a PDF (with any source files or code links) to:",
-    email: "journal@cloudaiacademy.ca",
+    email: academy.journalEmail,
     submitList: [
       "Language: English, Arabic, or bilingual.",
       "Include title, authors, affiliations, abstract, and keywords.",
@@ -78,7 +79,7 @@ const content = {
   },
   ar: {
     dir: "rtl" as const,
-    name: "مجلة CloudAI للأبحاث التطبيقية والبيانات",
+    name: academy.journalName,
     badge: "المجلة الرسمية لـ CloudAI Academy & Research Lab",
     intro:
       "مجلة CloudAI للأبحاث التطبيقية والبيانات هي مجلة علمية مفتوحة الوصول ومحكَّمة تصدر عن CloudAI Academy & Research Lab. نركّز على الأبحاث التطبيقية والقابلة لإعادة الإنتاج في تقاطع الذكاء الاصطناعي، والبيانات، والحوسبة السحابية، مع اهتمام خاص بليبيا والأسواق الناشئة.",
@@ -112,7 +113,7 @@ const content = {
     submitTitle: "طريقة الإرسال",
     submitBody:
       "ندعوكم لإرسال أبحاثكم للمجلد الأول. يُرجى إعداد البحث باللغة المناسبة وإرساله كملف PDF (مع أي روابط للبيانات أو الشيفرة البرمجية إن وجدت) إلى:",
-    email: "journal@cloudaiacademy.ca",
+    email: academy.journalEmail,
     submitList: [
       "لغة البحث: العربية أو الإنجليزية (أو نسخة ثنائية اللغة).",
       "إدراج العنوان، وأسماء المؤلفين، والجهات التابعة، والملخّص، والكلمات المفتاحية.",

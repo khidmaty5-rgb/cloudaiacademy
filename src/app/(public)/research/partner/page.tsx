@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { Handshake, Mail } from 'lucide-react';
@@ -17,8 +18,8 @@ export default function ResearchPartnerPage() {
     ? ['مشكلات واقعية ليعمل عليها الطلاب', 'مجموعات بيانات بصلاحيات استخدام واضحة', 'أرصدة حوسبة أو موارد سحابية', 'محاضرات ضيوف وإرشاد ودعم للمراجعة', 'رعاية ورش العمل والفعاليات المجتمعية']
     : ['Problem statements for students to build against', 'Datasets (with clear usage permissions)', 'Compute credits / cloud resources', 'Guest talks, mentorship, and review support', 'Sponsorship for workshops and community events'];
 
-  const email = 'info@cloudaiacademy.ca';
-  const mailto = `mailto:${email}?subject=${encodeURIComponent('Research partnership (CloudAI Academy)')}`;
+  const email = academy.contactEmail;
+  const mailto = `mailto:${email}?subject=${encodeURIComponent(`Research partnership (${academy.name})`)}`;
 
   return (
     <>

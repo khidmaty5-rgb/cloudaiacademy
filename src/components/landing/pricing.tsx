@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -244,6 +245,7 @@ export default function Pricing() {
     }
   };
 
+  if (!academy.features.payments) return null;
   if (settingsLoading || !showPricing) return null;
 
   return (

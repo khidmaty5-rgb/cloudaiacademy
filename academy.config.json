@@ -1,0 +1,30 @@
+{
+  "name": "CloudAI Academy",
+  "description": "Unlock Your Potential in Cloud & AI.",
+  "siteUrl": "https://www.cloudaiacademy.ca",
+  "logoPath": "/images/logo.png",
+  "certificateLogoPath": "/images/certificateLog.png",
+  "contactEmail": "info@cloudaiacademy.ca",
+  "phone": "+15196942661",
+  "address": "London Ontario, CA",
+  "facebookUrl": "https://www.facebook.com/profile.php?id=61585817696624",
+  "journalName": "CloudAI Journal of Applied AI & Data",
+  "journalEmail": "journal@cloudaiacademy.ca",
+  "certificatePrefix": "CA",
+  "certificateTemplatePath": "/CloudAI_Certificate1.pdf",
+  "meetingPrefix": "CloudAIAcademy",
+  "defaultLanguage": "en",
+  "accentLight": "22 85% 36%",
+  "accentDark": "24 100% 62%",
+  "analyticsUrl": "https://analytics.cloudaiacademy.ca",
+  "features": {
+    "journal": true,
+    "research": true,
+    "liveTeaching": true,
+    "certificates": true,
+    "learningPaths": true,
+    "telegram": true,
+    "payments": true,
+    "testimonials": true
+  }
+}

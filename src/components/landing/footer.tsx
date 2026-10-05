@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 
 import type { ComponentType } from 'react';
 import { Logo } from '@/components/logo';
@@ -35,12 +36,12 @@ export default function Footer() {
   const firestore = getFirestore();
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
-  const showPricing = !settingsLoading && ui?.showPricing !== false;
+  const showPricing = academy.features.payments && !settingsLoading && ui?.showPricing !== false;
   const showFaq = !settingsLoading && ui?.showFaq !== false;
-  const showTestimonials = !settingsLoading && ui?.showTestimonials !== false;
+  const showTestimonials = academy.features.testimonials && !settingsLoading && ui?.showTestimonials !== false;
 
   const socialLinks: Array<{ label: string; href: string; Icon: IconComponent }> = [
-    { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61585817696624', Icon: FacebookIcon },
+    ... (academy.facebookUrl ? [{ label: 'Facebook', href: academy.facebookUrl, Icon: FacebookIcon }] : []),
   ];
 
   const t = {
@@ -221,27 +222,27 @@ export default function Footer() {
               <li className="flex items-center gap-2 text-primary-foreground/70">
                 <Mail className="h-4 w-4" />{' '}
                 <Link
-                  href="mailto:info@cloudaiacademy.ca"
+                  href={`mailto:${academy.contactEmail}`}
                   className="hover:text-accent"
                 >
-                  <bdi dir="ltr">info@cloudaiacademy.ca</bdi>
+                  <bdi dir="ltr">{academy.contactEmail}</bdi>
                 </Link>
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
                 <Phone className="h-4 w-4" />{' '}
-                <Link href="tel:+15196942661" className="hover:text-accent">
-                  <bdi dir="ltr">+1 (519) 694-2661</bdi>
+                <Link href={`tel:${academy.phone}`} className="hover:text-accent">
+                  <bdi dir="ltr">{academy.phone}</bdi>
                 </Link>
               </li>
               <li className="flex items-center gap-2 text-primary-foreground/70">
                 <MapPin className="h-4 w-4" />{' '}
                 <Link
-                  href="https://www.google.com/maps/search/?api=1&query=London%20Ontario%20Canada"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(academy.address)}`}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="hover:text-accent"
                 >
-                  <bdi dir="ltr">London Ontario, CA</bdi>
+                  <bdi dir="ltr">{academy.address}</bdi>
                 </Link>
               </li>
             </ul>
@@ -250,7 +251,7 @@ export default function Footer() {
 
         <div className="mt-12 border-t border-primary-foreground/20 pt-8 text-center text-sm text-primary-foreground/70">
           <p>
-            &copy; <bdi dir="ltr">{new Date().getFullYear()} CloudAI Academy</bdi>. {t[lang].rights}
+            &copy; <bdi dir="ltr">{new Date().getFullYear()} {academy.name}</bdi>. {t[lang].rights}
           </p>
         </div>
       </div>

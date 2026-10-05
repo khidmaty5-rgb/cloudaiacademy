@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 export const runtime = 'nodejs';
 
 import { Button } from '@/components/ui/button';
@@ -53,17 +54,17 @@ export async function generateMetadata(context: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   if (!(await isJournalEnabled())) {
-    return { title: 'Article not found - CloudAI Journal' };
+    return { title: `Article not found - ${academy.journalName}` };
   }
   const { id } = await context.params;
   const article = await fetchArticle(id);
   if (!article || article.status !== 'PUBLISHED') {
-    return { title: 'Article not found - CloudAI Journal' };
+    return { title: `Article not found - ${academy.journalName}` };
   }
 
   const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   const url = `${site}/journal/articles/${id}`;
-  const title = article.title || 'CloudAI Journal Article';
+  const title = article.title || `${academy.journalName} Article`;
   const description = (article.abstract || '').slice(0, 300);
 
   const toDate = (v: any): Date | null => {
@@ -87,7 +88,7 @@ export async function generateMetadata(context: {
   const other: Record<string, string | string[]> = {
     citation_title: String(article.title || ''),
     citation_publication_date: pubDate,
-    citation_journal_title: 'CloudAI Journal',
+    citation_journal_title: academy.journalName,
     citation_language: String(language),
   };
   if (authorList.length) other.citation_author = authorList;
@@ -131,7 +132,7 @@ export default async function JournalArticlePage(context: {
   const publishedAt = article.publishedAt?.toDate?.() ?? article.publishedAt;
   const year = (publishedAt ? new Date(publishedAt) : (acceptedAt ? new Date(acceptedAt) : null))?.getFullYear() || '';
 
-  const cite = `${authors} (${year}). ${article.title}. CloudAI Journal.`;
+  const cite = `${authors} (${year}). ${article.title}. ${academy.journalName}.`;
   const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   const canonicalUrl = site ? `${site}/journal/articles/${id}` : `/journal/articles/${id}`;
   const pdfContentUrl = site
@@ -150,7 +151,7 @@ export default async function JournalArticlePage(context: {
         ? new Date(publishedAt).toISOString()
         : undefined,
     inLanguage: (article.language === 'both' ? 'en' : article.language) || 'en',
-    isPartOf: { '@type': 'Periodical', name: 'CloudAI Journal' },
+    isPartOf: { '@type': 'Periodical', name: academy.journalName },
     url: canonicalUrl,
     encoding: pdfLinks ? [{ '@type': 'MediaObject', contentUrl: pdfContentUrl }] : undefined,
   };

@@ -39,7 +39,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test Firestore security rules
+      - name: Validate academy configuration
+        run: npm run academy:check
+
+      - name: Test academy configuration and module boundaries
+        run: node --test tests/roles/academy-template.test.mjs
+
+      - name: Test Firestore security boundaries
         run: npm run test:firestore-rules
 
       - name: Test teacher course query authorization

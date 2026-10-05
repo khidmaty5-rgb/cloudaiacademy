@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { CheckCircle2, Mail } from 'lucide-react';
@@ -17,7 +18,7 @@ export default function ResearchMentorPage() {
     ? ['مراجعة القضايا وطلبات الدمج من حيث الوضوح والسلامة وقابلية إعادة الإنتاج', 'المساعدة في التحقق من نتائج التقييم وخطوط الأساس', 'توجيه جودة التوثيق: الإعداد والاستخدام والقيود', 'تقديم ملاحظات على مسودات التقارير التقنية']
     : ['Review issues and PRs for clarity, safety, and reproducibility', 'Help validate evaluation results and baselines', 'Guide documentation quality (setup, usage, limitations)', 'Provide feedback on technical report drafts'];
 
-  const email = 'info@cloudaiacademy.ca';
+  const email = academy.contactEmail;
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Mentor / reviewer interest (Research)')}`;
 
   return (

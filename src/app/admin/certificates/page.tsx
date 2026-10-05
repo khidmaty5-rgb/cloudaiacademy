@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -334,7 +335,7 @@ export default function AdminCertificatesPage() {
       totalHours: Math.round(hours),
       completedAt,
       issuedAt: null,
-      issuedBy: 'CloudAI Academy',
+      issuedBy: academy.name,
       instructorName: signerName,
         authorizedByName: signerName,
         authorizedByTitle: 'Authorized Signature',
@@ -581,7 +582,7 @@ export default function AdminCertificatesPage() {
            const pdfBytes = await generateCertificatePdfBytes({
              certificate: previewCertificate,
              verifyUrl,
-             templatePdfUrl: useTemplatePdf ? '/CloudAI_Certificate1.pdf' : null,
+             templatePdfUrl: useTemplatePdf ? academy.certificateTemplatePath : null,
              verifiedStampUrl: '/images/stamp.png',
            });
 
@@ -1208,7 +1209,7 @@ export default function AdminCertificatesPage() {
                         disabled={!generatePdfAfterIssue}
                         onChange={(e) => setUseTemplatePdf(e.target.checked)}
                       />
-                      Use PDF template (CloudAI_Certificate1.pdf)
+                      Use academy PDF template
                     </label>
                   </div>
                   {previewCertificate && (

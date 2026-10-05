@@ -62,6 +62,16 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-05 — Independent academy template foundation
+
+- PR23's timed-out Functions check passed on retry; merged at 49dafd6. Template work is isolated on codex/academy-template-foundation.
+- Added shared public deployment configuration, strict schema and build-time asset/config validation. Wired name/logo/contact/QR, metadata, default language, accents, certificate defaults, journal identity, live prefixes and checkout branding into shared settings. Existing content and records are preserved.
+- Added bilingual admin configuration export at /admin/academy. This exports a validated file; it does not silently mutate the running academy. Deployment/rebuild is required.
+- Added module navigation filtering and middleware availability checks; disabled new payment creation leaves transaction reconciliation/portal available. Homepage research/pricing/testimonial visibility follows flags. These are availability controls, not substitutes for database authorization.
+- Setup and acceptance guides in docs/template specify independent databases, storage, credentials, initial admin provisioning, content/artwork review, sandbox payment verification, backups and rollback.
+- Local config validation, TypeScript, 27 existing role tests and three template regressions pass. Full lint has zero errors, 530 existing warnings. No production data, credentials, service provisioning or meeting configuration changed.
+- Not complete: real five-role staging workflow, live call, sandbox payment/certificate visual verification and backup restore drill; existing editorial copy/assets require per-academy review. This is a template foundation, not a fully certified turnkey SaaS. CI/deploy tracked in PROJECT_INDEX.md.
+
 # 2026-10-05 — Live classroom setup clarity
 
 - Missing meeting configuration now shows an admin setup link to the course editor, teacher guidance, and a non-actionable learner status, instead of a misleading Start button and error toast.

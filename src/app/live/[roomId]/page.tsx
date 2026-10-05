@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 import { use } from 'react';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { getFirestore, doc } from 'firebase/firestore';
@@ -19,7 +20,7 @@ export default function LiveRoomPage({ params }: PageProps) {
   const { roomId: roomParam } = use(params);
   const raw = roomParam || '';
   const roomId = decodeURIComponent(raw);
-  const prettyLabel = roomId.replace(/^CloudAIAcademy-/, '') || roomId || 'Live Session';
+  const prettyLabel = (roomId.startsWith(academy.meetingPrefix + '-') ? roomId.slice(academy.meetingPrefix.length + 1) : roomId) || 'Live Session';
   const courseId = prettyLabel;
   const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomId)}`;
 

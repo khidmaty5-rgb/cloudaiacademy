@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -38,7 +39,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
               ))}
             </ul>
           </div>
-          <p className="relative text-sm text-primary-foreground/55">© 2026 CloudAI Academy</p>
+          <p className="relative text-sm text-primary-foreground/55">© {new Date().getFullYear()} {academy.name}</p>
         </aside>
 
         <section className="flex min-w-0 flex-col px-4 py-5 sm:px-8 lg:px-12 lg:py-8">

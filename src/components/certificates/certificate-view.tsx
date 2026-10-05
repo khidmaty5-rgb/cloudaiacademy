@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
@@ -111,7 +112,7 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
       <div className="relative overflow-hidden rounded-xl border-2 border-accent/60 p-6 md:p-10">
         <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
           <img
-            src="/images/certificateLog.png"
+            src={academy.certificateLogoPath}
             alt=""
             aria-hidden="true"
             className="w-[520px] max-w-[90%] rotate-[-12deg] opacity-[0.06] object-contain"
@@ -120,12 +121,12 @@ export default function CertificateView({ certificate, verifyUrl }: CertificateV
 
         <div className="relative z-10 flex flex-col items-center text-center">
           <img
-            src="/images/certificateLog.png"
-            alt="CloudAI Academy"
+            src={academy.certificateLogoPath}
+            alt={academy.name}
             className="h-20 w-auto object-contain"
             loading="lazy"
           />
-          <p className="mt-2 text-xs tracking-[0.35em] text-muted-foreground">CLOUDAI ACADEMY</p>
+          <p className="mt-2 text-xs tracking-[0.35em] text-muted-foreground">{academy.name}</p>
 
           <h1 className="mt-6 font-headline text-4xl font-extrabold tracking-wide text-primary md:text-6xl">
             CERTIFICATE OF COMPLETION

@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { CheckCircle2, ClipboardList, Mail } from 'lucide-react';
@@ -15,7 +16,7 @@ export default function ResearchStandardsPage() {
     ? 'معايير عملية للحفاظ على قابلية العمل لإعادة الإنتاج والمراجعة ونسب المساهمات، خصوصاً قبل وجود منشورات.'
     : 'Practical standards to keep work reproducible, reviewable, and creditable—especially before we have publications.';
 
-  const email = 'info@cloudaiacademy.ca';
+  const email = academy.contactEmail;
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Research standards question')}`;
 
   const artifactChecklist = ar

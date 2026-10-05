@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import React, {
   createContext,
@@ -19,7 +20,7 @@ type LangContextValue = {
 const LangContext = createContext<LangContextValue | undefined>(undefined);
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useState<Lang>(academy.defaultLanguage === 'ar' ? 'ar' : 'en');
 
   // Load saved preference
   useEffect(() => {

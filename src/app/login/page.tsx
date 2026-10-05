@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -70,7 +71,7 @@ function LoginContent() {
           </Link>
           <CardTitle>{ar ? 'مرحباً بعودتك' : 'Welcome Back'}</CardTitle>
           <CardDescription>
-            {ar ? 'سجّل الدخول إلى حسابك في CloudAI Academy.' : 'Log in to your CloudAI Academy account.'}
+            {ar ? `سجّل الدخول إلى حسابك في ${academy.name}.` : `Log in to your ${academy.name} account.`}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +15,7 @@ export default function Testimonials() {
   const { data: ui, isLoading: settingsLoading } = useDoc<any>(settingsDocRef);
   const showTestimonials = ui?.showTestimonials !== false; // default: show
 
+  if (!academy.features.testimonials) return null;
   if (settingsLoading || !showTestimonials) return null;
   const heading = lang === 'ar' ? 'قصص نجاح الطلاب' : 'Student Success Stories';
   const sub = lang === 'ar' ? 'اقرأ شهادات خريجينا الذين غيّروا مسارهم المهني.' : 'Hear from our graduates who transformed their careers.';

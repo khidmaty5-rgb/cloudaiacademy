@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
@@ -174,7 +175,7 @@ export async function generateCertificatePdfBytes({
   certificate,
   verifyUrl,
   templatePdfUrl = null,
-  logoUrl = '/images/certificateLog.png',
+  logoUrl = academy.certificateLogoPath,
   verifiedStampUrl = '/images/stamp.png',
   strictVerifiedStamp = false,
   signatureImageUrl = null,
@@ -887,7 +888,7 @@ export async function generateCertificatePdfBytes({
     }
 
     // Issued by + separator + verify URL
-    const issuedByText = `Issued by ${certificate.issuedBy || 'CloudAI Academy'}`;
+    const issuedByText = `Issued by ${certificate.issuedBy || academy.name}`;
     drawCenteredAtX(issuedByText, centerX, 210, { font: sansBold, size: 14, color: borderColor });
     page.drawLine({
       start: { x: safeLeft, y: 196 },

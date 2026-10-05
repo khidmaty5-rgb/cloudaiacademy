@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -136,7 +137,7 @@ export default function CourseForm({ course }: CourseFormProps) {
       }
       // normalize live fields
       const makeSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-      const defaultRoom = `CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || makeSlug(data.title)}`;
+      const defaultRoom = `${academy.meetingPrefix}-${(course as any)?.slug || (course as any)?.id || makeSlug(data.title)}`;
       const cleaned = {
         ...data,
         liveJitsiRoom: data.livePlatform === 'jitsi' ? (data.liveJitsiRoom?.trim() || defaultRoom) : null,
@@ -429,7 +430,7 @@ export default function CourseForm({ course }: CourseFormProps) {
                     <FormItem>
                       <FormLabel>{t("Jitsi room name")}</FormLabel>
                       <FormControl>
-                        <Input dir="auto" placeholder={`CloudAIAcademy-${(course as any)?.slug || (course as any)?.id || 'course-slug'}`} {...field} />
+                        <Input dir="auto" placeholder={`${academy.meetingPrefix}-${(course as any)?.slug || (course as any)?.id || 'course-slug'}`} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

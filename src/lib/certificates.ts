@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 export type CertificateIdOptions = {
   /**
    * Prefix for your organization.
@@ -36,7 +37,7 @@ export function isValidCourseCode(courseCode: string): boolean {
 }
 
 export function formatCertificateId(options: CertificateIdOptions): string {
-  const prefix = (options.prefix ?? 'CA').trim().toUpperCase();
+  const prefix = (options.prefix ?? academy.certificatePrefix).trim().toUpperCase();
   const year = options.year ?? new Date().getFullYear();
   const courseCode = normalizeCourseCode(options.courseCode);
   const sequenceWidth = options.sequenceWidth ?? 6;
