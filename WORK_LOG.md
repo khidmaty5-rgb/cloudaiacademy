@@ -62,6 +62,12 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-05 — Reproduced teacher course query denial
+
+- User screenshot after PR21 confirmed recovery UI works but course reads remain denied.
+- Added emulator tests with the exact ownerId and instructorIds queries. Both failed against the previous rules (permission-denied). Replaced self-document lookups in course read authorization with query-compatible resource predicates; retained parent lookup authorization for lessons, with safe defaults for absent assignment fields.
+- Five new emulator cases now pass: owned/assigned course queries, assigned lesson read/write, denied course metadata edits, unrelated draft/lesson denial, non-teaching role denial and admin catalog access. No user role or course data changed. Rule deployment and release status tracked in PROJECT_INDEX.md.
+
 # 2026-10-05 — Teacher role and recoverable permission errors
 
 - Confirmed admin navigation/layout allowed teaching pages while page-level guards denied them. Both pages now admit admin and teacher, retaining assignment-filtered course queries and server authorization.
