@@ -9,7 +9,12 @@ export function getLiveUrl(course: Course): string | null {
     return `https://meet.jit.si/${encodeURIComponent(base)}`;
   }
   if (platform === 'google-meet') {
-    return course.liveMeetUrl ?? null;
+    try {
+      const url = new URL(course.liveMeetUrl?.trim() || '');
+      return url.protocol === 'https:' && url.hostname === 'meet.google.com' &&
+        !url.username && !url.password && !url.port && url.pathname !== '/'
+        ? url.href : null;
+    } catch { return null; }
   }
   return null;
 }

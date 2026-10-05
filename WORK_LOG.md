@@ -62,6 +62,12 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-05 — Live classroom setup clarity
+
+- Missing meeting configuration now shows an admin setup link to the course editor, teacher guidance, and a non-actionable learner status, instead of a misleading Start button and error toast.
+- Configured meetings use accessible external links with Arabic/English labels. Google Meet links must use HTTPS and the expected host.
+- TypeScript, 25 existing role tests and two new rendered/live-URL regressions pass. No live meeting or production course configuration changed. Real host/student call testing requires the user's provider/link choice and signed-in sessions; not claimed verified.
+
 # 2026-10-05 — Reproduced teacher course query denial
 
 - User screenshot after PR21 confirmed recovery UI works but course reads remain denied.

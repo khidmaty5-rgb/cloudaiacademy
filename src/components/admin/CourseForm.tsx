@@ -396,7 +396,7 @@ export default function CourseForm({ course }: CourseFormProps) {
         )}
         {isAdmin && (
           <div className="space-y-4 border-t pt-6">
-            <h3 className="font-semibold">{t("Live session")}</h3>
+            <h3 id="live-session-settings" className="scroll-mt-24 font-semibold">{t("Live session")}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
