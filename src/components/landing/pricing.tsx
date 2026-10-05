@@ -245,7 +245,8 @@ export default function Pricing() {
     }
   };
 
-  if (!academy.features.payments || settingsLoading || !showPricing) return null;
+  if (!academy.features.payments) return null;
+  if (settingsLoading || !showPricing) return null;
 
   return (
     <section id="pricing" className="py-20 md:py-28 bg-background">
