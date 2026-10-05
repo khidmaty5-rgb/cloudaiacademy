@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import {
@@ -202,7 +203,7 @@ export default function ResearchPage() {
     },
   };
 
-  const contactHref = 'mailto:info@cloudaiacademy.ca';
+  const contactHref = `mailto:${academy.contactEmail}`;
 
   return (
     <>

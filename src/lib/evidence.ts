@@ -1,6 +1,7 @@
+import { academy } from '@/lib/academy';
 export const EVIDENCE_BASE_URL =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_EVIDENCE_BASE_URL) ||
-  'https://analytics.cloudaiacademy.ca';
+  academy.analyticsUrl;
 
 export function getEvidenceUrl(path: string): string {
   const base = EVIDENCE_BASE_URL.replace(/\/$/, '');

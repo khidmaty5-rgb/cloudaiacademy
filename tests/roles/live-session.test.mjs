@@ -6,7 +6,9 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
 const require = createRequire(import.meta.url);
+const academy = JSON.parse(readFileSync(new URL('../../academy.config.json', import.meta.url), 'utf8'));
 function load(path, mocks = {}) {
+  mocks = { '@/lib/academy': { academy }, ...mocks };
   const code = ts.transpileModule(readFileSync(new URL('../../' + path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;

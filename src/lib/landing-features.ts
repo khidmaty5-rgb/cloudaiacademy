@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 import type { SupportedLang } from '@/lib/landing-pricing';
 
 export type FeatureIconId = 'laptop' | 'graduationCap' | 'award';
@@ -17,7 +18,7 @@ export type FeaturesConfig = {
 
 export const DEFAULT_FEATURES: Record<SupportedLang, FeaturesConfig> = {
   en: {
-    heading: 'Why Choose CloudAI Academy?',
+    heading: `Why Choose ${academy.name}?`,
     sub: "We provide the most comprehensive learning experience for tomorrow's top cloud and AI professionals.",
     items: [
       {
@@ -41,7 +42,7 @@ export const DEFAULT_FEATURES: Record<SupportedLang, FeaturesConfig> = {
     ],
   },
   ar: {
-    heading: 'لماذا تختار CloudAI Academy؟',
+    heading: `لماذا تختار ${academy.name}؟`,
     sub: 'نقدّم تجربة تعلّم شاملة لإعداد محترفي السحابة والذكاء الاصطناعي للمستقبل.',
     items: [
       {
@@ -105,4 +106,3 @@ export function sanitizeFeaturesConfig(input: unknown, fallback: FeaturesConfig)
     items: items.filter(Boolean).slice(0, 8),
   };
 }
-

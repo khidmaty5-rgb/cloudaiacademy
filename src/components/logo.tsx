@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -6,7 +7,7 @@ export function Logo({
   textClassName,
   size = 40,
   hideText,
-  text = 'CloudAI Academy',
+  text = academy.name,
 }: {
   className?: string;
   textClassName?: string;
@@ -17,8 +18,8 @@ export function Logo({
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <Image
-        src="/images/logo.png"
-        alt="CloudAI Academy logo"
+        src={academy.logoPath}
+        alt={`${academy.name} logo`}
         width={size}
         height={size}
         style={{ width: size, height: size }}

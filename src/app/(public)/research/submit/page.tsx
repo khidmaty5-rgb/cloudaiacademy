@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { FileText, Mail } from 'lucide-react';
@@ -18,7 +19,7 @@ export default function ResearchSubmitPage() {
     ? ['رابط المستودع: الشفرة وملفات الإعداد', 'ملاحظات التقييم: المقاييس وخطوط الأساس والمحفزات والبيانات', 'تعليمات إعادة الإنتاج والنتائج المتوقعة', 'مسودة تقرير مختصر: الأهداف والمنهج والنتائج والقيود', 'معلومات التأليف ونسب المساهمات']
     : ['Repository link (code + configs)', 'Evaluation notes (metrics, baselines, prompts, datasets)', 'Reproduction instructions (how to run, expected outputs)', 'Short report draft (goals, methods, results, limitations)', 'Authorship & credit information'];
 
-  const email = 'info@cloudaiacademy.ca';
+  const email = academy.contactEmail;
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Technical report submission interest')}`;
 
   return (

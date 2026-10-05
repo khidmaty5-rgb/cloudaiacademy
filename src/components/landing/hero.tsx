@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { Button } from '@/components/ui/button';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
@@ -138,13 +139,13 @@ export default function Hero() {
             </div>
 
             <div className={`mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-primary-foreground/75 ${isRTL ? 'md:justify-end' : 'md:justify-start'}`}>
-              <Link
+              {academy.features.research && <Link
                 href="/research"
                 className={`inline-flex items-center gap-2 transition-colors hover:text-accent ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <FlaskConical className="h-4 w-4" />
                 <span dir="auto">{lang === 'ar' ? 'استكشف الأبحاث' : 'Explore research'}</span>
-              </Link>
+              </Link>}
               <Link
                 href="/print/qr"
                 className={`inline-flex items-center gap-2 transition-colors hover:text-accent ${isRTL ? 'flex-row-reverse' : ''}`}
@@ -182,7 +183,7 @@ export default function Hero() {
                 className={`pointer-events-none absolute top-6 ${isRTL ? 'right-6' : 'left-6'} inline-flex items-center gap-2 rounded-full bg-primary/70 px-3 py-1 text-xs text-primary-foreground ring-1 ring-white/15 backdrop-blur-md ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <span className="h-2 w-2 rounded-full bg-accent" />
-                <span>CloudAI Academy</span>
+                <span>{academy.name}</span>
               </div>
             </div>
           </div>

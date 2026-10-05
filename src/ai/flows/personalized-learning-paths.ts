@@ -1,4 +1,5 @@
 'use server';
+import { academy } from '@/lib/academy';
 
 /**
  * @fileOverview Personalized learning path generation flow.
@@ -56,7 +57,7 @@ const prompt = ai.definePrompt({
   name: 'personalizedLearningPathPrompt',
   input: {schema: PersonalizedLearningPathInputSchema},
   output: {schema: PersonalizedLearningPathOutputSchema},
-  prompt: `You are an AI learning path generator for a platform called CloudAI Academy. You will take a student's interests, experience level, and career goals and generate a personalized learning path for them.
+  prompt: `You are an AI learning path generator for a platform called ${academy.name}. You will take a student's interests, experience level, and career goals and generate a personalized learning path for them.
 
 Generate the entire response in {{{language}}}.
 

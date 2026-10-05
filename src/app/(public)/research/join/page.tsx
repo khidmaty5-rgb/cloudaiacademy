@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -71,7 +72,7 @@ function ResearchJoinContent() {
     stepsTitle: ar ? 'ماذا يحدث بعد ذلك؟' : 'What happens next',
     steps: ar ? ['تعارف وتحقق من الملاءمة', 'تحديد نطاق المخرج', 'البناء والتقييم', 'نشر تقرير تقني مختصر تجريبي'] : ['Intro + fit check', 'Scope a deliverable', 'Build + evaluate', 'Publish a short technical report (pilot)'],
     tracksTitle: ar ? 'مسارات الطلاب' : 'Student tracks',
-    contactEmail: 'info@cloudaiacademy.ca',
+    contactEmail: academy.contactEmail,
   };
 
   const subject = selectedInitiative
@@ -79,8 +80,8 @@ function ResearchJoinContent() {
     : 'Join a research project';
 
   const bodyText = selectedInitiative
-    ? `Hi CloudAI Academy,\n\nI would like to join the initiative: ${selectedInitiative.title} (#${selectedInitiative.slug}).\n\nBackground:\nAvailability:\nLinks (GitHub/LinkedIn/portfolio):\n\nThanks!`
-    : `Hi CloudAI Academy,\n\nI would like to join a research project.\n\nInterests (LLM systems / MLOps / Responsible AI / data analytics):\nBackground:\nAvailability:\nLinks (GitHub/LinkedIn/portfolio):\n\nThanks!`;
+    ? `Hi ${academy.name},\n\nI would like to join the initiative: ${selectedInitiative.title} (#${selectedInitiative.slug}).\n\nBackground:\nAvailability:\nLinks (GitHub/LinkedIn/portfolio):\n\nThanks!`
+    : `Hi ${academy.name},\n\nI would like to join a research project.\n\nInterests (LLM systems / MLOps / Responsible AI / data analytics):\nBackground:\nAvailability:\nLinks (GitHub/LinkedIn/portfolio):\n\nThanks!`;
 
   const mailto = `mailto:${t.contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
 

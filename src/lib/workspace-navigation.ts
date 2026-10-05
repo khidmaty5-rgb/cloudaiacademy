@@ -11,6 +11,7 @@ const settings = { en: 'Administration', ar: 'الإعدادات الإداري�
 const personal = { en: 'My account', ar: 'حسابي' };
 
 export const workspaceLinks: readonly WorkspaceLink[] = [
+  { href: '/admin/academy', label: { en: 'Academy template', ar: 'قالب الأكاديمية' }, section: settings, roles: ['admin'] },
   { href: '/admin/dashboard', label: { en: 'Overview', ar: 'نظرة عامة' }, section: manage, roles: ['admin'] },
   { href: '/admin/courses', label: { en: 'Courses', ar: 'الدورات' }, section: manage, roles: ['admin'] },
   { href: '/admin/users', label: { en: 'People', ar: 'المستخدمون' }, section: manage, roles: ['admin'] },

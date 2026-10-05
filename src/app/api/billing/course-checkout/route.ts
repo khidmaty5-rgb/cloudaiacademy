@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 import { NextRequest, NextResponse } from 'next/server';
 import { getApps, initializeApp, applicationDefault, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
@@ -269,7 +270,7 @@ export async function POST(req: NextRequest) {
           application_context: {
             return_url: `${origin}/courses/${courseId}?payment=success&provider=paypal`,
             cancel_url: `${origin}/courses/${courseId}?payment=cancel&provider=paypal`,
-            brand_name: 'CloudAI Academy',
+            brand_name: academy.name,
             user_action: 'PAY_NOW',
           },
         });

@@ -1,11 +1,13 @@
+import { academy } from '@/lib/academy';
 import type { Course } from '@/types/models';
 
 export function getLiveUrl(course: Course): string | null {
+  if (!academy.features.liveTeaching) return null;
   const platform = course.livePlatform ?? 'none';
   if (platform === 'jitsi') {
     const base = course.liveJitsiRoom && course.liveJitsiRoom.trim().length > 0
       ? course.liveJitsiRoom
-      : `CloudAIAcademy-${course.slug || course.id}`;
+      : `${academy.meetingPrefix}-${course.slug || course.id}`;
     return `https://meet.jit.si/${encodeURIComponent(base)}`;
   }
   if (platform === 'google-meet') {

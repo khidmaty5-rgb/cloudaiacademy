@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -52,7 +53,7 @@ const copy = {
       },
     ],
     contact: 'Questions:',
-    email: 'journal@cloudaiacademy.ca',
+    email: academy.journalEmail,
   },
   ar: {
     dir: 'rtl' as const,
@@ -97,7 +98,7 @@ const copy = {
       },
     ],
     contact: 'للاستفسار:',
-    email: 'journal@cloudaiacademy.ca',
+    email: academy.journalEmail,
   },
 } as const;
 

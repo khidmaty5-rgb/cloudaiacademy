@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import Link from 'next/link';
 import { ArrowRight, Mail } from 'lucide-react';
@@ -17,7 +18,7 @@ export default function ResearchProposePage() {
     ? ['وصف المشكلة وأهميتها', 'المخرجات: المستودع والتقييم والتوثيق والتقرير المختصر', 'البيانات والأدوات المطلوبة وقيود الترخيص', 'خطة التقييم: المقاييس وخطوط الأساس وملاحظات إعادة الإنتاج', 'المدة المتوقعة، مثل 4–8 أسابيع', 'الفئة المستهدفة: طلاب أو باحثون أو مهندسون']
     : ['Problem statement and why it matters', 'Deliverables (repo, evaluation, documentation, short report)', 'Datasets/tools required (and licensing constraints)', 'Evaluation plan (metrics, baselines, reproducibility notes)', 'Timeline estimate (e.g., 4–8 weeks)', 'Who it’s for (students, researchers, engineers)'];
 
-  const email = 'info@cloudaiacademy.ca';
+  const email = academy.contactEmail;
   const mailto = `mailto:${email}?subject=${encodeURIComponent('Project proposal (Research)')}`;
 
   return (

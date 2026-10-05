@@ -1,5 +1,6 @@
 
 'use client';
+import { academy } from '@/lib/academy';
 
 import Cta from '@/components/landing/cta';
 import Faq from '@/components/landing/faq';
@@ -28,7 +29,7 @@ export default function Home() {
         <Stats />
         <Features />
         <Courses />
-        <Research />
+        {academy.features.research && <Research />}
         <Pricing />
         <Testimonials />
         <Faq />

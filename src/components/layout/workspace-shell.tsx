@@ -1,4 +1,5 @@
 'use client';
+import { academy, academyPathEnabled } from '@/lib/academy';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -98,7 +99,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const ready = !!user && !isUserLoading && !loading;
   const settingsRef = useMemoFirebase(() => doc(getFirestore(), 'settings', 'ui'), []);
   const { data: settings, isLoading: settingsLoading } = useDoc(settingsRef);
-  const links = useMemo(() => ready ? navigationForRole(role).filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false)) : [], [ready, role, settingsLoading, settings]);
+  const links = useMemo(() => ready ? navigationForRole(role).filter(link => academyPathEnabled(link.href)).filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false)) : [], [ready, role, settingsLoading, settings]);
   const current = activeWorkspaceLink(pathname, links);
   const roleLabel = ready ? roleLabels[role][lang] : (lang === 'ar' ? 'مساحة العمل' : 'Workspace');
   const displayName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
@@ -134,7 +135,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             {sidebar()}
           </SheetContent>
         </Sheet>
-        <div className="min-w-0 flex-1"><div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex"><Link href={roleHomePath(role)} className="hover:text-foreground hover:underline">{roleLabel}</Link><ChevronRight className="size-3 rtl:rotate-180" /><span>{current?.section[lang] ?? (lang === 'ar' ? 'الأكاديمية' : 'Academy')}</span></div><p className="truncate text-sm font-semibold">{current?.label[lang] ?? (pathname.startsWith('/learn/') ? (lang === 'ar' ? 'مساحة الدرس' : 'Lesson workspace') : 'CloudAI Academy')}</p></div>
+        <div className="min-w-0 flex-1"><div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex"><Link href={roleHomePath(role)} className="hover:text-foreground hover:underline">{roleLabel}</Link><ChevronRight className="size-3 rtl:rotate-180" /><span>{current?.section[lang] ?? (lang === 'ar' ? 'الأكاديمية' : 'Academy')}</span></div><p className="truncate text-sm font-semibold">{current?.label[lang] ?? (pathname.startsWith('/learn/') ? (lang === 'ar' ? 'مساحة الدرس' : 'Lesson workspace') : academy.name)}</p></div>
         <Button variant="ghost" size="sm" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="shrink-0 rounded-xl px-2.5" aria-label={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}>{lang === 'ar' ? 'English' : 'العربية'}</Button>
         <ThemeToggle className="size-11 shrink-0 rounded-xl text-muted-foreground" />
         <DropdownMenu dir={dir}>

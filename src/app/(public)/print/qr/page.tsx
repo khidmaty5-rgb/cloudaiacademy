@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
@@ -6,9 +7,9 @@ import { useLang } from '@/components/i18n/lang';
 import { Globe, Mail, Phone, Printer } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
-const FALLBACK_SITE = 'https://www.cloudaiacademy.ca';
-const FALLBACK_EMAIL = 'info@cloudaiacademy.ca';
-const FALLBACK_PHONE = '+1 (519) 694-2661';
+const FALLBACK_SITE = academy.siteUrl;
+const FALLBACK_EMAIL = academy.contactEmail;
+const FALLBACK_PHONE = academy.phone;
 
 function normalizeSiteUrl(value: string) {
   const trimmed = (value || '').trim();
@@ -35,7 +36,7 @@ export default function PrintableQrFlyerPage() {
     en: {
       title: 'QR Business Cards',
       print: 'Print',
-      org: 'CloudAI Academy',
+      org: academy.name,
       tagline: 'Cloud + AI courses, labs, and launch-phase research programs.',
       scan: 'Scan the QR to visit.',
       websiteLabel: 'Website',
@@ -45,7 +46,7 @@ export default function PrintableQrFlyerPage() {
     ar: {
       title: 'بطاقات QR',
       print: 'طباعة',
-      org: 'CloudAI Academy',
+      org: academy.name,
       tagline: 'دورات ومختبرات في السحابة والذكاء الاصطناعي + مبادرات بحثية (إطلاق).',
       scan: 'امسح رمز QR لزيارة الموقع.',
       websiteLabel: 'الموقع',

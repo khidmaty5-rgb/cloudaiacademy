@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "academy:check": "node scripts/template/check.mjs",
+    "prebuild": "npm run academy:check",
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",

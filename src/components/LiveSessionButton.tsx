@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 
 import type { Course } from "@/types/models";
 import { getLiveUrl } from "@/lib/live";
@@ -17,7 +18,8 @@ export default function LiveSessionButton({ course, courseId, label }: LiveSessi
   const { lang } = useLang();
   const ar = lang === 'ar';
   const url = course ? getLiveUrl(course) : courseId
-    ? `https://meet.jit.si/${encodeURIComponent(`CloudAIAcademy-${courseId}`)}` : null;
+    ? `https://meet.jit.si/${encodeURIComponent(`${academy.meetingPrefix}-${courseId}`)}` : null;
+  if (!academy.features.liveTeaching) return null;
   if (!url) {
     if (!loading && isAdmin && course?.slug) {
       return <Link className="inline-flex rounded-lg border px-4 py-2 text-sm font-medium" href={`/admin/courses/edit/${encodeURIComponent(course.slug)}#live-session-settings`}>

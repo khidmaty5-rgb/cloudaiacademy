@@ -1,4 +1,5 @@
 "use client";
+import { academy } from '@/lib/academy';
 
 import { useLang } from '@/components/i18n/lang';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
@@ -46,7 +47,7 @@ export default function JournalSubmitPage() {
     en: {
       title: 'Submit an Article',
       description:
-        'Share your work with the CloudAI Journal of Applied AI & Data.',
+        `Share your work with ${academy.journalName}.`,
       mustLogin: 'You must be logged in to submit an article.',
       fieldTitle: 'Article Title',
       fieldTitlePlaceholder: 'e.g., Applied ML for Local Energy Forecasting',

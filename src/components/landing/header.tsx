@@ -1,4 +1,5 @@
 'use client';
+import { academy, academyPathEnabled } from '@/lib/academy';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -38,7 +39,7 @@ export default function Header(_props: { variant?: 'public' | 'app' } = {}) {
   const firestore = getFirestore();
   const settingsRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
   const { data: settings, isLoading: settingsLoading } = useDoc(settingsRef);
-  const links = publicLinks.filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false));
+  const links = publicLinks.filter(link => academyPathEnabled(link.href)).filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false));
   const ready = !!user && !isUserLoading && !roleLoading;
   const accountName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
   const tr = (en: string, ar: string) => lang === 'ar' ? ar : en;
@@ -128,7 +129,7 @@ export default function Header(_props: { variant?: 'public' | 'app' } = {}) {
             </SheetTrigger>
             <SheetContent dir={dir} side={dir === 'rtl' ? 'right' : 'left'} closeLabel={tr('Close navigation', 'إغلاق القائمة')} className="flex w-[min(90vw,22rem)] flex-col overflow-y-auto p-5">
               <SheetHeader className="border-b pb-5 pt-4 text-start">
-                <SheetTitle>CloudAI Academy</SheetTitle>
+                <SheetTitle>{academy.name}</SheetTitle>
                 <SheetDescription>{tr('Learn, build, and share knowledge.', 'تعلّم وابتكر وشارك المعرفة.')}</SheetDescription>
               </SheetHeader>
               <nav aria-label={tr('Main navigation', 'القائمة الرئيسية')} className="space-y-1 py-4">{navigation(true)}</nav>

@@ -1,3 +1,4 @@
+import { academy } from '@/lib/academy';
 import type { Metadata } from 'next';
 import { Inter, Space_Grotesk, Cairo } from 'next/font/google';
 import Script from 'next/script';
@@ -19,8 +20,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'CloudAI Academy',
-  description: 'Unlock Your Potential in Cloud & AI.',
+  title: academy.name,
+  description: academy.description,
+  metadataBase: new URL(academy.siteUrl),
 };
 
 const arabic = Cairo({ subsets: ['arabic'], display: 'swap', variable: '--font-arabic' });
@@ -29,7 +31,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
   const { children } = props;
   return (
     <html
-      lang="en"
+      lang={academy.defaultLanguage}
       suppressHydrationWarning
       className={`${inter.variable} ${spaceGrotesk.variable} ${arabic.variable}`}
     >
@@ -38,10 +40,11 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           {`(function(){try{var s=localStorage.getItem('theme');var d=s? s==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; if(d) document.documentElement.classList.add('dark');}catch(e){}})();`}
         </Script>
         <Script id="lang-dir-init" strategy="beforeInteractive">
-          {`(function(){try{var l=localStorage.getItem('appLang'); if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';} else {document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){}})();`}
+          {`(function(){try{var l=localStorage.getItem('appLang')||${JSON.stringify(academy.defaultLanguage)}; if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';} else {document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){}})();`}
         </Script>
       </head>
       <body className="antialiased">
+        <style>{`:root { --accent: ${academy.accentLight}; } .dark { --accent: ${academy.accentDark}; }`}</style>
         <FirebaseClientProvider>
           <LangProvider>
             {children}

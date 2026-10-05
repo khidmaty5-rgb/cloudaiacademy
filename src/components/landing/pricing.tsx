@@ -1,4 +1,5 @@
 'use client';
+import { academy } from '@/lib/academy';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -244,7 +245,7 @@ export default function Pricing() {
     }
   };
 
-  if (settingsLoading || !showPricing) return null;
+  if (!academy.features.payments || settingsLoading || !showPricing) return null;
 
   return (
     <section id="pricing" className="py-20 md:py-28 bg-background">
