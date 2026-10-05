@@ -100,10 +100,10 @@ service cloud.firestore {
           isTeacher() &&
           exists(/databases/$(database)/documents/courses/$(courseId)) &&
           (
-            get(/databases/$(database)/documents/courses/$(courseId)).data.ownerId == request.auth.uid ||
+            get(/databases/$(database)/documents/courses/$(courseId)).data.get('ownerId', null) == request.auth.uid ||
             (
-              (get(/databases/$(database)/documents/courses/$(courseId)).data.instructorIds is list) &&
-              request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.instructorIds
+              (get(/databases/$(database)/documents/courses/$(courseId)).data.get('instructorIds', []) is list) &&
+              request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('instructorIds', [])
             )
           )
         )
@@ -231,9 +231,17 @@ service cloud.firestore {
      * @principle Allows public read access with restricted writes.
      */
     match /courses/{courseId} {
+      // List queries must authorize their candidate resource, not re-fetch an
+      // unknown course ID. These predicates match the two teaching queries.
+      function teachesThisCourse() {
+        return isTeacher() && (
+          resource.data.get('ownerId', null) == request.auth.uid ||
+          request.auth.uid in resource.data.get('instructorIds', [])
+        );
+      }
       // Public can only see published courses; staff and enrolled users can see their courses.
       allow get, list: if (
-        isInstructorOfCourse(courseId) ||
+        isAdmin() || teachesThisCourse() ||
         (resource.data.status != 'DRAFT') ||
         (accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)))
       );

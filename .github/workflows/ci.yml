@@ -42,7 +42,11 @@ jobs:
       - name: Test Firestore security rules
         run: npm run test:firestore-rules
 
-      - name: Test billing payment validation
+      - name: Test teacher course query authorization
+        # Separate invocation keeps each rule test environment isolated.
+        run: npx firebase emulators:exec --config firebase.test.json --only firestore "node --test tests/firestore/teacher-course-queries.rules.test.mjs"
+
+      - name: Test billing payments
         run: npm run test:billing
 
       - name: Test role access matrix
