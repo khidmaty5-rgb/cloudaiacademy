@@ -65,7 +65,7 @@ type LessonFormProps = {
 };
 
 export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormProps) {
-  const { t } = useEditorCopy();
+  const { t, lang } = useEditorCopy();
   const lessonSchema = createLessonSchema(t);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -256,11 +256,13 @@ export default function LessonForm({ courseId, lesson, onSuccess }: LessonFormPr
               <FormLabel>{t("Lesson Content")}</FormLabel>
               <FormControl>
                 <Textarea dir="auto"
+                  readOnly={!!lesson?.richContent}
                   placeholder={t("The main text content for the lesson.")}
                   rows={8}
                   {...field}
                 />
               </FormControl>
+              {lesson?.richContent && <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'تنسيق الدرس المستورد محفوظ. لتغيير المحتوى، عدّل ملف المصدر واستورده كمسودة جديدة.' : 'Imported formatting is preserved. To change content, edit the source package and import a new draft.'}</p>}
               <FormMessage />
             </FormItem>
           )}

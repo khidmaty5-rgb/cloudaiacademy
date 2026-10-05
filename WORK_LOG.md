@@ -1,5 +1,16 @@
 # CloudAI Academy work log
 
+## 2026-10-04 — HTML lesson ZIP import
+
+- Added an English/Arabic ZIP import dialog to the existing course lesson manager: local parsing, ordered preview, editable titles/reordering before save, resumable private drafts and explicit publication confirmation.
+- Uploaded HTML never runs. Content becomes a validated React-rendered document tree; scripts, styles, embedded players and executable attributes are excluded. Safe external and cross-lesson links, tables, headings, lists and local PNG/JPEG/WebP images are preserved. Missing/oversized images and unsupported links are reported.
+- Limits: 60 MiB ZIP, 1,000 entries, 100 MiB declared expansion, 8 MiB selected extraction, 20 lessons, 250 KB HTML, 400 KB per image, 750 KB per converted lesson and 3 MB API payload. No filesystem extraction or external resource fetching. Source ZIP stays on the user's device.
+- Server verifies tokens including revocation, effective roles and course assignments; rechecks role/assignment within the publication transaction. Drafts use server-only course lessonImports/importLessons collections, separate from student-visible lessons. Atomic create-only publication appends stable IDs and ordered timestamps; retries cannot duplicate or overwrite existing lessons.
+- Imported formatted text is read-only in the existing plain-text editor; title/integration controls remain available. Reimport edited source as a new draft to change rich content. This is HTML package import, not SCORM execution or a rich-text authoring editor.
+- User's actual example parsed into five correct ordered lessons, preserving all referenced local images. Converted lessons total about 1.5 MB; two oversized unused template images are skipped. Sample content is not committed to Git and was not uploaded to production.
+- Local typecheck and lint passed (existing warnings plus a data-image renderer warning). Parser/policy and mocked API tests pass, including forbidden roles, malformed content, idempotency and rollback. Added Firestore emulator coverage for direct draft access denial. CI and deployment verification pending.
+- Isolated browser fixture used real import components with mocked identity and in-memory API: preview, title/order changes, save/resume, and explicit publish flow passed. Arabic 390px dialog had no horizontal overflow. This is not a claim of production writes or real sign-ins for every role.
+
 ## 2026-10-04 — Cairo and editor integrity
 
 - Replaced the Arabic font with Cairo; translated course and lesson editor labels, validation and action feedback. Reduced form spacing, improved RTL field direction and instructor label associations, named lesson edit controls and reset forms between selected lessons.
