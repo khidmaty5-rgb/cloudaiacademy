@@ -18,6 +18,7 @@ import CodeEmbed from '@/components/learn/CodeEmbed';
 import Quiz from '@/components/learn/Quiz';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Lesson } from '@/lib/lessons';
+import { StoredImportedLesson } from '@/components/learn/imported-lesson-content';
 import { useLang } from '@/components/i18n/lang';
 import ToolSandbox from '@/components/learn/tool-sandbox';
 import LessonPdfSandbox from '@/components/learn/lesson-pdf-sandbox';
@@ -662,9 +663,9 @@ export default function LessonPage() {
               {sortedLessons && <CardDescription>{lang==='ar' ? 'الدرس' : 'Lesson'} {lessonIndex + 1} {lang==='ar' ? 'من' : 'of'} {sortedLessons.length}</CardDescription>}
             </CardHeader>
             <CardContent>
-                <div className="prose prose-lg max-w-none text-foreground whitespace-pre-wrap font-body mb-8" dir={lang==='ar' ? 'rtl' : 'ltr'}>
+                {lesson.richContent && !(lang === 'ar' && lesson.content_ar) ? <StoredImportedLesson content={lesson.richContent} courseId={course.id} links={lesson.importLinks}/> : <div className="prose prose-lg max-w-none text-foreground whitespace-pre-wrap font-body mb-8" dir={lang==='ar' ? 'rtl' : 'ltr'}>
                     <p>{displayContent}</p>
-                </div>
+                </div>}
                 <p className="mt-3 text-xs text-muted-foreground">
                   If you see a blocked icon, the provider may disallow embedding. Use the Open button instead.
                 </p>

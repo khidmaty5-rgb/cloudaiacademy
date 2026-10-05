@@ -54,6 +54,9 @@ jobs:
       - name: Test learning record integrity
         run: node --test tests/roles/learning-records.test.mjs
 
+      - name: Test ZIP import parser and API
+        run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/lesson-import-api.test.mjs
+
       - name: Typecheck
         run: npm run typecheck
 

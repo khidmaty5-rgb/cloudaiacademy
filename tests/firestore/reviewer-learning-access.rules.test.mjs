@@ -69,6 +69,25 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
+it('ZIP draft content is server-only, including for enrolled learners and client-side staff', async () => {
+  await seed({ enrolled: true, purchased: true });
+  const draftPath = ['courses', COURSE_ID, 'lessonImports', 'draft', 'importLessons', 'l0'];
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), ...draftPath), { title: 'Private draft', richContent: '[]' });
+  });
+  for (const role of ['reviewer', 'student', 'teacher', 'admin']) {
+    const uid = `draft-test-${role}`;
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'users', uid), { role });
+      await setDoc(doc(context.firestore(), 'users', uid, 'enrollments', COURSE_ID), { userId: uid, courseId: COURSE_ID });
+      await setDoc(doc(context.firestore(), 'users', uid, 'coursePurchases', COURSE_ID), { status: 'PAID' });
+    });
+    const db = testEnv.authenticatedContext(uid, { role }).firestore();
+    await assertFails(getDoc(doc(db, ...draftPath)));
+    await assertFails(setDoc(doc(db, ...draftPath), { title: 'Bypass attempt' }));
+  }
+});
+
 after(async () => {
   await testEnv.cleanup();
 });

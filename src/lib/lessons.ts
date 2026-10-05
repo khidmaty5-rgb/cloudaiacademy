@@ -15,6 +15,8 @@ export type Lesson = {
   id: string;
   title: string;
   content: string;
+  richContent?: string;
+  importLinks?: Record<string, string>;
   title_ar?: string;
   content_ar?: string;
   embedUrl?: string;

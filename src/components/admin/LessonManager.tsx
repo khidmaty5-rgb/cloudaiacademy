@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useEditorCopy } from './editor-copy';
 import LessonForm from './LessonForm';
+import LessonZipImport from './LessonZipImport';
 import { Pencil, PlusCircle } from 'lucide-react';
 
 type LessonManagerProps = {
@@ -63,6 +64,8 @@ export default function LessonManager({ course }: LessonManagerProps) {
     <div>
       <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h2 className="font-headline text-2xl font-bold">{t("Manage Lessons")}</h2>
+        <div className="flex flex-wrap gap-2">
+         <LessonZipImport key={course.id} courseId={course.id} />
          <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger asChild>
                 <Button onClick={handleAddNew}>
@@ -76,6 +79,7 @@ export default function LessonManager({ course }: LessonManagerProps) {
                 <LessonForm key={selectedLesson?.id ?? "new"} courseId={course.id} lesson={selectedLesson} onSuccess={onFormSuccess} />
             </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
