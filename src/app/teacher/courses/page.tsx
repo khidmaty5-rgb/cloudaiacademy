@@ -13,24 +13,25 @@ import { useLang } from '@/components/i18n/lang';
 
 export default function TeacherCoursesPage() {
   const { user } = useUser();
-  const { isTeacher, loading } = useCurrentRole();
+  const { isTeacher, isAdmin, loading } = useCurrentRole();
+  const canTeach = isTeacher || isAdmin;
   const firestore = getFirestore();
   const uid = user?.uid;
   const { lang } = useLang();
   const ar = lang === 'ar';
 
   const ownerQuery = useMemoFirebase(() => {
-    if (loading || !isTeacher || !uid) return null;
+    if (loading || !canTeach || !uid) return null;
     return query(collection(firestore, 'courses'), where('ownerId', '==', uid));
-  }, [firestore, uid, isTeacher, loading]);
+  }, [firestore, uid, canTeach, loading]);
 
   const instructorQuery = useMemoFirebase(() => {
-    if (loading || !isTeacher || !uid) return null;
+    if (loading || !canTeach || !uid) return null;
     return query(collection(firestore, 'courses'), where('instructorIds', 'array-contains', uid));
-  }, [firestore, uid, isTeacher, loading]);
+  }, [firestore, uid, canTeach, loading]);
 
-  const { data: ownedCourses, isLoading: loadingOwned } = useCollection<Course>(ownerQuery);
-  const { data: assignedCourses, isLoading: loadingAssigned } = useCollection<Course>(instructorQuery);
+  const { data: ownedCourses, isLoading: loadingOwned, error: ownerError } = useCollection<Course>(ownerQuery);
+  const { data: assignedCourses, isLoading: loadingAssigned, error: assignedError } = useCollection<Course>(instructorQuery);
 
   const courses = useMemo(() => {
     const map: Record<string, Course> = {} as any;
@@ -42,11 +43,21 @@ export default function TeacherCoursesPage() {
   if (loading || !user) {
     return <Skeleton className="h-40 w-full" />;
   }
-  if (!isTeacher) {
+  if (!canTeach) {
     return <div className="text-center py-16 text-muted-foreground">{ar ? 'لا تملك صلاحية الوصول.' : 'No permission.'}</div>;
   }
 
   const isLoading = loadingOwned || loadingAssigned;
+
+  if (ownerError || assignedError) {
+    return (
+      <div role="alert" className="rounded-xl border p-6 space-y-3">
+        <h1 className="text-xl font-semibold">{ar ? 'تعذّر تحميل دورات التدريس' : 'Teaching courses could not be loaded'}</h1>
+        <p>{ar ? 'تحقق من اتصالك وصلاحيات حسابك ثم أعد المحاولة. لا يعني هذا عدم وجود دورات لك.' : 'Check your connection and account permissions, then retry. This does not mean you have no assigned courses.'}</p>
+        <button type="button" className="underline" onClick={() => window.location.reload()}>{ar ? 'إعادة المحاولة' : 'Retry'}</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

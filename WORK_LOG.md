@@ -62,6 +62,15 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-05 — Teacher role and recoverable permission errors
+
+- Confirmed admin navigation/layout allowed teaching pages while page-level guards denied them. Both pages now admit admin and teacher, retaining assignment-filtered course queries and server authorization.
+- Query failures now show an explicit bilingual retry state, not a misleading empty course list. Teacher dashboard action labels translated into Arabic.
+- Removed the production-only fatal throw for Firestore permission denials; a dismissible, generic alert preserves the application shell without displaying sensitive error details or bypassing rules.
+- Added six rendered-component regressions covering all five roles, query denial states, Arabic actions, and production permission-error rendering. Included in test:roles/CI.
+- These changes fix confirmed source defects. The screenshot's exact runtime cause and real teacher sign-in are not yet verified. No live data or role assignments changed.
+- PR20 ZIP importer was merged as 96eee121b72c727dc785144d49f5af4f593e9be7 with all PR checks passing; post-merge deployment verification is separate.
+
 # 2026-10-03 — Deep layout audit: first repair batch
 
 - Target: CloudAI Academy only. User requested implementation after the layout audit.

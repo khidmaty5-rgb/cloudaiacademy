@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint src",
     "test:billing": "node --test tests/billing/course-payment-validation.test.mjs tests/billing/stripe-course-webhook.test.mjs tests/billing/stripe-subscription-webhook.test.mjs",
-    "test:roles": "node --test tests/roles/reviewer-learning-policy.test.mjs tests/roles/route-access.test.mjs tests/roles/workspace-navigation.test.mjs",
+    "test:roles": "node --test tests/roles/reviewer-learning-policy.test.mjs tests/roles/route-access.test.mjs tests/roles/workspace-navigation.test.mjs tests/roles/teacher-pages.test.mjs",
     "test:layout": "node --test tests/roles/responsive-layout.test.mjs",
     "test:firestore-rules": "firebase emulators:exec --config firebase.test.json --only firestore \"node --test tests/firestore/user-profile.rules.test.mjs tests/firestore/journal-submission.rules.test.mjs tests/firestore/journal-visibility.rules.test.mjs tests/firestore/journal-author-updates.rules.test.mjs tests/firestore/journal-reviewer-access.rules.test.mjs tests/firestore/reviewer-learning-access.rules.test.mjs tests/journal/reviewer-access-policy.test.mjs tests/journal/reviewer-assignment-store.test.mjs tests/roles/reviewer-learning-policy.test.mjs\"",
     "typecheck": "tsc --noEmit"

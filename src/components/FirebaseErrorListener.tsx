@@ -6,7 +6,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
  * An invisible component that listens for globally emitted 'permission-error' events.
- * It throws any received error to be caught by Next.js's global-error.tsx.
+ * Permission denials are recoverable UI errors, not application crashes.
  */
 export function FirebaseErrorListener() {
   // Use the specific error type for the state for type safety.
@@ -41,11 +41,14 @@ export function FirebaseErrorListener() {
     }
   }, [error]);
 
-  // In production, treat permission errors as fatal (caught by global-error.tsx).
-  if (error && process.env.NODE_ENV === 'production') {
-    throw error;
-  }
-
-  // This component renders nothing.
-  return null;
+  if (!error) return null;
+  const ar = typeof document !== 'undefined' && document.documentElement.lang === 'ar';
+  return (
+    <div role="alert" className="fixed bottom-4 inset-x-4 z-50 mx-auto max-w-lg rounded-xl border border-destructive bg-background p-4 shadow-lg">
+      <p>{ar ? 'تعذّر الوصول إلى بعض البيانات. تحقق من صلاحيات حسابك أو سجّل الدخول مجددًا.' : 'Some data could not be accessed. Check your account permissions or sign in again.'}</p>
+      <button type="button" className="mt-2 underline" onClick={() => setError(null)}>
+        {ar ? 'إغلاق' : 'Dismiss'}
+      </button>
+    </div>
+  );
 }
