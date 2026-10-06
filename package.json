@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "academy:check": "node scripts/template/check.mjs",
+    "academy:preflight": "node scripts/template/preflight.mjs",
     "prebuild": "npm run academy:check",
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",

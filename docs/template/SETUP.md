@@ -25,6 +25,8 @@ Disabling new payments blocks checkout creation; payment webhooks, confirmations
 
 ## Operations
 
+Before deploying a new academy, supply its client/server project IDs in the process environment and run `npm run academy:preflight -- --new EXPECTED_PROJECT_ID`. This read-only check rejects the copied CloudAI Firebase target, copied identity/contact addresses, and mismatched client/server/CLI targets. It does not load or print `.env` files. For maintenance of an existing academy, use `--existing` explicitly; project alignment is still required. This is a preflight command, not an IAM security boundary: direct Firebase CLI commands must still name the intended project.
+
 - Maintain separate staging and production projects. Back up Firestore/storage and test restore to an isolated project before launch and periodically thereafter.
 - Record every release SHA, CI results, Firebase rules release and Vercel deployment. Roll back app and rules independently when necessary; preserve data and investigate migrations before rollback.
 - Keep credentials in the provider secret manager; rotate them when staff leave. Use least-privilege access and MFA for owners. Monitor error rates, auth failures, import failures and payment reconciliation without logging tokens or lesson content.
