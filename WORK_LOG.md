@@ -62,6 +62,13 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-06 — Launch isolation preflight
+
+- Confirmed PR24 production CI 37379255713 and Vercel BBH1gz2CyQDZXq6ZP4hK3GHYS98a succeeded.
+- Added read-only academy:preflight command for new/existing academy modes. Requires explicit intended Firebase ID and aligned CLI/client/server project IDs. New-academy mode rejects copied CloudAI production target, name, domain and contact emails.
+- Does not load .env files, print credentials, contact remote services or change deployment targets. This is an operator safeguard, not an IAM boundary or proof of valid service credentials.
+- Seven launch/template tests pass; four new isolation tests included in CI. Real-account acceptance and external service/restore testing remain outstanding.
+
 # 2026-10-05 — Independent academy template foundation
 
 - PR23's timed-out Functions check passed on retry; merged at 49dafd6. Template work is isolated on codex/academy-template-foundation.

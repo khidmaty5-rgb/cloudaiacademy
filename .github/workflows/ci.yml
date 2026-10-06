@@ -43,7 +43,7 @@ jobs:
         run: npm run academy:check
 
       - name: Test academy configuration and module boundaries
-        run: node --test tests/roles/academy-template.test.mjs
+        run: node --test tests/roles/academy-template.test.mjs tests/roles/academy-launch.test.mjs
 
       - name: Test Firestore security boundaries
         run: npm run test:firestore-rules
