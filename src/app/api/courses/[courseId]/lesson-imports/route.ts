@@ -65,7 +65,7 @@ export async function GET(req:NextRequest, context:Context) {
       const snap=await ref.get();
       if(!snap.exists || snap.data()?.status!=='DRAFT') throw new RequestError('NOT_FOUND',404);
       const drafts=await ref.collection('importLessons').get();
-      return NextResponse.json({id,status:'DRAFT',lessons:drafts.docs.map(d => d.data()).sort((a,b)=>a.position-b.position).map(d=>({key:d.key,title:d.title,nodes:JSON.parse(d.richContent)}))},{headers:{'Cache-Control':'private, no-store'}});
+      return NextResponse.json({id,status:'DRAFT',lessons:drafts.docs.map(d => d.data()).sort((a,b)=>a.position-b.position).map(d=>({key:d.key,title:d.title,nodes:d.interactiveHtml !== undefined ? [] : JSON.parse(d.richContent),...(d.interactiveHtml !== undefined ? {interactiveHtml:d.interactiveHtml} : {})}))},{headers:{'Cache-Control':'private, no-store'}});
     }
     const drafts=await courseRef.collection('lessonImports').orderBy('createdAt','desc').limit(50).get();
     return NextResponse.json({imports:drafts.docs.filter(d=>d.data().status==='DRAFT').map(d=>({id:d.id,name:d.data().name,count:d.data().count}))},{headers:{'Cache-Control':'private, no-store'}});
@@ -94,7 +94,7 @@ export async function POST(req:NextRequest, context:Context) {
           return {id:ref.id,status:current.data()?.status};
         }
         tx.create(ref,{status:'DRAFT',digest,count:lessons.length,name:typeof data.name==='string' ? data.name.slice(0,200) : 'ZIP import',createdBy:uid,createdAt:Timestamp.now()});
-        lessons.forEach((lesson,position)=>tx.create(ref.collection('importLessons').doc(lesson.key),{key:lesson.key,title:lesson.title,richContent:JSON.stringify(lesson.nodes),position}));
+        lessons.forEach((lesson,position)=>tx.create(ref.collection('importLessons').doc(lesson.key),{key:lesson.key,title:lesson.title,...(lesson.interactiveHtml !== undefined ? {interactiveHtml:lesson.interactiveHtml,lessonType:'interactive-html'} : {richContent:JSON.stringify(lesson.nodes)}),position}));
         return {id:ref.id,status:'DRAFT'};
       }
       if(!current.exists) throw new RequestError('NOT_FOUND',404);
@@ -103,7 +103,7 @@ export async function POST(req:NextRequest, context:Context) {
       if(data.action==='archive') {tx.update(ref,{status:'ARCHIVED'}); return {id:ref.id,status:'ARCHIVED'};}
       const snapshots=await tx.get(ref.collection('importLessons'));
       const ordered=snapshots.docs.map(d=>d.data()).sort((a,b)=>a.position-b.position);
-      const checked=validatePackage({lessons:ordered.map(d=>({key:d.key,title:d.title,nodes:JSON.parse(d.richContent)}))}).lessons;
+      const checked=validatePackage({lessons:ordered.map(d=>({key:d.key,title:d.title,nodes:d.interactiveHtml !== undefined ? [] : JSON.parse(d.richContent),...(d.interactiveHtml !== undefined ? {interactiveHtml:d.interactiveHtml} : {})}))}).lessons;
       const newest=await tx.get(courseRef.collection('lessons').orderBy('createdAt','desc').limit(1));
       const latest=newest.docs[0]?.data().createdAt?.toMillis?.() || 0;
       const start=Math.max(Date.now(),latest+1);
@@ -111,7 +111,7 @@ export async function POST(req:NextRequest, context:Context) {
       // All lessons are created atomically. Stable IDs make publication retries safe.
       checked.forEach((lesson,index)=>{
         const id=links[lesson.key];
-        tx.create(courseRef.collection('lessons').doc(id),{id,title:lesson.title,content:contentText(lesson.nodes),richContent:JSON.stringify(lesson.nodes),importLinks:links,importId:ref.id,createdAt:Timestamp.fromMillis(start+index)});
+        tx.create(courseRef.collection('lessons').doc(id),{id,title:lesson.title,content:lesson.interactiveHtml !== undefined ? 'Interactive HTML lesson: ' + lesson.title : contentText(lesson.nodes),...(lesson.interactiveHtml !== undefined ? {interactiveHtml:lesson.interactiveHtml,lessonType:'interactive-html'} : {richContent:JSON.stringify(lesson.nodes)}),importLinks:links,importId:ref.id,createdAt:Timestamp.fromMillis(start+index)});
       });
       tx.update(ref,{status:'PUBLISHED',publishedBy:uid,publishedAt:Timestamp.now()});
       return {id:ref.id,status:'PUBLISHED',courseId};
@@ -119,4 +119,3 @@ export async function POST(req:NextRequest, context:Context) {
     return NextResponse.json(result,{headers:{'Cache-Control':'private, no-store'}});
   } catch(error) {return failure(error);}
 }
-

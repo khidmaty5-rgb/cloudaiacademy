@@ -65,7 +65,13 @@ jobs:
         run: node --test tests/roles/learning-records.test.mjs
 
       - name: Test ZIP import parser and API
-        run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/lesson-import-api.test.mjs
+        run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/interactive-import.test.mjs tests/roles/lesson-import-api.test.mjs
+
+      - name: Install isolated lesson test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Test interactive lesson browser isolation
+        run: node --test tests/roles/interactive-player.browser.test.mjs
 
       - name: Typecheck
         run: npm run typecheck

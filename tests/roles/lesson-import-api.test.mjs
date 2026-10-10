@@ -35,6 +35,25 @@ const id='11111111-1111-4111-8111-111111111111';
 const payload={action:'save',importId:id,name:'Example.zip',lessons:[{key:'l0',title:'First',nodes:[{tag:'p',children:[{text:'First lesson content'}]}]},{key:'l1',title:'Second',nodes:[{text:'Second lesson content'}]}]};
 function seed(){records.clear();records.set('courses/course',{ownerId:'teacher'});records.set('courses/course/lessons/existing',{id:'existing',title:'Keep me',createdAt:Timestamp.fromMillis(1)});}
 function request(data,token='admin') {return new Request('https://example.test/api/courses/course/lesson-imports',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(data)});}
+
+test('interactive source survives private draft resume and atomic publication',async()=>{
+  seed();
+  const html='<style>body{background:#101020}</style><svg><animateMotion dur="1s"/></svg><button onclick="quiz()">Quiz</button><script>function quiz(){}</script>';
+  const data={action:'save',importId:id,name:'Interactive.html',lessons:[{key:'l0',title:'Interactive',nodes:[],interactiveHtml:html}]};
+  assert.equal((await POST(request(data,'teacher'),context)).status,200);
+  assert.equal([...records.keys()].filter(k=>k.startsWith('courses/course/lessons/')).length,1);
+  const req=new Request('https://example.test/api/courses/course/lesson-imports?importId='+id,{headers:{Authorization:'Bearer teacher'}});
+  Object.defineProperty(req,'nextUrl',{value:new URL(req.url)});
+  const resumed=await (await GET(req,context)).json();
+  assert.equal(resumed.lessons[0].interactiveHtml,html);
+  assert.equal((await POST(request({action:'publish',importId:id},'teacher'),context)).status,200);
+  const lesson=records.get('courses/course/lessons/'+id+'_l0');
+  assert.equal(lesson.lessonType,'interactive-html');
+  assert.equal(lesson.interactiveHtml,html);
+  assert.equal(lesson.richContent,undefined);
+  assert.equal((await POST(request({action:'publish',importId:id},'teacher'),context)).status,200);
+  assert.equal([...records.keys()].filter(k=>k.startsWith('courses/course/lessons/')).length,2);
+});
 test('draft save stays out of published lessons; publishing is atomic and retry-safe',async()=>{
   seed();
   assert.equal((await POST(request(payload),context)).status,200);
@@ -74,4 +93,3 @@ test('publication collision leaves every lesson and draft unchanged',async()=>{
   assert.equal(records.get('courses/course/lessonImports/'+id).status,'DRAFT');
   assert.equal(records.get('courses/course/lessons/'+id+'_l1').title,'Unrelated record');
 });
-

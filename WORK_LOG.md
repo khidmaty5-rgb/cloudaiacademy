@@ -62,6 +62,15 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-10 — Interactive HTML lessons
+
+- User requested preserving the Tailscale HTML design, SVG animations, controls and quiz in CloudAI Academy. Added explicit standard/interactive import modes; interactive mode accepts HTML or ZIP and bundles local CSS/JS/images/fonts into persistent source.
+- Preview and student playback share a sandboxed data-document player with opaque origin, allow-scripts only, prepended CSP and denied sensitive browser permissions. No uploaded markup enters the parent DOM and no raw HTML is served at the Academy origin. No separate content host required for this origin-isolation design.
+- Existing role/assignment checks, private drafts, transactional publication, stable IDs and retry behavior preserved. Interactive source survives save/resume/publish; title editing leaves source intact. Existing standard imports remain inert.
+- Local TypeScript, 27 role tests, seven layout tests, ten original import regressions plus four new parser/API cases passed; full lint zero errors/530 existing warnings. Browser security test passed: working script/SVG, origin null, denied parent/cookie/storage/top navigation/fetch.
+- Actual user Tailscale file tested locally: Direct/DERP switch, quiz 5/5, routeMove animation, original dark theme and 390px layout passed. File not committed or published to a course. Test screenshot in this chat's visualization output directory. Headless browser checks added to CI.
+- Self-contained package limits documented in docs/INTERACTIVE_LESSONS.md. External dependencies, module imports and network-dependent apps require adaptation; quiz results remain local. Scripts are not given a CPU quota. Release status tracked in PROJECT_INDEX.md.
+
 # 2026-10-06 — Launch isolation preflight
 
 - Confirmed PR24 production CI 37379255713 and Vercel BBH1gz2CyQDZXq6ZP4hK3GHYS98a succeeded.
