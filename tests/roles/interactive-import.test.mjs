@@ -27,7 +27,7 @@ test('local JS/CSS/image/font dependencies are bundled without external requests
     'style.css':'.diagram{background:url(image.svg)} @font-face{font-family:test;src:url(font.woff2)}',
     'logic.js':'window.score=42', 'image.svg':'<svg xmlns="http://www.w3.org/2000/svg"/>', 'font.woff2':'test-font',
   })).lessons[0].interactiveHtml;
-  assert.match(result, /<script>window.score=42<\/script>/);
+  assert.match(result, /src="data:text\/javascript;base64,d2luZG93LnNjb3JlPTQy"/);
   assert.match(result, /data:image\/svg\+xml;base64,/);
   assert.match(result, /data:font\/woff2;base64,/);
   assert.doesNotMatch(result, /src="\.\.|href="\.\./);

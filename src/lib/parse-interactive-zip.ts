@@ -20,10 +20,11 @@ function resolve(base: string, raw: string) {
 }
 const mime: Record<string,string> = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', svg:'image/svg+xml', woff:'font/woff', woff2:'font/woff2' };
 const extension = (path: string) => path.split('.').pop()!.toLowerCase();
-function dataUrl(path: string, bytes: Uint8Array) {
-  if (!mime[extension(path)]) throw new Error('UNSUPPORTED_ASSET');
+function dataUrl(path: string, bytes: Uint8Array, explicitMime?: string) {
+  const contentType = explicitMime || mime[extension(path)];
+  if (!contentType) throw new Error('UNSUPPORTED_ASSET');
   let binary = ''; for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-  return 'data:' + mime[extension(path)] + ';base64,' + btoa(binary);
+  return 'data:' + contentType + ';base64,' + btoa(binary);
 }
 function elements(nodes: Node[]) {
   const found: Element[] = [];
@@ -92,12 +93,22 @@ function bundle(files: Record<string,Uint8Array>): LessonPackage {
       else if (node.name === 'script') {
         const body = node.attribs.src ? strFromU8(file(resolve(path, node.attribs.src))) : text(node.children);
         if (node.attribs.type === 'module' && /\bimport\s*(?:\(|[{*'"\w])/m.test(body)) throw new Error('INTERACTIVE_MODULE_IMPORT');
-        if (node.attribs.src) replace(node, '<script' + (node.attribs.type === 'module' ? ' type="module"' : '') + '>' + body.replace(/<\/script/gi, '<\\/script') + '</script>');
+        if (node.attribs.src) {
+          const asset = resolve(path, node.attribs.src);
+          // A data script preserves defer/async and global script scope. Simply
+          // inlining a deferred head script would run it before the DOM exists.
+          const original = html.slice(node.startIndex!, node.endIndex! + 1);
+          replace(node, original.replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, 'src="' + dataUrl(asset, file(asset), 'text/javascript') + '"').replace(/\s+integrity\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, ''));
+        }
       } else if (node.name === 'link' && node.attribs.rel?.toLowerCase() === 'stylesheet') {
         const asset = resolve(path, node.attribs.href || '');
-        replace(node, '<style>' + css(strFromU8(file(asset)), asset).replace(/<\/style/gi, '<\\/style') + '</style>');
+        const attributes = ['media','id','title'].filter(key => node.attribs[key] !== undefined).map(key => ' ' + key + '="' + node.attribs[key].replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '"').join('');
+        replace(node, '<style' + attributes + '>' + css(strFromU8(file(asset)), asset).replace(/<\/style/gi, '<\\/style') + '</style>');
       } else if (node.name === 'style') {
-        replace(node, '<style>' + css(text(node.children), path).replace(/<\/style/gi, '<\\/style') + '</style>');
+        const original = html.slice(node.startIndex!, node.endIndex! + 1);
+        const opening = original.match(/^<(?:[^"'>]|"[^"]*"|'[^']*')*>/)?.[0];
+        if (!opening) throw new Error('INVALID_HTML');
+        replace(node, opening + css(text(node.children), path).replace(/<\/style/gi, '<\\/style') + '</style>');
       } else if (node.name === 'img' && node.attribs.src && !node.attribs.src.startsWith('data:')) {
         const asset = resolve(path, node.attribs.src);
         // Replace only the source attribute; retain all original layout attrs.

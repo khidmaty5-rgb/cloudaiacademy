@@ -7,6 +7,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
 import { chromium } from 'playwright';
+import { zipSync, strToU8 } from 'fflate';
 const require = createRequire(import.meta.url);
 async function load(path, mocks = {}) {
   const code = ts.transpileModule(await readFile(new URL('../../' + path, import.meta.url), 'utf8'), {
@@ -60,6 +61,25 @@ test('original scripts run while parent, cookies, storage, navigation and reques
     assert.equal(page.url(),origin + '/');
     assert.equal(await frame.locator('body').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(7, 13, 27)');
     assert.ok(await frame.locator('#animated').evaluate(node=>node.getCTM().e !== 0 || node.getCTM().f !== 0));
+  } finally { await page.close(); }
+});
+test('bundled deferred scripts retain global functions and stylesheet media rules', async () => {
+  const files = {
+    'index.html':'<html><head><style id="theme" media="screen">body{background:rgb(7,13,27)}</style><link rel="stylesheet" href="print.css" media="print"><script defer src="quiz.js"></script></head><body><p id="ready"></p><button id="grade" onclick="grade()">Check</button></body></html>',
+    'print.css':'body{background:rgb(255,0,0)}',
+    'quiz.js':'document.getElementById("ready").textContent="Ready"; function grade(){document.getElementById("grade").textContent="Scored"}',
+  };
+  const bytes = zipSync(Object.fromEntries(Object.entries(files).map(([key,value]) => [key,strToU8(value)])));
+  render(parser.parseInteractiveZip(bytes).lessons[0].interactiveHtml);
+  const page = await browser.newPage();
+  try {
+    await page.goto(origin);
+    const frame = page.frameLocator('iframe');
+    await frame.locator('#ready').filter({hasText:'Ready'}).waitFor();
+    await frame.locator('#grade').click();
+    assert.equal(await frame.locator('#grade').textContent(),'Scored');
+    assert.equal(await frame.locator('body').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(7, 13, 27)');
+    assert.equal(await frame.locator('#theme').getAttribute('media'),'screen');
   } finally { await page.close(); }
 });
 test('uploaded Tailscale sample retains simulator, quiz, dark theme and mobile layout', {skip:!process.env.INTERACTIVE_SAMPLE_HTML}, async () => {

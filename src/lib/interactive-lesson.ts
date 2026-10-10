@@ -1,6 +1,6 @@
 // Never place these documents in the parent DOM or serve them as Academy HTML.
 export const INTERACTIVE_HTML_LIMIT = 650_000;
-export const INTERACTIVE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data:; font-src data:; media-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+export const INTERACTIVE_CSP = "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data:; font-src data:; media-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 export function interactiveDocument(html: string): string {
   if (!html.trim() || new TextEncoder().encode(html).length > INTERACTIVE_HTML_LIMIT) throw new Error('CONTENT_TOO_LARGE');
   // This policy appears before ALL uploaded markup, including scripts/metas.
