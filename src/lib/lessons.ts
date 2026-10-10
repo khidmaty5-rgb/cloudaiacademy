@@ -16,6 +16,8 @@ export type Lesson = {
   title: string;
   content: string;
   richContent?: string;
+  lessonType?: 'interactive-html';
+  interactiveHtml?: string;
   importLinks?: Record<string, string>;
   title_ar?: string;
   content_ar?: string;

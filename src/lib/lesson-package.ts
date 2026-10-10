@@ -3,7 +3,7 @@ export const PACKAGE_LIMITS = { zip: 60 * 1024 * 1024, expanded: 100 * 1024 * 10
 export const CONTENT_TAGS = ['p','div','h1','h2','h3','h4','ul','ol','li','strong','em','u','s','pre','code','blockquote','table','thead','tbody','tr','th','td','br','hr','a','img','sup','sub'] as const;
 export type ContentTag = typeof CONTENT_TAGS[number];
 export type ContentNode = { text: string } | { tag: ContentTag; children: ContentNode[]; href?: string; target?: string; src?: string; alt?: string };
-export type PackageLesson = { key: string; title: string; nodes: ContentNode[] };
+export type PackageLesson = { key: string; title: string; nodes: ContentNode[]; interactiveHtml?: string };
 export type LessonPackage = { lessons: PackageLesson[]; warnings: string[] };
 export const byteLength = (value: string) => new TextEncoder().encode(value).length;
 export function safeExternalLink(value: string) {
@@ -29,6 +29,12 @@ export function validatePackage(input: unknown): LessonPackage {
   }
   const lessons = data.lessons.map(lesson => {
     if (typeof lesson.title !== 'string' || !lesson.title.trim() || lesson.title.length > 200) throw new Error('INVALID_TITLE');
+    if (lesson.interactiveHtml !== undefined) {
+      if (typeof lesson.interactiveHtml !== 'string' || !lesson.interactiveHtml.trim() || byteLength(lesson.interactiveHtml) > 650_000) throw new Error('CONTENT_TOO_LARGE');
+      const clean: PackageLesson = {key: lesson.key, title: lesson.title.trim(), nodes: [], interactiveHtml: lesson.interactiveHtml};
+      if (byteLength(JSON.stringify(clean)) > PACKAGE_LIMITS.lesson) throw new Error('CONTENT_TOO_LARGE');
+      return clean;
+    }
     let count = 0;
     function check(nodes: unknown, depth: number): ContentNode[] {
       if (!Array.isArray(nodes) || depth > 24) throw new Error('CONTENT_TOO_COMPLEX');
@@ -69,4 +75,3 @@ export function validatePackage(input: unknown): LessonPackage {
 export function contentText(nodes: ContentNode[]): string {
   return nodes.map(node => 'text' in node ? node.text : node.tag === 'img' ? node.alt || '' : contentText(node.children) + (['p','div','li','h1','h2','h3','h4','br'].includes(node.tag) ? '\n' : '')).join('');
 }
-

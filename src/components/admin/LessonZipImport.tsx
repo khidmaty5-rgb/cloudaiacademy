@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ImportedLessonContent } from '@/components/learn/imported-lesson-content';
+import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-player';
 import { PACKAGE_LIMITS, validatePackage, type LessonPackage } from '@/lib/lesson-package';
 
 type Draft = {id:string;name:string;count:number};
@@ -23,6 +24,8 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
   const [importId,setImportId]=useState('');
   const [saved,setSaved]=useState(false);
   const [confirm,setConfirm]=useState(false);
+  const [mode,setMode]=useState<'standard'|'interactive'>('standard');
+  const [previewKey,setPreviewKey]=useState<string|null>(null);
   const endpoint='/api/courses/'+encodeURIComponent(courseId)+'/lesson-imports';
   function report(e:unknown) {
     const code=e instanceof Error?e.message:'IMPORT_FAILED';
@@ -34,6 +37,12 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
       IMPORT_CONFLICT:['This draft was already saved or changed. Reopen it from Saved drafts.','حُفظت هذه المسودة أو تغيّرت. افتحها من المسودات المحفوظة.'],
       UNAUTHORIZED:['Sign in again before importing.','سجّل الدخول مجددًا قبل الاستيراد.'],
       FORBIDDEN:['Only an administrator or this course’s assigned teacher can import.','الاستيراد متاح للمشرف أو المدرّس المعيّن لهذه الدورة فقط.'],
+      EXTERNAL_DEPENDENCY:['Interactive lessons must include their scripts, styles and images in the package. External resources cannot be loaded.','يجب تضمين السكربتات والتنسيقات والصور داخل الحزمة. لا يمكن تحميل موارد خارجية.'],
+      MISSING_ASSET:['A referenced file is missing from the package. Include it and retry.','أحد الملفات المطلوبة غير موجود في الحزمة. أضفه وأعد المحاولة.'],
+      UNSUPPORTED_ASSET:['This interactive package contains an unsupported file type. Use HTML, CSS, JavaScript, images and WOFF fonts.','تحتوي الحزمة على نوع ملف غير مدعوم. استخدم HTML وCSS وJavaScript والصور وخطوط WOFF.'],
+      INTERACTIVE_CSS_IMPORT:['Bundle CSS imports into your stylesheet before uploading.','ادمج ملفات CSS المستوردة داخل ملف التنسيق قبل الرفع.'],
+      INTERACTIVE_MODULE_IMPORT:['Bundle JavaScript module imports into a standalone script before uploading.','ادمج وحدات JavaScript في سكربت مستقل قبل الرفع.'],
+      HTML_TOO_LARGE:['An HTML or script file exceeds 250 KB. Split the package.','يتجاوز ملف HTML أو سكربت 250 كيلوبايت. قسّم الحزمة.'],
     };
     setError(messages[code]?.[ar?1:0] || t('Could not process this package. It may contain unsupported, unsafe or oversized files. Your existing lessons were not changed.','تعذرت معالجة الحزمة. قد تحتوي على ملفات غير مدعومة أو غير آمنة أو كبيرة. لم تتغير دروسك الحالية.'));
   }
@@ -53,14 +62,21 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     setBusy(true); setError(''); setMessage(''); setPreview(null); setSaved(false); setConfirm(false);
     try {
       if(file.size>PACKAGE_LIMITS.zip) throw new Error('ZIP_TOO_LARGE');
-      const {parseLessonZip}=await import('@/lib/parse-lesson-zip');
-      const parsed=parseLessonZip(new Uint8Array(await file.arrayBuffer()));
+      let parsed:LessonPackage;
+      if(mode==='interactive') {
+        const {parseInteractiveHtml,parseInteractiveZip}=await import('@/lib/parse-interactive-zip');
+        parsed=/\.html?$/i.test(file.name) ? parseInteractiveHtml(await file.text(),file.name) : parseInteractiveZip(new Uint8Array(await file.arrayBuffer()));
+      } else {
+        const {parseLessonZip}=await import('@/lib/parse-lesson-zip');
+        parsed=parseLessonZip(new Uint8Array(await file.arrayBuffer()));
+      }
+      setPreviewKey(null);
       setPreview(parsed); setName(file.name); setImportId(crypto.randomUUID());
     } catch(e){report(e);} finally{setBusy(false);}
   }
   async function resume(draft:Draft) {
     setBusy(true); setError(''); setMessage(''); setConfirm(false);
-    try {const data=await request(undefined,'?importId='+draft.id); setPreview(validatePackage(data)); setName(draft.name); setImportId(draft.id); setSaved(true);} catch(e){report(e);} finally{setBusy(false);}
+    try {const data=await request(undefined,'?importId='+draft.id); const clean=validatePackage(data); setPreview(clean); setMode(clean.lessons.some(l=>l.interactiveHtml !== undefined)?'interactive':'standard'); setPreviewKey(null); setName(draft.name); setImportId(draft.id); setSaved(true);} catch(e){report(e);} finally{setBusy(false);}
   }
   async function save() {
     if(!preview) return;
@@ -87,6 +103,7 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     setPreview({...preview,lessons});
   }
   const warningCopy:Record<string,[string,string]>={
+    INTERACTIVE_ISOLATION:['Original styling, animations and scripts are preserved. Network services, external embeds, storage, clipboard and form submissions are unavailable in the isolated player.','يُحفظ التنسيق والرسوم المتحركة والسكربتات الأصلية. لا تتاح خدمات الشبكة والتضمينات الخارجية والتخزين والحافظة وإرسال النماذج في المشغّل المعزول.'],
     ACTIVE_CONTENT_REMOVED:['Scripts, forms, embedded players and original styling are excluded. Links open separately.','تُستبعد السكربتات والنماذج والمشغلات المضمّنة والتنسيقات الأصلية. تفتح الروابط بشكل منفصل.'],
     LARGE_IMAGES_SKIPPED:['Images larger than 400 KB were skipped. Reduce referenced images before importing if needed.','تُجاوزت الصور الأكبر من 400 كيلوبايت. صغّر الصور المطلوبة قبل الاستيراد عند الحاجة.'],
     MISSING_IMAGES:['Some images are external, missing or unsupported; review each lesson before saving.','بعض الصور خارجية أو مفقودة أو غير مدعومة؛ راجع كل درس قبل الحفظ.'],
@@ -98,8 +115,15 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
       <DialogHeader><DialogTitle>{t('Import course lessons','استيراد دروس الدورة')}</DialogTitle><DialogDescription>{t('Preview → save drafts → publish. Existing lessons are never replaced. Only import content you have permission to use.','معاينة ← حفظ المسودات ← نشر. لن تُستبدل الدروس الحالية. استورد المحتوى الذي لديك إذن باستخدامه فقط.')}</DialogDescription></DialogHeader>
       <div className="min-w-0 space-y-5">
         <div className="space-y-2 rounded-lg border p-4">
-          <label htmlFor={'lesson-zip-'+courseId} className="text-sm font-medium">{t('HTML lesson ZIP','ملف ZIP لدروس HTML')}</label>
-          <Input id={'lesson-zip-'+courseId} type="file" accept=".zip,application/zip" disabled={busy} onChange={e=>{const file=e.target.files?.[0]; if(file)void read(file); e.target.value='';}}/>
+          <label className="block space-y-2 text-sm font-medium"><span>{t('Lesson mode','نوع الدرس')}</span>
+            <select value={mode} disabled={busy} className="w-full rounded-md border bg-background p-2" onChange={e=>{setMode(e.target.value as 'standard'|'interactive');setPreview(null);setSaved(false);setConfirm(false);setPreviewKey(null);setError('');setMessage('');}}>
+              <option value="standard">{t('Standard lessons — simplified content','دروس قياسية — محتوى مبسّط')}</option>
+              <option value="interactive">{t('Interactive HTML — preserve design and quizzes','HTML تفاعلي — حفظ التصميم والاختبارات')}</option>
+            </select>
+          </label>
+          <label htmlFor={'lesson-zip-'+courseId} className="text-sm font-medium">{mode==='interactive'?t('HTML file or ZIP','ملف HTML أو ZIP'):t('HTML lesson ZIP','ملف ZIP لدروس HTML')}</label>
+          <Input id={'lesson-zip-'+courseId} type="file" accept={mode==='interactive'?'.zip,.html,.htm,application/zip,text/html':'.zip,application/zip'} disabled={busy} onChange={e=>{const file=e.target.files?.[0]; if(file)void read(file); e.target.value='';}}/>
+          {mode==='interactive'&&<p className="text-xs text-muted-foreground">{t('Upload a self-contained HTML file or a ZIP with HTML, CSS, scripts and local images. Preview before publishing.','ارفع ملف HTML مستقلًا أو ZIP يحتوي على HTML وCSS والسكربتات والصور المحلية. عاين الدرس قبل النشر.')}</p>}
           <p className="text-xs text-muted-foreground">{t('Up to 60 MB ZIP, 20 lessons, 400 KB per image and 3 MB converted content. ZIP is processed on your device; only the reviewed content is saved.','حتى 60 ميغابايت للملف، و20 درسًا، و400 كيلوبايت للصورة، و3 ميغابايت للمحتوى المحوّل. يُعالج ZIP على جهازك؛ ويُحفظ المحتوى الذي تراجعه فقط.')}</p>
         </div>
         {busy&&<p role="status">{t('Processing…','جارٍ المعالجة…')}</p>}
@@ -114,7 +138,7 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
               <Input dir="auto" className="min-w-0 flex-1 basis-40" value={lesson.title} maxLength={200} disabled={busy||saved} aria-label={t('Lesson title','عنوان الدرس')+' '+(index+1)} onChange={e=>setPreview({...preview,lessons:preview.lessons.map((l,i)=>i===index?{...l,title:e.target.value}:l)})}/>
               {!saved&&<><Button variant="outline" size="icon" disabled={busy||index===0} aria-label={t('Move up','نقل لأعلى')+' '+lesson.title} onClick={()=>move(index,-1)}><ArrowUp className="size-4"/></Button><Button variant="outline" size="icon" disabled={busy||index===preview.lessons.length-1} aria-label={t('Move down','نقل لأسفل')+' '+lesson.title} onClick={()=>move(index,1)}><ArrowDown className="size-4"/></Button></>}
             </div>
-            <details className="mt-3"><summary className="cursor-pointer text-sm text-accent">{t('Preview lesson','معاينة الدرس')}</summary><ImportedLessonContent nodes={lesson.nodes}/></details>
+            {lesson.interactiveHtml !== undefined ? <div className="mt-3 space-y-3"><Button type="button" variant="outline" size="sm" onClick={()=>setPreviewKey(key=>key===lesson.key?null:lesson.key)}>{previewKey===lesson.key?t('Close preview','إغلاق المعاينة'):t('Preview interactive lesson','معاينة الدرس التفاعلي')}</Button>{previewKey===lesson.key&&<InteractiveLessonPlayer html={lesson.interactiveHtml} title={lesson.title}/>}</div> : <details className="mt-3"><summary className="cursor-pointer text-sm text-accent">{t('Preview lesson','معاينة الدرس')}</summary><ImportedLessonContent nodes={lesson.nodes}/></details>}
           </section>)}</div>
           {!saved?<Button onClick={save} disabled={busy} className="w-full">{t('Save as drafts','حفظ كمسودات')}</Button>:!confirm?<Button onClick={()=>setConfirm(true)} disabled={busy} className="w-full">{t('Review publication','مراجعة النشر')}</Button>:<div className="space-y-3 rounded-lg border p-4"><p>{t('Publish these lessons now? They will become available to learners who can access this course.','هل تريد نشر هذه الدروس الآن؟ ستتاح للطلاب الذين لديهم صلاحية الوصول إلى الدورة.')}</p><div className="flex flex-wrap gap-2"><Button onClick={publish} disabled={busy}>{t('Publish lessons','نشر الدروس')}</Button><Button variant="outline" onClick={()=>setConfirm(false)} disabled={busy}>{t('Keep as drafts','الاحتفاظ كمسودات')}</Button></div></div>}
         </>}
@@ -123,4 +147,3 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     </DialogContent>
   </Dialog>;
 }
-
