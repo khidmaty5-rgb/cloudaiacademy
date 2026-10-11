@@ -1,6 +1,5 @@
 'use client';
-import { useState } from 'react';
-import { getAuth } from 'firebase/auth';
+import { useEffect, useState } from 'react';
 import { Upload, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLang } from '@/components/i18n/lang';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ImportedLessonContent } from '@/components/learn/imported-lesson-content';
 import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-player';
 import { PACKAGE_LIMITS, validatePackage, type LessonPackage } from '@/lib/lesson-package';
+import { lessonImportRequest } from '@/lib/lesson-import-client';
 
 type Draft = {id:string;name:string;count:number};
 export default function LessonZipImport({courseId}:{courseId:string}) {
@@ -26,7 +26,22 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
   const [confirm,setConfirm]=useState(false);
   const [mode,setMode]=useState<'standard'|'interactive'>('standard');
   const [previewKey,setPreviewKey]=useState<string|null>(null);
-  const endpoint='/api/courses/'+encodeURIComponent(courseId)+'/lesson-imports';
+  useEffect(()=>{
+    const parameters=new URLSearchParams(window.location.search);
+    const id=parameters.get('lessonImport');
+    if(!id||!/^[a-f0-9-]{36}$/.test(id))return;
+    let active=true;setOpen(true);setBusy(true);setError('');
+    void lessonImportRequest(courseId,undefined,'?importId='+id).then(data=>{
+      if(!active)return;
+      const clean=validatePackage(data);
+      const draftName=typeof data.name==='string'?data.name:'Uploaded course package';
+      setPreview(clean);setMode(clean.lessons.some(l=>l.interactiveHtml!==undefined)?'interactive':'standard');setName(draftName);setImportId(id);setSaved(true);setConfirm(false);setPreviewKey(null);setDrafts([{id,name:draftName,count:clean.lessons.length}]);
+      parameters.delete('lessonImport');
+      const query=parameters.toString();
+      window.history.replaceState(window.history.state,'',window.location.pathname+(query?'?'+query:'')+window.location.hash);
+    }).catch(()=>{if(active)setError(ar?'حُفظت الدورة، لكن تعذّر فتح مسودة الدروس. أعد فتحها من المسودات المحفوظة.':'The course was saved, but its lesson draft could not be opened. Reopen it from Saved drafts.');}).finally(()=>{if(active)setBusy(false);});
+    return()=>{active=false;};
+  },[courseId,ar]);
   function report(e:unknown) {
     const code=e instanceof Error?e.message:'IMPORT_FAILED';
     const messages:Record<string,[string,string]>={
@@ -47,12 +62,7 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     setError(messages[code]?.[ar?1:0] || t('Could not process this package. It may contain unsupported, unsafe or oversized files. Your existing lessons were not changed.','تعذرت معالجة الحزمة. قد تحتوي على ملفات غير مدعومة أو غير آمنة أو كبيرة. لم تتغير دروسك الحالية.'));
   }
   async function request(action?:Record<string,unknown>, query='') {
-    const user=getAuth().currentUser;
-    if(!user) throw new Error('UNAUTHORIZED');
-    const response=await fetch(endpoint+query,{method:action?'POST':'GET',headers:{Authorization:'Bearer '+await user.getIdToken(),'Content-Type':'application/json'},...(action?{body:JSON.stringify(action)}:{})});
-    const data=await response.json();
-    if(!response.ok) throw new Error(data.error||'IMPORT_FAILED');
-    return data;
+    return lessonImportRequest(courseId,action,query);
   }
   async function show() {
     setOpen(true); setBusy(true); setError(''); setMessage(''); setPreview(null); setConfirm(false);

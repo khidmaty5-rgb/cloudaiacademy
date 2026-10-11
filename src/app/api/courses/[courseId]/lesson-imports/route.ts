@@ -65,7 +65,7 @@ export async function GET(req:NextRequest, context:Context) {
       const snap=await ref.get();
       if(!snap.exists || snap.data()?.status!=='DRAFT') throw new RequestError('NOT_FOUND',404);
       const drafts=await ref.collection('importLessons').get();
-      return NextResponse.json({id,status:'DRAFT',lessons:drafts.docs.map(d => d.data()).sort((a,b)=>a.position-b.position).map(d=>({key:d.key,title:d.title,nodes:d.interactiveHtml !== undefined ? [] : JSON.parse(d.richContent),...(d.interactiveHtml !== undefined ? {interactiveHtml:d.interactiveHtml} : {})}))},{headers:{'Cache-Control':'private, no-store'}});
+      return NextResponse.json({id,name:snap.data()?.name,status:'DRAFT',lessons:drafts.docs.map(d => d.data()).sort((a,b)=>a.position-b.position).map(d=>({key:d.key,title:d.title,nodes:d.interactiveHtml !== undefined ? [] : JSON.parse(d.richContent),...(d.interactiveHtml !== undefined ? {interactiveHtml:d.interactiveHtml} : {})}))},{headers:{'Cache-Control':'private, no-store'}});
     }
     const drafts=await courseRef.collection('lessonImports').orderBy('createdAt','desc').limit(50).get();
     return NextResponse.json({imports:drafts.docs.filter(d=>d.data().status==='DRAFT').map(d=>({id:d.id,name:d.data().name,count:d.data().count}))},{headers:{'Cache-Control':'private, no-store'}});

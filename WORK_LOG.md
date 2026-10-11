@@ -62,6 +62,14 @@
 - Real sign-in verification so far covers the administrator only; other roles must not be described as login-tested.
 
 Update this entry when implementation, verification, or deployment state changes. Record concrete results separately from intended work.
+# 2026-10-10 — Course details from ZIP/HTML upload
+
+- Added package upload at the start of Add New Course. Extracts heading/description and explicit metadata; suggests code/category, supports a bounded optional course.json, and preserves fields already typed. Price/hours are not invented; default duration is Self-paced.
+- Course creation carries the prepared source into a private lesson draft and opens it automatically in the editor for review. Retry after a failed draft save reuses the created course. Lesson publication remains explicit.
+- Hardened addCourse to create transactionally without overwriting an existing slug; non-Latin titles get generated IDs. Metadata cannot assign roles, owners or publication state. Dropdown values now reflect autofill.
+- Four meaningful extraction/creation regressions and a real-form browser workflow pass, including manually entered price, failed-upload retry with one course creation, saved draft reopen, and interactive source playback. TypeScript and changed-file lint pass (existing any warnings remain). Test services are mocked; no live course created.
+- Release tracking in PROJECT_INDEX.md; full academy acceptance remains separate work.
+
 # 2026-10-10 — Interactive HTML lessons
 
 - User requested preserving the Tailscale HTML design, SVG animations, controls and quiz in CloudAI Academy. Added explicit standard/interactive import modes; interactive mode accepts HTML or ZIP and bundles local CSS/JS/images/fonts into persistent source.
