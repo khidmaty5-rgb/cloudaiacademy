@@ -53,6 +53,7 @@ export function parseInteractiveZip(bytes: Uint8Array): LessonPackage {
   const files = unzipSync(bytes, { filter: entry => {
     if (entry.name.endsWith('/')) return false;
     const ext = extension(entry.name);
+    if (/(^|\/)course\.json$/i.test(entry.name)) { if(entry.originalSize>20000)throw new Error('COURSE_METADATA_INVALID'); return false; }
     if (['txt','md'].includes(ext) || /(^|\/)\.DS_Store$/.test(entry.name) || entry.name.startsWith('__MACOSX/')) return false;
     if (!['html','htm','css','js',...Object.keys(mime)].includes(ext)) throw new Error('UNSUPPORTED_ASSET');
     if (entry.originalSize > (['html','htm','css','js'].includes(ext) ? PACKAGE_LIMITS.html : PACKAGE_LIMITS.image)) throw new Error('CONTENT_TOO_LARGE');

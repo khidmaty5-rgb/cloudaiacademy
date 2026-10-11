@@ -32,6 +32,11 @@ import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, where } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { PACKAGE_LIMITS, type LessonPackage } from '@/lib/lesson-package';
+import { suggestCourseDetails, courseManifest } from '@/lib/course-package-details';
+import { lessonImportRequest } from '@/lib/lesson-import-client';
+import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-player';
+import { ImportedLessonContent } from '@/components/learn/imported-lesson-content';
 
 const livePlatformSchema = z.enum(['none', 'jitsi', 'google-meet']);
 
@@ -86,6 +91,12 @@ export default function CourseForm({ course }: CourseFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploading,setUploading]=useState(false);
+  const [uploadMode,setUploadMode]=useState<'interactive'|'standard'>('interactive');
+  const [packageUpload,setPackageUpload]=useState<{name:string;id:string;pkg:LessonPackage}|null>(null);
+  const [packageError,setPackageError]=useState('');
+  const [previewPackage,setPreviewPackage]=useState(false);
+  const [createdCourse,setCreatedCourse]=useState<{id:string;slug:string}|null>(null);
   const firestore = getFirestore();
   const { isAdmin } = useCurrentRole();
 
@@ -125,6 +136,31 @@ export default function CourseForm({ course }: CourseFormProps) {
     () => (teachers || []).map((t: any) => ({ id: t.id, name: `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || t.email })),
     [teachers]
   );
+
+  async function uploadCoursePackage(file:File) {
+    setUploading(true);setPackageError('');setPreviewPackage(false);setPackageUpload(null);
+    try {
+      if(file.size>PACKAGE_LIMITS.zip)throw new Error('ZIP_TOO_LARGE');
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      let pkg:LessonPackage;
+      const isHtml=/\.html?$/i.test(file.name);
+      if(uploadMode==='interactive') {
+        const parser=await import('@/lib/parse-interactive-zip');
+        pkg=isHtml?parser.parseInteractiveHtml(await file.text(),file.name):parser.parseInteractiveZip(bytes);
+      } else {
+        if(isHtml)throw new Error('ZIP_REQUIRED');
+        pkg=(await import('@/lib/parse-lesson-zip')).parseLessonZip(bytes);
+      }
+      const suggestions=suggestCourseDetails(pkg,file.name,isHtml?{}:courseManifest(bytes));
+      for(const [key,value] of Object.entries(suggestions)) {
+        const field=key as keyof CourseFormValues;
+        if(value!==undefined && value!=='' && !form.getFieldState(field).isDirty)form.setValue(field,value as never,{shouldValidate:true});
+      }
+      setPackageUpload({name:file.name,id:crypto.randomUUID(),pkg});
+    } catch {
+      setPackageError(lang==='ar'?'تعذّر قراءة الحزمة. تأكد من تضمين الملفات المطلوبة واختر نوع الاستيراد المناسب.':'Could not read this package. Include its required assets and select the appropriate import mode.');
+    } finally {setUploading(false);}
+  }
 
   const onSubmit = async (data: CourseFormValues) => {
     setIsLoading(true);
@@ -168,7 +204,16 @@ export default function CourseForm({ course }: CourseFormProps) {
           description: lang === 'ar' ? `تم تحديث ${cleaned.title} بنجاح.` : `${cleaned.title} has been successfully updated.`,
         });
       } else {
-        await addCourse(cleanedForSave, extra);
+        let saved=createdCourse;
+        if(saved) await updateCourse(saved.id,{...cleanedForSave,...extra});
+        else {saved=await addCourse(cleanedForSave,extra);setCreatedCourse(saved);}
+        if(packageUpload) {
+          const result=await lessonImportRequest(saved.id,{action:'save',importId:packageUpload.id,name:packageUpload.name,lessons:packageUpload.pkg.lessons});
+          if(!['DRAFT','PUBLISHED'].includes(result.status))throw new Error('IMPORT_CONFLICT');
+          toast({title:lang==='ar'?'حُفظت الدورة والدروس':'Course and lesson drafts saved',description:lang==='ar'?'راجع الدروس ثم انشرها عندما تكون جاهزة.':'Review the lessons and publish when ready.'});
+          router.push('/admin/courses/edit/'+encodeURIComponent(saved.slug)+(result.status==='DRAFT'?'?lessonImport='+packageUpload.id:''));
+          router.refresh();return;
+        }
         toast({
           title: t("Course Created!"),
           description: lang === 'ar' ? `تمت إضافة ${cleaned.title} بنجاح.` : `${cleaned.title} has been successfully added.`,
@@ -177,6 +222,7 @@ export default function CourseForm({ course }: CourseFormProps) {
       router.push('/admin/courses');
       router.refresh(); // To reflect changes in the table
     } catch (error: any) {
+      if(createdCourse || packageUpload)setPackageError(lang==='ar'?'تعذّر إكمال الحفظ. أعد المحاولة لاستكمال رفع الدروس.':'Saving could not finish. Retry to complete the lesson upload.');
       toast({
         variant: 'destructive',
         title: t("Operation Failed"),
@@ -190,6 +236,16 @@ export default function CourseForm({ course }: CourseFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        {!isEditMode&&isAdmin&&<section className="space-y-3 rounded-xl border p-4">
+          <h2 className="text-lg font-semibold">{lang==='ar'?'ابدأ برفع حزمة الدورة':'Start with a course package'}</h2>
+          <p className="text-sm text-muted-foreground">{lang==='ar'?'ارفع ZIP أو HTML لتعبئة التفاصيل المتاحة وتجهيز الدروس. راجع السعر والحقول الناقصة قبل الحفظ.':'Upload ZIP or HTML to fill available course details and prepare lessons. Review pricing and missing fields before saving.'}</p>
+          <label className="block space-y-1 text-sm"><span>{lang==='ar'?'نوع الدروس':'Lesson mode'}</span><select className="w-full rounded-md border bg-background p-2" value={uploadMode} disabled={uploading||isLoading} onChange={e=>{setUploadMode(e.target.value as 'interactive'|'standard');setPackageUpload(null);setPreviewPackage(false);}}><option value="interactive">{lang==='ar'?'HTML تفاعلي':'Interactive HTML'}</option><option value="standard">{lang==='ar'?'دروس قياسية مبسّطة':'Standard simplified lessons'}</option></select></label>
+          <label className="block space-y-1 text-sm"><span>{lang==='ar'?'ملف الدورة ZIP أو HTML':'Course ZIP or HTML file'}</span><Input type="file" accept={uploadMode==='interactive'?'.zip,.html,.htm':'.zip'} disabled={uploading||isLoading} onChange={e=>{const file=e.target.files?.[0];if(file)void uploadCoursePackage(file);e.target.value='';}}/></label>
+          {uploading&&<p role="status">{lang==='ar'?'جارٍ قراءة الدورة…':'Reading course package…'}</p>}
+          {packageError&&<p role="alert" className="text-sm text-destructive">{packageError}</p>}
+          {createdCourse&&packageError&&<p className="text-sm">{lang==='ar'?'الدورة محفوظة بالفعل. إعادة المحاولة ستستخدم الدورة نفسها.':'The course is already saved. Retrying will use the same course.'}</p>}
+          {packageUpload&&<div className="space-y-2"><p role="status" className="break-words text-sm">{packageUpload.name} · {packageUpload.pkg.lessons.length} {lang==='ar'?'دروس جاهزة للحفظ كمسودات. التفاصيل مقترحة وقابلة للتعديل.':'lessons ready to save as drafts. Suggested details are editable.'}</p><Button type="button" variant="outline" size="sm" onClick={()=>setPreviewPackage(value=>!value)}>{lang==='ar'?'معاينة الدرس الأول':'Preview first lesson'}</Button>{previewPackage&&(packageUpload.pkg.lessons[0].interactiveHtml?<InteractiveLessonPlayer title={packageUpload.pkg.lessons[0].title} html={packageUpload.pkg.lessons[0].interactiveHtml}/>:<ImportedLessonContent nodes={packageUpload.pkg.lessons[0].nodes}/>)}</div>}
+        </section>}
         <FormField
           control={form.control}
           name="title"
@@ -294,7 +350,7 @@ export default function CourseForm({ course }: CourseFormProps) {
              render={({ field }) => (
                <FormItem>
                  <FormLabel>{t("Visibility")}</FormLabel>
-                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                 <Select onValueChange={field.onChange} value={field.value}>
                    <FormControl>
                      <SelectTrigger>
                        <SelectValue placeholder={t("Select visibility")} />
@@ -405,7 +461,7 @@ export default function CourseForm({ course }: CourseFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("Live platform")}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={t("Select live platform")} />
@@ -478,7 +534,7 @@ export default function CourseForm({ course }: CourseFormProps) {
                 <FormLabel>{t("Level")}</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  value={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -496,14 +552,14 @@ export default function CourseForm({ course }: CourseFormProps) {
             )}
           />
         </div>
-        <Button type="submit" disabled={isLoading} className="w-full">
+        <Button type="submit" disabled={isLoading||uploading} className="w-full">
           {isLoading
             ? isEditMode
               ? t("Saving Changes...")
-              : t("Creating Course...")
+              : createdCourse ? (lang==='ar'?'جارٍ حفظ الدروس…':'Saving lesson drafts…') : t("Creating Course...")
             : isEditMode
             ? t("Save Changes")
-            : t("Create Course")}
+            : createdCourse&&packageUpload ? (lang==='ar'?'إعادة رفع الدروس':'Retry lesson upload') : t("Create Course")}
         </Button>
       </form>
     </Form>

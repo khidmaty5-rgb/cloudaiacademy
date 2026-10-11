@@ -1,5 +1,19 @@
 # Interactive HTML lessons
 
+## Create a course from a package
+
+Add New Course now starts with a ZIP/HTML upload panel. Available headings and descriptions fill the form, with editable course code/category suggestions. Values already typed take priority. Price is filled only when explicitly supplied by the package; otherwise enter it before creating the course. Duration defaults to Self-paced when absent; hours and level are read only from explicit metadata. Optional cover URLs must already be public HTTPS URLs; lesson assets inside the ZIP do not become public cover files.
+
+Choose Interactive HTML or Standard simplified lessons, upload, review details and preview, then Create Course. The course is saved and its lessons are saved as a private draft. The draft opens automatically on the course editor for review and publication; no second upload is needed. If saving lessons fails after course creation, Retry lesson upload reuses the saved course. Creating a course never overwrites an existing course with the same generated ID.
+
+Packages may include one optional `course.json` (up to 20 KB):
+
+```json
+{"title":"Tailscale Networking","description":"A practical networking course.","courseCode":"TAILSCALE","category":"Networking","level":"Intermediate","duration":"2 weeks","totalHours":6,"price":"199"}
+```
+
+Interactive HTML may instead declare metadata named `course-code`, `course-category`, `course-level`, `course-duration` and `course-hours`, plus the standard description metadata. Roles, teacher assignments, live meeting settings and publication status are never taken from package metadata.
+
 In Manage Lessons → Import ZIP, choose **Interactive HTML**. Upload a self-contained `.html`/`.htm` file or a ZIP containing HTML and its local CSS, classic JavaScript, PNG/JPEG/WebP/SVG images, and WOFF fonts. Review the actual interactive page, save private drafts, reopen if needed, and explicitly publish. Existing standard imports still use the inert structured-content renderer.
 
 The original source and bundled assets are stored as a private draft and, after publication, inside the existing course lesson document. Course/lesson permissions and paywall checks still govern retrieval. Publishing is transactional and uses stable IDs; retrying does not create duplicates. Title editing preserves the imported source; content changes require editing and reimporting the source package.

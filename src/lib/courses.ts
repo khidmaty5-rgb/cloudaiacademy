@@ -5,7 +5,7 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
-  setDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
@@ -43,7 +43,7 @@ type CourseData = Pick<Course, 'title' | 'description' | 'category' | 'price' | 
 };
 
 export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, 'ownerId' | 'instructorIds'>>) {
-  const slug = createSlug(data.title);
+  const slug = createSlug(data.title).slice(0,120).replace(/^-|-$/g,'') || 'course-' + doc(collection(firestore,'courses')).id.toLowerCase();
   const imageId = generateImageId(data.title);
   const uid = getAuth().currentUser?.uid;
   const courseCode = data.courseCode ? data.courseCode.trim().toUpperCase() : undefined;
@@ -81,7 +81,12 @@ export async function addCourse(data: CourseData, extra?: Partial<Pick<Course, '
         }
       : (uid ? { ownerId: uid, instructorIds: [uid] } : {});
 
-  await setDoc(courseDocRef, removeUndefined({ ...base, ...extraNormalized }) as Omit<Course, 'updatedAt'>);
+  await runTransaction(firestore,async transaction=>{
+    const existing=await transaction.get(courseDocRef);
+    if(existing.exists())throw new Error('A course with this title already exists. Open that course or use a different title.');
+    transaction.set(courseDocRef, removeUndefined({ ...base, ...extraNormalized }) as Omit<Course, 'updatedAt'>);
+  });
+  return {id:slug,slug};
 }
 
 export async function updateCourse(courseId: string, data: Partial<CourseData & Pick<Course, 'ownerId' | 'instructorIds'>>) {
