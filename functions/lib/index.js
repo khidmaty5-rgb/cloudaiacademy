@@ -33,10 +33,33 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserUpdate = exports.adminCreateUser = exports.onUserCreate = void 0;
+exports.onUserUpdate = exports.adminCreateUser = exports.onUserCreate = exports.onRoleChangeAuditCreate = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
+const user_roles_1 = require("./user-roles");
 admin.initializeApp();
+async function synchronizeProfileRole(userId) {
+    var _a;
+    const current = await admin.firestore().doc(`users/${userId}`).get();
+    const role = current.exists ? (_a = current.data()) === null || _a === void 0 ? void 0 : _a.role : undefined;
+    if (!(0, user_roles_1.isUserRole)(role))
+        return false;
+    const account = await admin.auth().getUser(userId);
+    await admin.auth().setCustomUserClaims(userId, Object.assign(Object.assign({}, account.customClaims), { role }));
+    return true;
+}
+// Profile + audit are committed atomically by the Next API. This durable event
+// retries claim synchronization independently if the API's immediate sync fails.
+exports.onRoleChangeAuditCreate = functions.runWith({ failurePolicy: true }).firestore
+    .document('roleChangeAudit/{eventId}')
+    .onCreate(async (snap) => {
+    var _a;
+    const targetUid = (_a = snap.data()) === null || _a === void 0 ? void 0 : _a.targetUid;
+    if (typeof targetUid !== 'string' || !targetUid || targetUid.includes('/'))
+        return;
+    const complete = await synchronizeProfileRole(targetUid);
+    await snap.ref.update({ claimsSync: complete ? 'complete' : 'blocked' });
+});
 // This Cloud Function is triggered when a user's document in Firestore is created.
 // Its purpose is to set a custom claim (`role`) on the user's authentication token.
 // This allows Firestore Security Rules to perform role-based access control efficiently
@@ -54,10 +77,10 @@ exports.onUserCreate = functions.firestore
     // Get the role from the newly created user document.
     const role = userRecord.role;
     // If a role is defined, set it as a custom claim on the user's auth token.
-    if (role) {
+    if ((0, user_roles_1.isUserRole)(role)) {
         try {
-            await admin.auth().setCustomUserClaims(userId, { role });
-            console.log(`Custom claim 'role: ${role}' set for user ${userId}`);
+            await synchronizeProfileRole(userId);
+            console.log(`Role claims synchronized for user ${userId}`);
         }
         catch (error) {
             console.error(`Failed to set custom claim for user ${userId}:`, error);
@@ -66,14 +89,27 @@ exports.onUserCreate = functions.firestore
 });
 // Admin-only callable to create a user without affecting the caller's session
 exports.adminCreateUser = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.role !== 'admin') {
+    var _a;
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+    }
+    let callerRole;
+    try {
+        const profile = await admin.firestore().doc(`users/${context.auth.uid}`).get();
+        callerRole = profile.exists ? (_a = profile.data()) === null || _a === void 0 ? void 0 : _a.role : undefined;
+    }
+    catch (_b) {
+        throw new functions.https.HttpsError('permission-denied', 'Unable to verify current admin privileges.');
+    }
+    // Callable account creation requires a current admin profile, never stale claims.
+    if (callerRole !== 'admin') {
         throw new functions.https.HttpsError('permission-denied', 'Admin privileges required.');
     }
     const email = (data && data.email) || '';
     const password = (data && data.password) || '';
     const fullName = (data && data.fullName) || '';
-    const userRole = (data && data.role) || 'student';
-    if (!email || !password || !fullName) {
+    const userRole = (data === null || data === void 0 ? void 0 : data.role) === undefined ? 'student' : data.role;
+    if (typeof email !== 'string' || typeof password !== 'string' || typeof fullName !== 'string' || !email || !password || !fullName.trim() || !(0, user_roles_1.isUserRole)(userRole)) {
         throw new functions.https.HttpsError('invalid-argument', 'email, password, and fullName are required.');
     }
     try {
@@ -121,10 +157,10 @@ exports.onUserUpdate = functions.firestore
     const newRole = afterData.role;
     const oldRole = beforeData.role;
     // Only update claims if the role has actually changed to avoid unnecessary operations.
-    if (newRole && newRole !== oldRole) {
+    if ((0, user_roles_1.isUserRole)(newRole) && newRole !== oldRole) {
         try {
-            await admin.auth().setCustomUserClaims(userId, { role: newRole });
-            console.log(`Custom claim 'role' updated to '${newRole}' for user ${userId}`);
+            await synchronizeProfileRole(userId);
+            console.log(`Role claims synchronized for user ${userId}`);
         }
         catch (error) {
             console.error(`Failed to update custom claim for user ${userId}:`, error);

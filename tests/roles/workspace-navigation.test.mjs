@@ -9,9 +9,51 @@ const encodeModule = source => `data:text/javascript;base64,${Buffer.from(ts.tra
 const policyUrl = encodeModule(await readFile(new URL('../../src/lib/route-access.ts', import.meta.url), 'utf8'));
 const policy = await import(policyUrl);
 const source = await readFile(new URL('../../src/lib/workspace-navigation.ts', import.meta.url), 'utf8');
-const nav = await import(encodeModule(source.replaceAll('@/lib/route-access', policyUrl)));
+const capabilitiesUrl = encodeModule(await readFile(new URL('../../src/lib/capabilities.ts', import.meta.url), 'utf8'));
+const capabilities = await import(capabilitiesUrl);
+const nav = await import(encodeModule(source.replaceAll('@/lib/route-access', policyUrl).replaceAll('@/lib/capabilities', capabilitiesUrl)));
 
 describe('workspace navigation contracts', () => {
+  it('contextual workspaces preserve discoverability and isolate tools', () => {
+    for (const role of policy.allAuthenticatedRoles) {
+      const links = nav.navigationForRole(role);
+      const workspaces = nav.availableWorkspaces(links);
+      const reachable = new Set(workspaces.flatMap(id => nav.contextualNavigation(links, id)).map(link => link.href));
+      assert.deepEqual([...reachable].sort(), links.map(link => link.href).sort());
+      for (const id of workspaces) {
+        assert.ok(nav.workspaceLabels[id].en && nav.workspaceLabels[id].ar);
+        for (const link of nav.contextualNavigation(links, id)) assert.ok(!nav.workspaceForLink(link) || nav.workspaceForLink(link) === id);
+      }
+    }
+    assert.deepEqual(nav.availableWorkspaces(nav.navigationForRole('reviewer')), ['reviewing', 'learning']);
+    assert.ok(!nav.availableWorkspaces(nav.navigationForRole('student')).includes('administration'));
+  });
+  it('capabilities preserve every existing destination and do not grant staff learner access', () => {
+    for (const role of policy.allAuthenticatedRoles) {
+      const before = nav.workspaceLinks.filter(link => link.roles.includes(role) && policy.canRoleAccessPath(role, link.href)).map(link => link.href).sort();
+      assert.deepEqual(nav.navigationForRole(role).map(link => link.href).sort(), before);
+      assert.equal(capabilities.hasCapability(role, 'learning.access'), ['student', 'reviewer'].includes(role));
+      assert.equal(capabilities.hasCapability(role, 'learning.certificates'), ['student', 'reviewer'].includes(role));
+      assert.equal(capabilities.hasCapability(role, 'journal.review'), ['reviewer', 'editor', 'admin'].includes(role));
+      assert.equal(new Set(capabilities.capabilitiesForRole(role)).size, capabilities.capabilitiesForRole(role).length);
+    }
+  });
+  it('prioritizes the primary workspace and separates teaching from learning', () => {
+    const first = { admin: 'Academy management', teacher: 'Teaching & communications', editor: 'Editorial', reviewer: 'Peer review', student: 'Learning' };
+    for (const role of policy.allAuthenticatedRoles) assert.equal(nav.navigationForRole(role)[0].section.en, first[role]);
+    for (const role of ['teacher', 'admin']) {
+      for (const link of nav.navigationForRole(role).filter(link => link.href.startsWith('/teacher/'))) assert.equal(link.section.en, 'Teaching & communications');
+    }
+  });
+  it('Telegram visibility and new/legacy route access agree for all roles', () => {
+    for (const role of policy.allAuthenticatedRoles) {
+      const allowed = role === 'teacher' || role === 'admin';
+      assert.equal(nav.navigationForRole(role).some(link => link.href === '/teacher/telegram'), allowed);
+      assert.equal(policy.canRoleAccessPath(role, '/teacher/telegram'), allowed);
+      assert.equal(policy.canRoleAccessPath(role, '/dashboard/telegram'), allowed);
+      assert.ok(!nav.navigationForRole(role).some(link => link.href === '/dashboard/telegram'));
+    }
+  });
   it('every role has its home and no forbidden or duplicate destinations', () => {
     for (const role of policy.allAuthenticatedRoles) {
       const links = nav.navigationForRole(role);
@@ -23,7 +65,7 @@ describe('workspace navigation contracts', () => {
   it('keeps formerly hidden learner tools and shared staff profile reachable', () => {
     for (const role of ['student', 'reviewer']) {
       const links = nav.navigationForRole(role);
-      for (const href of ['/dashboard/telegram', '/journal/my-submissions', '/courses']) {
+      for (const href of ['/journal/my-submissions', '/courses']) {
         assert.ok(links.some(link => link.href === href), `${role}: ${href}`);
       }
     }
@@ -32,7 +74,7 @@ describe('workspace navigation contracts', () => {
   });
   it('highlights the most specific destination without confusing route prefixes', () => {
     const links = nav.navigationForRole('reviewer');
-    assert.equal(nav.activeWorkspaceLink('/dashboard/telegram', links)?.href, '/dashboard/telegram');
+    assert.equal(nav.activeWorkspaceLink('/teacher/telegram', nav.navigationForRole('teacher'))?.href, '/teacher/telegram');
     assert.equal(nav.activeWorkspaceLink('/journal/my-submissions', links)?.href, '/journal/my-submissions');
     assert.equal(nav.activeWorkspaceLink('/courses/cloud', links)?.href, '/courses');
     assert.equal(nav.activeWorkspaceLink('/courses-other', links), undefined);

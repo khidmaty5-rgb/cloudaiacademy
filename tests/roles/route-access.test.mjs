@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import ts from 'typescript';
 
@@ -10,6 +10,22 @@ const transpiled = ts.transpileModule(source, {
 const policy = await import(`data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`);
 
 describe('client route access matrix', () => {
+  it('every existing application page has an explicit registered policy', async () => {
+    const files=await readdir(new URL('../../src/app/',import.meta.url),{recursive:true});
+    for(const file of files.filter(path=>path.replaceAll('\\','/').endsWith('/page.tsx'))){
+      const path='/'+file.replaceAll('\\','/').replace(/\/page\.tsx$/,'').split('/').filter(part=>!/^\(.*\)$/.test(part)).map(part=>/^\[.*\]$/.test(part)?'sample':part).join('/');
+      assert.notEqual(policy.routePolicyForPath(path).kind,'denied',path);
+    }
+  });
+  it('denies unregistered protected routes including exact roots, without blocking public staff login', () => {
+    for (const role of policy.allAuthenticatedRoles) {
+      for (const path of ['/teacher','/teacher/new-tool','/admin/new-tool','/reviewer/new-tool','/dashboard/new-tool','/learn']) {
+        assert.equal(policy.canRoleAccessPath(role,path),false,`${role}: ${path}`);
+      }
+    }
+    assert.equal(policy.routePolicyForPath('/admin').kind,'public');
+    assert.equal(policy.routePolicyForPath('/profile').kind,'authenticated');
+  });
   it('routes every role to its own workspace', () => {
     assert.equal(policy.roleHomePath('student'), '/dashboard');
     assert.equal(policy.roleHomePath('reviewer'), '/reviewer');

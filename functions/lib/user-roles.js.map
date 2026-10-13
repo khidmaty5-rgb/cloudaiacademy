@@ -1,0 +1,1 @@
+{"version":3,"file":"user-roles.js","sourceRoot":"","sources":["../src/user-roles.ts"],"names":[],"mappings":";;;AAGA,gCAEC;AALD,qEAAqE;AACxD,QAAA,UAAU,GAAG,CAAC,SAAS,EAAE,SAAS,EAAE,UAAU,EAAE,QAAQ,EAAE,OAAO,CAAU,CAAC;AAEzF,SAAgB,UAAU,CAAC,KAAc;IACvC,OAAO,OAAO,KAAK,KAAK,QAAQ,IAAK,kBAAgC,CAAC,QAAQ,CAAC,KAAK,CAAC,CAAC;AACxF,CAAC"}

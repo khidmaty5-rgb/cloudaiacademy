@@ -78,9 +78,12 @@ function getServiceAccountPaths(): string[] {
   const explicitPath = clean(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
   if (explicitPath) candidates.add(path.resolve(process.cwd(), explicitPath));
 
-  for (const level of ['', '..', '../..', '../../..', '../../../..']) {
-    candidates.add(path.resolve(process.cwd(), level, 'config', 'serviceAccount.local.json'));
-  }
+  // Literal candidates preserve the search order without NFT recursive globs.
+  candidates.add(path.resolve(process.cwd(), 'config', 'serviceAccount.local.json'));
+  candidates.add(path.resolve(process.cwd(), '..', 'config', 'serviceAccount.local.json'));
+  candidates.add(path.resolve(process.cwd(), '../..', 'config', 'serviceAccount.local.json'));
+  candidates.add(path.resolve(process.cwd(), '../../..', 'config', 'serviceAccount.local.json'));
+  candidates.add(path.resolve(process.cwd(), '../../../..', 'config', 'serviceAccount.local.json'));
 
   return [...candidates];
 }

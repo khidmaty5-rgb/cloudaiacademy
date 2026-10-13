@@ -1,6 +1,11 @@
 import type {NextConfig} from 'next';
+import { globalSecurityHeaders } from './src/lib/security-headers';
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: '/:path*', headers: globalSecurityHeaders }];
+  },
   /* config options here */
   experimental: {},
   typescript: {

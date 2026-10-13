@@ -5,6 +5,9 @@ import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp, getDoc } f
 import { initializeFirebase } from '@/firebase';
 import type { PersonalizedLearningPathOutput } from '@/ai/flows/personalized-learning-paths';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import type { UserRole } from '@/lib/user-roles';
+
+const pendingRoleRequests = new Map<string,string>();
 
 const { auth, firestore } = initializeFirebase();
 
@@ -88,7 +91,7 @@ export async function saveLearningPath(userId: string, path: PersonalizedLearnin
     });
 }
 
-export async function updateUserRole(userId: string, role: 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin') {
+export async function updateUserRole(userId: string, role: UserRole) {
   if (!userId) {
     throw new Error('User ID is required.');
   }
@@ -97,13 +100,16 @@ export async function updateUserRole(userId: string, role: 'student' | 'teacher'
     throw new Error('You must be signed in as an admin.');
   }
   const token = await currentUser.getIdToken();
+  const key = `${currentUser.uid}:${userId}:${role}`;
+  const requestId = pendingRoleRequests.get(key) || crypto.randomUUID();
+  pendingRoleRequests.set(key, requestId);
   const resp = await fetch('/api/admin/update-user-role', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ userId, role }),
+    body: JSON.stringify({ userId, role, requestId }),
   });
   if (!resp.ok) {
     let msg = 'Failed to update user role.';
@@ -111,6 +117,10 @@ export async function updateUserRole(userId: string, role: 'student' | 'teacher'
       const j = await resp.json();
       if (j?.error) msg = j.error;
     } catch {}
+    if (resp.status < 500) pendingRoleRequests.delete(key);
     throw new Error(msg);
   }
+  const result = await resp.json() as {claimsSyncPending?:boolean};
+  if (!result.claimsSyncPending) pendingRoleRequests.delete(key);
+  return result;
 }

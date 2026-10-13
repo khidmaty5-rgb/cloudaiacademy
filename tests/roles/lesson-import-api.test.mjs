@@ -20,7 +20,8 @@ export const cert=()=>({});
 export const applicationDefault=()=>({});
 `);
 const policy=await compile('src/server/lesson-import-policy.ts');
-const effective=await compile('src/server/effective-user-role.ts');
+const roleDefinitions=await compile('functions/src/user-roles.ts');
+const effective=await compile('src/server/effective-user-role.ts',{'@/lib/user-roles':roleDefinitions});
 const pkg=await compile('src/lib/lesson-package.ts');
 const routeUrl=await compile('src/app/api/courses/[courseId]/lesson-imports/route.ts',{
   'firebase-admin/app':fake,'firebase-admin/auth':fake,'firebase-admin/firestore':fake,

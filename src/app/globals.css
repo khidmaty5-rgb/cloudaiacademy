@@ -112,7 +112,7 @@ html[lang='ar'] h4 {
   .workspace-shell #workspace-content > main {
     padding-block: clamp(1.5rem, 3vw, 2rem);
   }
-  .workspace-shell #workspace-content .container {
+  :where(.workspace-shell #workspace-content .container) {
     width: 100%;
     max-width: 80rem;
     padding-inline: clamp(1rem, 2.5vw, 2rem);

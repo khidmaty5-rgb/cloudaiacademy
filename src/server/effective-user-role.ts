@@ -1,15 +1,10 @@
 import type { Firestore } from 'firebase-admin/firestore';
 
 import type { UserRole } from '@/types/models';
+import { isUserRole } from '@/lib/user-roles';
 
 export function normalizeUserRole(value: unknown): UserRole | null {
-  return value === 'admin' ||
-    value === 'teacher' ||
-    value === 'reviewer' ||
-    value === 'editor' ||
-    value === 'student'
-    ? value
-    : null;
+  return isUserRole(value) ? value : null;
 }
 
 export async function getEffectiveUserRole(

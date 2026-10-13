@@ -348,8 +348,8 @@ export default function ReviewerDashboardPage() {
         >
           <DialogContent className="max-w-5xl">
             <DialogHeader>
-              <DialogTitle>{previewTitle || 'PDF Preview'}</DialogTitle>
-              <DialogDescription>Preview the paper here, then download if needed.</DialogDescription>
+              <DialogTitle>{previewTitle || (lang === 'ar' ? 'معاينة البحث' : 'PDF Preview')}</DialogTitle>
+              <DialogDescription>{lang === 'ar' ? 'عاين البحث هنا، ثم حمّله عند الحاجة.' : 'Preview the paper here, then download if needed.'}</DialogDescription>
             </DialogHeader>
             {previewLoading ? (
               <div className="py-10 text-center text-sm text-muted-foreground">{t.loading}</div>
@@ -382,8 +382,8 @@ export default function ReviewerDashboardPage() {
         >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{reviewArticle?.title || 'Review'}</DialogTitle>
-              <DialogDescription>Write your review. It is saved under your account.</DialogDescription>
+              <DialogTitle>{reviewArticle?.title || (lang === 'ar' ? 'التحكيم' : 'Review')}</DialogTitle>
+              <DialogDescription>{lang === 'ar' ? 'اكتب تقرير التحكيم. يُحفظ باسم حسابك.' : 'Write your review. It is saved under your account.'}</DialogDescription>
             </DialogHeader>
             {reviewLoading ? (
               <div className="py-8 text-center text-sm text-muted-foreground">{t.loading}</div>
@@ -396,10 +396,10 @@ export default function ReviewerDashboardPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ACCEPT">Accept</SelectItem>
-                      <SelectItem value="MINOR_REVISION">Minor revision</SelectItem>
-                      <SelectItem value="MAJOR_REVISION">Major revision</SelectItem>
-                      <SelectItem value="REJECT">Reject</SelectItem>
+                    <SelectItem value="ACCEPT">{lang === 'ar' ? 'قبول' : 'Accept'}</SelectItem>
+                    <SelectItem value="MINOR_REVISION">{lang === 'ar' ? 'تعديلات طفيفة' : 'Minor revision'}</SelectItem>
+                    <SelectItem value="MAJOR_REVISION">{lang === 'ar' ? 'تعديلات جوهرية' : 'Major revision'}</SelectItem>
+                    <SelectItem value="REJECT">{lang === 'ar' ? 'رفض' : 'Reject'}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -409,7 +409,8 @@ export default function ReviewerDashboardPage() {
                   <Textarea
                     value={commentsToAuthor}
                     onChange={(e) => setCommentsToAuthor(e.target.value)}
-                    placeholder="Write constructive feedback for the authors…"
+                    aria-label={t.commentsToAuthor}
+                    placeholder={lang === 'ar' ? 'اكتب ملاحظات بنّاءة للمؤلفين…' : 'Write constructive feedback for the authors…'}
                     rows={6}
                   />
                 </div>
@@ -419,14 +420,15 @@ export default function ReviewerDashboardPage() {
                   <Textarea
                     value={commentsToEditor}
                     onChange={(e) => setCommentsToEditor(e.target.value)}
-                    placeholder="Optional notes only visible to editors…"
+                    aria-label={t.commentsToEditor}
+                    placeholder={lang === 'ar' ? 'ملاحظات اختيارية لا تظهر إلا للمحررين…' : 'Optional notes only visible to editors…'}
                     rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">You must be assigned to the paper to submit.</div>
-                  <Input value={reviewArticle?.id || ''} readOnly className="text-xs" />
+                  <div className="text-xs text-muted-foreground">{lang === 'ar' ? 'يجب أن يكون البحث مخصصًا لك لإرسال التحكيم.' : 'You must be assigned to the paper to submit.'}</div>
+                  <Input aria-label={lang === 'ar' ? 'معرّف البحث' : 'Paper ID'} value={reviewArticle?.id || ''} readOnly className="text-xs" />
                 </div>
               </div>
             )}

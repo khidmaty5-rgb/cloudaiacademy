@@ -54,8 +54,8 @@ const coursesText = {
     unknownError: 'Unknown error',
   },
   ar: {
-    backfillStatus: 'Backfill publish status',
-    backfillingStatus: 'Backfilling...',
+    backfillStatus: 'استكمال حالة النشر',
+    backfillingStatus: 'جارٍ الاستكمال…',
     pageTitle: 'إدارة الدورات',
     resetAndSeed: 'إعادة التهيئة مع التكوين',
     resetting: 'جارٍ إعادة التهيئة...',

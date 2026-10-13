@@ -16,10 +16,11 @@ import { doc, getFirestore } from 'firebase/firestore';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { signOutUser } from '@/lib/auth';
 import { roleHomePath, type AppRole } from '@/lib/route-access';
-import { activeWorkspaceLink, navigationForRole, type WorkspaceLink } from '@/lib/workspace-navigation';
+import { activeWorkspaceLink, navigationForRole, availableWorkspaces, contextualNavigation, workspaceForLink, workspaceLabels, type WorkspaceId, type WorkspaceLink } from '@/lib/workspace-navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -101,6 +102,12 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const { data: settings, isLoading: settingsLoading } = useDoc(settingsRef);
   const links = useMemo(() => ready ? navigationForRole(role).filter(link => academyPathEnabled(link.href)).filter(link => link.href !== '/journal' || (!settingsLoading && settings?.showJournalNav !== false)) : [], [ready, role, settingsLoading, settings]);
   const current = activeWorkspaceLink(pathname, links);
+  const workspaces = availableWorkspaces(links);
+  const [workspaceChoice, setWorkspaceChoice] = useState<{ pathname: string; id: WorkspaceId } | null>(null);
+  const workspace = (workspaceChoice?.pathname === pathname && workspaces.includes(workspaceChoice.id)
+    ? workspaceChoice.id : current && workspaceForLink(current)) ||
+    (workspaceChoice && workspaces.includes(workspaceChoice.id) ? workspaceChoice.id : workspaces[0]);
+  const visibleLinks = workspace ? contextualNavigation(links, workspace) : links;
   const roleLabel = ready ? roleLabels[role][lang] : (lang === 'ar' ? 'مساحة العمل' : 'Workspace');
   const displayName = user?.displayName?.trim() || (lang === 'ar' ? 'حسابي' : 'My account');
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -118,7 +125,14 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         <Link href={ready ? roleHomePath(role) : '/'} onClick={() => setMobileOpen(false)} className="inline-flex rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Logo size={36} textClassName="text-base text-foreground" /></Link>
         <p className="mt-4 text-xs font-medium text-muted-foreground">{roleLabel}</p>
       </div>
-      {ready ? <WorkspaceNavigation links={links} lang={lang} pathname={pathname} onNavigate={() => setMobileOpen(false)} /> : <div className="mx-4 h-40 animate-pulse rounded-xl bg-muted" />}
+      {ready && workspaces.length > 1 && <div className="px-4 pb-4">
+        <p className="mb-2 block text-xs font-medium text-muted-foreground">{lang === 'ar' ? 'مساحة العمل' : 'Workspace'}</p>
+        <Select value={workspace} onValueChange={id => setWorkspaceChoice({ pathname, id: id as WorkspaceId })}>
+          <SelectTrigger aria-label={lang === 'ar' ? 'اختر مساحة العمل' : 'Choose workspace'} className="min-h-11 rounded-xl"><SelectValue /></SelectTrigger>
+          <SelectContent dir={dir}>{workspaces.map(id => <SelectItem key={id} value={id}>{workspaceLabels[id][lang]}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>}
+      {ready ? <WorkspaceNavigation key={workspace} links={visibleLinks} lang={lang} pathname={pathname} onNavigate={() => setMobileOpen(false)} /> : <div className="mx-4 h-40 animate-pulse rounded-xl bg-muted" />}
       <div className="mt-auto border-t p-4"><Link href="/" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"><Globe2 className="size-4" /><span className="flex-1">{lang === 'ar' ? 'زيارة الموقع' : 'View website'}</span><ArrowUpRight className="size-4 rtl:-rotate-90" /></Link></div>
     </>;
   }

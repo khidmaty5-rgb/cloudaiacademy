@@ -61,7 +61,9 @@ service cloud.firestore {
 
     function requesterRole() {
       // If the profile role exists, treat it as authoritative; claims can be stale.
-      return profileRole() != null ? profileRole() : request.auth.token.role;
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', null)
+        : request.auth.token.get('role', null);
     }
 
     function roleIsStaff(role) {
@@ -216,10 +218,19 @@ service cloud.firestore {
           ]) &&
           request.resource.data.firstName is string &&
           request.resource.data.lastName is string
-        ) || isAdmin()
+        ) || (isAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
       );
-      // Owners can delete themselves; admins can delete any user
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      // Role changes/deletion require a controlled server workflow. Deleting a
+      // demoted profile could revive stale token-role fallback privileges.
+      allow delete: if false;
+    }
+
+    match /roleChangeAudit/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /securityState/{stateId} {
+      allow read, write: if false;
     }
 
     /**

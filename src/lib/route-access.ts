@@ -1,4 +1,5 @@
-export type AppRole = 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin';
+import type { UserRole } from '@/lib/user-roles';
+export type AppRole = UserRole;
 
 export const allAuthenticatedRoles: readonly AppRole[] = [
   'student',
@@ -21,29 +22,36 @@ export function roleHomePath(role: AppRole): string {
   return '/dashboard';
 }
 
+export type RoutePolicy = {kind:'public'} | {kind:'authenticated'} |
+  {kind:'roles';roles:readonly AppRole[]} | {kind:'denied'};
+
+export function routePolicyForPath(pathname: string): RoutePolicy {
+  const roles = (allowed:readonly AppRole[]):RoutePolicy => ({kind:'roles',roles:allowed});
+  // /admin is the existing public staff login, not an administrative workspace.
+  if (['/', '/login', '/signup', '/admin', '/courses', '/journal', '/journal/guidelines', '/print/qr',
+    '/research', '/research/submit', '/research/standards', '/research/propose', '/research/partner',
+    '/research/mentor', '/research/join'].includes(pathname) ||
+    /^\/courses\/[^/]+$/.test(pathname) || /^\/journal\/articles\/[^/]+$/.test(pathname) ||
+    /^\/verify\/[^/]+$/.test(pathname)) return {kind:'public'};
+  if (pathname === '/admin/dashboard' || /^\/admin\/courses\/edit\/[^/]+$/.test(pathname) ||
+    ['/teacher/dashboard','/teacher/courses','/teacher/telegram','/dashboard/telegram'].includes(pathname)) return roles(teachingRoles);
+  if (pathname === '/admin/journal') return roles(editorialRoles);
+  if (['/admin/users','/admin/users/new','/admin/courses','/admin/courses/new','/admin/waitlist',
+    '/admin/certificates','/admin/analytics','/admin/academy','/admin/announcements','/admin/payment',
+    '/admin/access','/admin/landing','/admin/seed'].includes(pathname)) return roles(['admin']);
+  if (pathname === '/reviewer') return roles(reviewRoles);
+  if (['/dashboard','/learning-path','/certificates'].includes(pathname)) return roles(learnerRoles);
+  if (['/profile','/journal/submit','/journal/my-submissions'].includes(pathname) ||
+    /^\/learn\/[^/]+(?:\/[^/]+)?$/.test(pathname) || /^\/journal\/revise\/[^/]+$/.test(pathname) ||
+    /^\/live\/[^/]+$/.test(pathname)) return {kind:'authenticated'};
+  // Unregistered routes are never implicitly authorized by a workspace guard.
+  return {kind:'denied'};
+}
+
 export function allowedRolesForPath(pathname: string): readonly AppRole[] | null {
-  if (pathname === '/admin') return null;
-  if (pathname === '/admin/dashboard' || pathname.startsWith('/admin/courses/edit/')) {
-    return teachingRoles;
-  }
-  if (pathname === '/admin/journal' || pathname.startsWith('/admin/journal/')) {
-    return editorialRoles;
-  }
-  if (pathname.startsWith('/admin/')) return ['admin'];
-  if (pathname.startsWith('/teacher/')) return teachingRoles;
-  if (pathname === '/reviewer' || pathname.startsWith('/reviewer/')) return reviewRoles;
-  if (
-    pathname === '/dashboard' ||
-    pathname.startsWith('/dashboard/') ||
-    pathname === '/learning-path' ||
-    pathname === '/certificates'
-  ) {
-    return learnerRoles;
-  }
-  if (pathname === '/profile' || pathname.startsWith('/learn/')) {
-    return allAuthenticatedRoles;
-  }
-  return null;
+  const policy = routePolicyForPath(pathname);
+  return policy.kind === 'public' ? null : policy.kind === 'authenticated' ? allAuthenticatedRoles :
+    policy.kind === 'roles' ? policy.roles : [];
 }
 
 export function canRoleAccessPath(role: AppRole, pathname: string): boolean {

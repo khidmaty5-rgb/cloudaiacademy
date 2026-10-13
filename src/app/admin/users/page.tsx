@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { USER_ROLES, isUserRole, type UserRole } from '@/lib/user-roles';
 import { useUser, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, getFirestore, query, orderBy, doc } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, doc, documentId, limit, startAfter } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, BookOpen, GraduationCap, FileText } from 'lucide-react';
@@ -20,6 +21,8 @@ import { updateUserRole } from '@/lib/user';
 import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
+import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
  
 
 const usersText = {
@@ -46,6 +49,7 @@ const usersText = {
       `User role has been changed to ${role}. It may take a few moments for permissions to update.`,
     roleUpdateFailedTitle: 'Update Failed',
     roleUpdateFailedDesc: 'Could not update user role.',
+    claimsPending: 'The role is saved. Token synchronization is pending; current profile permissions already apply.',
   },
   ar: {
     pageTitle: 'إدارة المستخدمين',
@@ -61,7 +65,7 @@ const usersText = {
     noPermission: 'ليس لديك صلاحية لعرض هذه الصفحة.',
     student: 'طالب',
     teacher: 'معلم',
-    reviewer: 'مراجع',
+    reviewer: 'محكّم',
     editor: 'محرر',
     admin: 'مشرف',
     selectRolePlaceholder: 'اختر الدور',
@@ -70,6 +74,7 @@ const usersText = {
       `تم تغيير دور المستخدم إلى ${role}. قد يستغرق تطبيق الصلاحيات لحظات قليلة.`,
     roleUpdateFailedTitle: 'فشل التحديث',
     roleUpdateFailedDesc: 'تعذر تحديث دور المستخدم.',
+    claimsPending: 'تم حفظ الدور. تحديث رمز الدخول قيد الانتظار؛ صلاحيات الملف الحالية مطبّقة بالفعل.',
   },
 } as const;
 
@@ -85,17 +90,32 @@ function toDateValue(v: any): Date | null {
   return null;
 }
 
-function RoleSelector({ userId, currentRole }: { userId: string, currentRole: string }) {
+export function RoleSelector({ userId, currentRole, identity }: { userId: string, currentRole: string, identity: string }) {
     const { toast } = useToast();
     const { lang } = useLang();
     const t = usersText[lang];
+    const { user } = useUser();
+    const [proposedRole, setProposedRole] = useState<UserRole | null>(null);
+    const [busy, setBusy] = useState(false);
+    const inFlight = useRef(false);
+    const self = user?.uid === userId;
+    const summaries: Record<UserRole, { en: string; ar: string }> = {
+      student: { en: 'Learning, certificates and article submissions.', ar: 'التعلّم والشهادات وإرسال المقالات.' },
+      teacher: { en: 'Assigned course teaching, lesson management and Telegram.', ar: 'تدريس الدورات المخصصة وإدارة الدروس وتيليجرام.' },
+      reviewer: { en: 'Assigned peer reviews plus learner tools.', ar: 'تحكيم الأبحاث المخصصة وأدوات التعلّم.' },
+      editor: { en: 'Editorial decisions and peer-review management.', ar: 'القرارات التحريرية وإدارة التحكيم العلمي.' },
+      admin: { en: 'Academy-wide administration, people, payments and settings.', ar: 'إدارة الأكاديمية والمستخدمين والمدفوعات والإعدادات.' },
+    };
 
-    const handleRoleChange = async (newRole: 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin') => {
+    const handleRoleChange = async (newRole: UserRole) => {
+        if (inFlight.current || self || newRole === currentRole) return;
+        inFlight.current = true;
+        setBusy(true);
         try {
-            await updateUserRole(userId, newRole);
+            const result = await updateUserRole(userId, newRole);
             toast({
                 title: t.roleUpdatedTitle,
-                description: t.roleUpdatedDesc(
+                description: result.claimsSyncPending ? t.claimsPending : t.roleUpdatedDesc(
                   newRole === 'student'
                     ? t.student
                     : newRole === 'teacher'
@@ -107,28 +127,45 @@ function RoleSelector({ userId, currentRole }: { userId: string, currentRole: st
                           : t.admin,
                 ),
             });
+            setProposedRole(null);
         } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: t.roleUpdateFailedTitle,
                 description: error.message || t.roleUpdateFailedDesc,
             });
-        }
+        } finally { inFlight.current = false; setBusy(false); }
     };
 
     return (
-        <Select defaultValue={currentRole} onValueChange={handleRoleChange}>
+        <>
+        <Select value={currentRole} disabled={self || busy} onValueChange={value => { if (isUserRole(value) && value !== currentRole) setProposedRole(value); }}>
             <SelectTrigger className="w-full shrink-0" aria-label={t.role}>
                 <SelectValue placeholder={t.selectRolePlaceholder} />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="student">{t.student}</SelectItem>
-                <SelectItem value="teacher">{t.teacher}</SelectItem>
-                <SelectItem value="reviewer">{t.reviewer}</SelectItem>
-                <SelectItem value="editor">{t.editor}</SelectItem>
-                <SelectItem value="admin">{t.admin}</SelectItem>
+                {USER_ROLES.map(role => <SelectItem key={role} value={role}>{t[role]}</SelectItem>)}
             </SelectContent>
         </Select>
+        {self && <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'لا يمكنك تغيير دور حسابك. يجب أن يتولى ذلك مشرف آخر.' : 'You cannot change your own role. Another administrator must do this.'}</p>}
+        <AlertDialog open={!!proposedRole} onOpenChange={open => { if (!open && !inFlight.current) setProposedRole(null); }}>
+          <AlertDialogContent dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{lang === 'ar' ? 'تأكيد تغيير الدور' : 'Confirm role change'}</AlertDialogTitle>
+              <AlertDialogDescription>
+                <span dir="auto" className="block break-all font-medium">{identity}</span>
+                <span className="mt-2 block">{isUserRole(currentRole) ? t[currentRole] : currentRole} → {proposedRole && t[proposedRole]}</span>
+                <span className="mt-2 block">{proposedRole && summaries[proposedRole][lang]}</span>
+                <span className="mt-2 block">{lang === 'ar' ? 'يسجّل الخادم هذا التغيير ويتحقق من الصلاحيات. لا يمكن إزالة آخر مشرف.' : 'This change is audited and validated by the server. The last administrator cannot be removed.'}</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel disabled={busy}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
+              <Button disabled={busy} onClick={() => { if (proposedRole) void handleRoleChange(proposedRole); }}>{busy ? (lang === 'ar' ? 'جارٍ الحفظ…' : 'Saving…') : (lang === 'ar' ? 'تأكيد التغيير' : 'Confirm change')}</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }
 
@@ -137,13 +174,18 @@ function UserList() {
     const { lang } = useLang();
     const t = usersText[lang];
     const { isAdmin, loading: roleLoading } = useCurrentRole();
+    const [cursors, setCursors] = useState<{ dateJoined: unknown; id: string }[]>([]);
+    const [search, setSearch] = useState('');
+    const cursor = cursors[cursors.length - 1];
 
     const usersQuery = useMemoFirebase(() => {
         if (!isAdmin) return null;
-        return query(collection(firestore, 'users'), orderBy('dateJoined', 'desc'));
-    }, [firestore, isAdmin]);
+        return query(collection(firestore, 'users'), orderBy('dateJoined', 'desc'), orderBy(documentId(), 'desc'),
+          ...(cursor ? [startAfter(cursor.dateJoined, cursor.id)] : []), limit(51));
+    }, [firestore, isAdmin, cursor]);
 
-    const { data: users, isLoading: areUsersLoading } = useCollection(usersQuery);
+    const { data: users, isLoading: areUsersLoading, error: usersError } = useCollection(usersQuery);
+    const pageUsers = useMemo(() => (users || []).slice(0, 50), [users]);
 
     const grouped = useMemo(() => {
       const g: Record<'admin' | 'teacher' | 'reviewer' | 'editor' | 'student', any[]> = {
@@ -153,12 +195,18 @@ function UserList() {
         editor: [],
         student: [],
       };
-      for (const u of users || []) {
+      for (const u of pageUsers) {
+        if (search.trim() && !`${u.email || ''} ${u.firstName || ''} ${u.lastName || ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) continue;
         const r = (u.role as 'admin' | 'teacher' | 'reviewer' | 'editor' | 'student') || 'student';
         if (g[r]) g[r].push(u);
       }
       return g;
-    }, [users]);
+    }, [pageUsers, search]);
+
+    if (usersError) return <div role="alert" className="space-y-3 rounded-xl border p-6">
+      <p>{lang === 'ar' ? 'تعذّر تحميل المستخدمين. تحقق من اتصالك وصلاحياتك.' : 'People could not be loaded. Check your connection and permissions.'}</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>
+    </div>;
 
     if (areUsersLoading || roleLoading) {
       return (
@@ -219,7 +267,7 @@ function UserList() {
                     <p dir="auto" className="break-words text-sm text-muted-foreground">{`${appUser.firstName} ${appUser.lastName}`}</p>
                     <p className="text-xs text-muted-foreground">{(() => { const d = toDateValue(appUser.dateJoined); return d ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { dateStyle: 'medium' }).format(d) : t.unavailable; })()}</p>
                   </div>
-                  <RoleSelector userId={appUser.id} currentRole={appUser.role} />
+                  <RoleSelector userId={appUser.id} currentRole={appUser.role} identity={appUser.email || appUser.id} />
                 </div>
               ))
             )}
@@ -229,12 +277,26 @@ function UserList() {
     };
 
     return (
+      <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="w-full max-w-md space-y-2">
+          <label htmlFor="people-page-search" className="text-sm font-medium">{lang === 'ar' ? 'البحث في هذه الصفحة' : 'Search this page'}</label>
+          <Input id="people-page-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder={lang === 'ar' ? 'الاسم أو البريد الإلكتروني' : 'Name or email'} />
+          <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'يُحمّل حتى ٥٠ مستخدمًا في كل صفحة. الأعداد والبحث لهذه الصفحة فقط.' : 'Up to 50 people per page. Counts and search apply to this page only.'}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" disabled={!cursors.length} onClick={() => { setSearch(''); setCursors(previous => previous.slice(0, -1)); }}>{lang === 'ar' ? 'السابق' : 'Previous'}</Button>
+          <span className="text-sm" aria-live="polite">{lang === 'ar' ? 'الصفحة' : 'Page'} {cursors.length + 1}</span>
+          <Button variant="outline" disabled={!users || users.length <= 50} onClick={() => { const last = pageUsers[pageUsers.length - 1]; if (last) { setSearch(''); setCursors(previous => [...previous, { dateJoined: last.dateJoined, id: last.id }]); } }}>{lang === 'ar' ? 'التالي' : 'Next'}</Button>
+        </div>
+      </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-6">
         {renderCard('admin', t.admin)}
         {renderCard('teacher', t.teacher)}
         {renderCard('reviewer', t.reviewer)}
         {renderCard('editor', t.editor)}
         {renderCard('student', t.student)}
+      </div>
       </div>
     );
 }

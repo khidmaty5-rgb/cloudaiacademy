@@ -5,7 +5,12 @@ import { describe, it } from 'node:test';
 import ts from 'typescript';
 
 async function importTypeScript(relativePath) {
-  const source = await readFile(new URL(relativePath, import.meta.url), 'utf8');
+  let source = await readFile(new URL(relativePath, import.meta.url), 'utf8');
+  if (source.includes('@/lib/user-roles')) {
+    const rolesSource = await readFile(new URL('../../functions/src/user-roles.ts', import.meta.url), 'utf8');
+    const rolesCode = ts.transpileModule(rolesSource, {compilerOptions:{module:ts.ModuleKind.ES2022}}).outputText;
+    source = source.replaceAll('@/lib/user-roles', 'data:text/javascript;base64,' + Buffer.from(rolesCode).toString('base64'));
+  }
   const transpiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,

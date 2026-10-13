@@ -10,7 +10,7 @@ export function featureForPath(path: string): AcademyFeature | null {
   if (['/live', '/api/live'].some(within)) return 'liveTeaching';
   if (['/certificates', '/admin/certificates', '/api/certificates'].some(within)) return 'certificates';
   if (within('/learning-path')) return 'learningPaths';
-  if (within('/dashboard/telegram') || within('/api/telegram') || within('/api/n8n/telegram')) return 'telegram';
+  if (within('/dashboard/telegram') || within('/teacher/telegram') || within('/api/telegram') || within('/api/n8n/telegram')) return 'telegram';
   // Webhooks must remain available to reconcile existing subscriptions/refunds.
   if (within('/api/billing/course-checkout') || within('/api/billing/checkout')) return 'payments';
   return null;

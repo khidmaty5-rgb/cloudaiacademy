@@ -42,6 +42,9 @@ jobs:
       - name: Validate academy configuration
         run: npm run academy:check
 
+      - name: Test bounded Firebase credential-path discovery
+        run: node --test tests/roles/firebase-credential-paths.test.mjs
+
       - name: Test academy configuration and module boundaries
         run: node --test tests/roles/academy-template.test.mjs tests/roles/academy-launch.test.mjs
 
@@ -50,13 +53,19 @@ jobs:
 
       - name: Test teacher course query authorization
         # Separate invocation keeps each rule test environment isolated.
-        run: npx firebase emulators:exec --config firebase.test.json --only firestore "node --test tests/firestore/teacher-course-queries.rules.test.mjs"
+        run: npx firebase emulators:exec --config firebase.test.json --only firestore "node --test tests/firestore/teacher-course-queries.rules.test.mjs tests/firestore/people-pagination.rules.test.mjs"
+
+      - name: Test transactional role-change safeguards
+        run: npx firebase emulators:exec --config firebase.test.json --only firestore --project demo-cloudai-role-tests "node --test tests/firestore/role-change.transaction.test.mjs"
 
       - name: Test billing payments
         run: npm run test:billing
 
       - name: Test role access matrix
         run: npm run test:roles
+
+      - name: Test callable and Telegram role consistency
+        run: node --test tests/roles/admin-callable.test.mjs tests/roles/telegram-access.test.mjs tests/roles/route-guard.test.mjs
 
       - name: Test responsive layout contracts
         run: npm run test:layout
@@ -72,6 +81,12 @@ jobs:
 
       - name: Test interactive lesson browser isolation
         run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs
+
+      - name: Test contextual workspace and role confirmation browser behavior
+        run: node --test tests/roles/workspace.browser.test.mjs
+
+      - name: Test CSP and JSON-LD security boundaries
+        run: node --test tests/roles/security-headers.browser.test.mjs
 
       - name: Typecheck
         run: npm run typecheck
@@ -89,6 +104,17 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
           NEXT_PUBLIC_FIREBASE_APP_ID: ci-app
 
+      - name: Smoke test built production headers and startup
+        run: |
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3107 > "$RUNNER_TEMP/cloudai-production-smoke.log" 2>&1 &
+          academy_smoke_pid=$!
+          trap 'kill "$academy_smoke_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3107/ > /dev/null; then break; fi
+            sleep 1
+          done
+          ACADEMY_SMOKE_BASE_URL=http://127.0.0.1:3107 node --test tests/roles/production-build-smoke.test.mjs
+
   functions:
     name: Firebase Functions lint and build
     runs-on: ubuntu-latest
@@ -104,7 +130,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 22.x
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
