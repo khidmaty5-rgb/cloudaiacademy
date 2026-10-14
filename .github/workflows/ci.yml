@@ -80,7 +80,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Test interactive lesson browser isolation
-        run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs
+        run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs tests/roles/course-image-upload.browser.test.mjs
 
       - name: Test contextual workspace and role confirmation browser behavior
         run: node --test tests/roles/workspace.browser.test.mjs

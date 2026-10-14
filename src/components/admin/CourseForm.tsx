@@ -37,6 +37,8 @@ import { suggestCourseDetails, courseManifest } from '@/lib/course-package-detai
 import { lessonImportRequest } from '@/lib/lesson-import-client';
 import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-player';
 import { ImportedLessonContent } from '@/components/learn/imported-lesson-content';
+import { CourseImageInput } from './CourseImageInput';
+import { isCourseImageData } from '@/lib/course-image-upload';
 
 const livePlatformSchema = z.enum(['none', 'jitsi', 'google-meet']);
 
@@ -53,12 +55,12 @@ const createCourseSchema = (t: (text: string) => string) => z.object({
     (v) => {
       if (typeof v !== 'string') return undefined;
       const trimmed = v.trim();
-      return trimmed ? trimmed : undefined;
+      return trimmed;
     },
     z
       .string()
       .refine(
-        (v) => v.startsWith('/') || v.startsWith('http://') || v.startsWith('https://'),
+        (v) => v === '' || v.startsWith('/') || v.startsWith('http://') || v.startsWith('https://') || isCourseImageData(v),
         t("Use a full URL or a /images/... path"),
       )
       .optional(),
@@ -91,6 +93,7 @@ export default function CourseForm({ course }: CourseFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
   const [uploading,setUploading]=useState(false);
   const [uploadMode,setUploadMode]=useState<'interactive'|'standard'>('interactive');
   const [packageUpload,setPackageUpload]=useState<{name:string;id:string;pkg:LessonPackage}|null>(null);
@@ -163,6 +166,7 @@ export default function CourseForm({ course }: CourseFormProps) {
   }
 
   const onSubmit = async (data: CourseFormValues) => {
+    if (imageBusy) return;
     setIsLoading(true);
     try {
       // simple guard: if google-meet selected, ensure URL is present
@@ -283,17 +287,8 @@ export default function CourseForm({ course }: CourseFormProps) {
           name="imageUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("Course image URL (optional)")}</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder={t("e.g., /images/course-aws.png")}
-                  spellCheck={false}
-                  {...field}
-                />
-              </FormControl>
-              <p className="text-xs text-muted-foreground">
-                {lang === 'ar' ? 'أدخل رابط الصورة أو مسارها، مثل /images/filename.png.' : 'Enter an image URL or path, such as /images/filename.png.'}
-              </p>
+              <p className="text-sm font-medium">{lang === 'ar' ? 'صورة الدورة (اختيارية)' : 'Course image (optional)'}</p>
+              <CourseImageInput value={field.value || ''} onChange={field.onChange} disabled={isLoading} arabic={lang === 'ar'} onBusyChange={setImageBusy} />
               <FormMessage />
             </FormItem>
           )}
@@ -552,7 +547,7 @@ export default function CourseForm({ course }: CourseFormProps) {
             )}
           />
         </div>
-        <Button type="submit" disabled={isLoading||uploading} className="w-full">
+        <Button type="submit" disabled={isLoading||uploading||imageBusy} className="w-full">
           {isLoading
             ? isEditMode
               ? t("Saving Changes...")
