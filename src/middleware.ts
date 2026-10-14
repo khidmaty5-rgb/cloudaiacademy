@@ -18,7 +18,10 @@ export function middleware(request: NextRequest) {
   // Next parses this request header to nonce its framework/hydration scripts,
   // even when the browser-facing policy is initially Report-Only.
   headers.set('Content-Security-Policy', policy);
-  headers.delete('Content-Security-Policy-Report-Only');
+  // Next also parses Report-Only. Forward the same server-generated policy in
+  // both names for production adapters that strip CSP from internal requests.
+  // Replace both client values; never use an incoming nonce/policy as a fallback.
+  headers.set('Content-Security-Policy-Report-Only', policy);
   let response: NextResponse;
   if (academyPathEnabled(request.nextUrl.pathname)) {
     response = NextResponse.next({ request: { headers } });

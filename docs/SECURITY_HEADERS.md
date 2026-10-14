@@ -1,5 +1,14 @@
 # Security headers — local implementation, not deployed
 
+Production checkpoint 2026-10-14 UTC: PR28 deployed successfully; production
+returns enforced baseline, Report-Only full policy, nosniff/referrer/permissions
+and unchanged HSTS. Production nonce verification found framework scripts lack
+nonces although theme/language scripts carry fresh values. Local/CI built-server
+checks did not reproduce this adapter difference. Do not enforce full CSP.
+Transport follow-up forwards the same generated policy in both supported request
+header names, replacing client-supplied values. Browser policy is unchanged;
+the follow-up must be checked on actual production before calling it fixed.
+
 Update 2026-10-12: BUILD_VALIDATION.md supersedes the earlier incomplete build
 result below. Production build and built-server nonce/startup smoke checks now
 pass. The baseline moved from middleware to static global headers to avoid Next
