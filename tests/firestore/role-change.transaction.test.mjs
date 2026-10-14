@@ -9,12 +9,38 @@ const encode=source=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModu
 const definitions=encode(await readFile(new URL('../../functions/src/user-roles.ts',import.meta.url),'utf8'));
 const roleService=await import(encode((await readFile(new URL('../../src/server/role-change.ts',import.meta.url),'utf8')).replaceAll('@/lib/user-roles',definitions).replaceAll('firebase-admin/firestore',import.meta.resolve('firebase-admin/firestore'))));
 const {changeUserRole}=roleService;
+const recovery=await import(encode((await readFile(new URL('../../src/server/role-claim-recovery.ts',import.meta.url),'utf8')).replaceAll('@/lib/user-roles',definitions).replaceAll('firebase-admin/firestore',import.meta.resolve('firebase-admin/firestore'))));
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw Error('Emulator required; never run on a live project');
 const app=initializeApp({projectId:'demo-cloudai-role-transactions'},'role-transaction-test');
 const db=getFirestore(app);
 beforeEach(async()=>{for(const collection of ['users','roleChangeAudit','securityState']){const snap=await db.collection(collection).get();const batch=db.batch();for(const doc of snap.docs)batch.delete(doc.ref);await batch.commit();}});
 after(async()=>{await db.terminate();await deleteApp(app);});
 const seed=async(uid,role)=>db.doc('users/'+uid).set({role});
+
+test('Spark recovery persists failures, uses current role not historical grants, and preserves other claims', async () => {
+  await seed('admin','admin'); await seed('target','student');
+  await changeUserRole(db,'admin','target','teacher','request-000000001');
+  await changeUserRole(db,'admin','target','student','request-000000002');
+  const claims=[];
+  const auth={getUser:async()=>({customClaims:{otherClaim:true}}),setCustomUserClaims:async(uid,value)=>{claims.push(value);}};
+  await assert.rejects(recovery.recoverRoleClaims(db,{...auth,setCustomUserClaims:async()=>{throw Error('transient');}},'admin','request-000000001'), /transient/);
+  assert.equal((await db.doc('roleChangeAudit/request-000000001').get()).data().claimsSync,'pending');
+  await recovery.recoverRoleClaims(db,auth,'admin','request-000000001');
+  assert.deepEqual(claims,[{otherClaim:true,role:'student'}]);
+  assert.equal((await db.doc('roleChangeAudit/request-000000001').get()).data().claimsSync,'complete');
+  assert.equal((await db.collection('roleChangeAudit').get()).size,2);
+  await seed('admin','student');
+  await assert.rejects(recovery.recoverRoleClaims(db,auth,'admin','request-000000002'), {code:'FORBIDDEN'});
+  assert.equal(claims.length,1);
+});
+
+test('concurrent profile change during recovery stays pending for retry', async () => {
+  await seed('admin','admin'); await seed('target','student');
+  await changeUserRole(db,'admin','target','teacher','request-000000001');
+  const auth={getUser:async()=>({}),setCustomUserClaims:async()=>{await seed('target','student');}};
+  await assert.rejects(recovery.recoverRoleClaims(db,auth,'admin','request-000000001'), {code:'PROFILE_CHANGED_RETRY'});
+  assert.equal((await db.doc('roleChangeAudit/request-000000001').get()).data().claimsSync,'pending');
+});
 test('profile change and audit commit together; retry is idempotent',async()=>{
   await seed('admin','admin');await seed('target','student');
   await changeUserRole(db,'admin','target','teacher','same-request-id-001','Assigned teaching');

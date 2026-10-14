@@ -1,5 +1,14 @@
 # Route and role-change safeguards — local batch 2
 
+2026-10-13 Spark-only update supersedes the worker/deployment requirement below:
+account creation uses Next directly, profile editing never writes roles, the new
+Functions audit worker was removed. Pending audits are recovered explicitly via
+admin-only /api/admin/role-sync and the People recovery panel. This reads the
+current profile (never the audit's historical role), preserves other claims,
+and keeps failures pending. Signed-in users also have the existing self-sync path.
+No automatic/background delivery guarantee or paid service is assumed. Rules
+deployment approval remains separate; no billing upgrade is required for this design.
+
 Update 2026-10-12: production build now passes; see BUILD_VALIDATION.md. This
 supersedes the earlier stalled-build note below, not the manual acceptance gates.
 

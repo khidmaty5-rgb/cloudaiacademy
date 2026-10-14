@@ -13,16 +13,8 @@ async function synchronizeProfileRole(userId:string):Promise<boolean> {
   return true;
 }
 
-// Profile + audit are committed atomically by the Next API. This durable event
-// retries claim synchronization independently if the API's immediate sync fails.
-export const onRoleChangeAuditCreate = functions.runWith({failurePolicy:true}).firestore
-  .document('roleChangeAudit/{eventId}')
-  .onCreate(async snap => {
-    const targetUid = snap.data()?.targetUid;
-    if (typeof targetUid !== 'string' || !targetUid || targetUid.includes('/')) return;
-    const complete=await synchronizeProfileRole(targetUid);
-    await snap.ref.update({claimsSync:complete?'complete':'blocked'});
-  });
+// Legacy optional Functions source only. The Spark-compatible application uses
+// Next API routes and explicit admin recovery; deploying Functions is not required.
 
 // This Cloud Function is triggered when a user's document in Firestore is created.
 // Its purpose is to set a custom claim (`role`) on the user's authentication token.

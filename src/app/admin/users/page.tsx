@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { useLang } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { Input } from '@/components/ui/input';
+import RoleClaimRecovery from '@/components/admin/RoleClaimRecovery';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
  
 
@@ -377,7 +378,7 @@ export default function AdminUsersPage() {
           </div>
           
           {canViewPage ? (
-            <UserList />
+            <><RoleClaimRecovery /><UserList /></>
           ) : (
              <div className="text-center py-16">
                 <p className="text-muted-foreground">{t.noPermission}</p>

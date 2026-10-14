@@ -21,6 +21,15 @@ called release-ready without a successful build and relevant security tests.
 
 ## Capability/navigation checkpoint — 2026-10-13
 
+Spark-only follow-up: user prohibits paid-plan upgrades. Active account creation
+and claim synchronization now use existing Next APIs, not Firebase Functions.
+Removed audit worker; added admin pending-audit recovery panel/current-role-only
+retry endpoint, preserving durable audit and profile-authoritative controls.
+136 broad tests/four optional skips, 14 transaction/query/recovery emulator tests,
+build/typecheck/lint and built-server smoke pass. No offline automatic retry claim.
+No Blaze requirement for active role workflow. Production-rule approval remains
+independent; no rules redeployment or billing change attempted in this follow-up.
+
 Latest release checkpoint: contextual workspace switching, width specificity fix,
 bounded People paging/page-local search, confirmation/self-change UI and missing
 review Arabic implemented. Five-role desktop/mobile bilingual browser checks pass;

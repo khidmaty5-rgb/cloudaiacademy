@@ -12,7 +12,7 @@ test('production policy has nonce scripts, no inline scripts/eval or broad netwo
   assert.ok(!policy.includes('*.'));
   assert.ok(!policy.includes('bad.example'));
   for (const directive of ['default-src','style-src','img-src','font-src','connect-src','frame-src','frame-ancestors','object-src','base-uri','form-action']) assert.ok(policy.includes(directive));
-  assert.match(policy, /us-central1-test-project.cloudfunctions.net/);
+  assert.ok(!policy.includes('cloudfunctions.net'));
   assert.match(security.contentSecurityPolicy('YWJjZA==', {}, true), /unsafe-eval/);
   assert.throws(() => security.contentSecurityPolicy("evil'; script-src *", {}));
 });

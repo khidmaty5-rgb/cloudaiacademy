@@ -19,8 +19,6 @@ export function contentSecurityPolicy(nonce: string, resources: SecurityResource
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(nonce)) throw new Error('Invalid CSP nonce');
   const auth = trustedOrigin(resources.authDomain ? `https://${resources.authDomain}` : undefined);
   const analytics = trustedOrigin(resources.analyticsUrl);
-  const functions = resources.projectId && /^[a-z0-9-]+$/.test(resources.projectId)
-    ? `https://us-central1-${resources.projectId}.cloudfunctions.net` : undefined;
   const storage = (resources.storageOrigins || []).map(trustedOrigin).filter((v): v is string => !!v);
   const unique = (values: (string | undefined)[]) => [...new Set(values.filter(Boolean))].join(' ');
   return [
@@ -32,7 +30,7 @@ export function contentSecurityPolicy(nonce: string, resources: SecurityResource
     "style-src 'self' 'unsafe-inline'",
     `img-src ${unique(["'self'", 'data:', 'blob:', 'https://placehold.co', 'https://images.unsplash.com', 'https://picsum.photos', ...storage])}`,
     "font-src 'self'",
-    `connect-src ${unique(["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://firestore.googleapis.com', functions, auth, ...storage, ...(development ? ['http://localhost:9099', 'http://localhost:8080', 'http://localhost:5001', 'ws://localhost:*', 'ws://127.0.0.1:*'] : [])])}`,
+    `connect-src ${unique(["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://firestore.googleapis.com', auth, ...storage, ...(development ? ['http://localhost:9099', 'http://localhost:8080', 'ws://localhost:*', 'ws://127.0.0.1:*'] : [])])}`,
     `frame-src ${unique(["'self'", 'data:', 'blob:', auth, analytics, 'https://stackblitz.com', 'https://excalidraw.com', 'https://labs.whizlabs.com', ...storage])}`,
     "frame-ancestors 'self'",
     "object-src 'none'",

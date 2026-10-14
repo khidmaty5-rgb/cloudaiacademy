@@ -34,7 +34,7 @@ instruction or authorization: this task has made local changes only.
 ## Enforced policy template
 
 Actual nonce is a fresh base64 value from 32 cryptographically random bytes for
-each request. `AUTH`, `FUNCTIONS`, `ANALYTICS`, `STORAGE` below are exact trusted
+each request. `AUTH`, `ANALYTICS`, `STORAGE` below are exact trusted
 origins, not literal policy tokens. Empty configured origins are omitted.
 
 ```text
@@ -44,7 +44,7 @@ script-src-attr 'none';
 style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob: https://placehold.co https://images.unsplash.com https://picsum.photos STORAGE;
 font-src 'self';
-connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com FUNCTIONS AUTH STORAGE;
+connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com AUTH STORAGE;
 frame-src 'self' data: blob: AUTH ANALYTICS https://stackblitz.com https://excalidraw.com https://labs.whizlabs.com STORAGE;
 frame-ancestors 'self';
 object-src 'none';
@@ -83,7 +83,7 @@ trusted loader are not reliable examples of untrusted parser-inserted scripts.
 | securetoken.googleapis.com | connect: Firebase ID token refresh |
 | firestore.googleapis.com | connect: Firestore reads/writes/listener transport |
 | `https://NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | connect/frame: exact configured Firebase Auth helper origin (no firebaseapp wildcard) |
-| `https://us-central1-NEXT_PUBLIC_FIREBASE_PROJECT_ID.cloudfunctions.net` | connect: existing adminCreateUser callable in src/lib/user.ts; SDK's default region |
+| Cloud Functions origins | Removed on 2026-10-13: active Spark-compatible workflows use same-origin Next APIs, not a callable |
 | placehold.co, images.unsplash.com, picsum.photos | img: existing next.config.ts remote image hosts; current bundled default images are local |
 | `NEXT_PUBLIC_EVIDENCE_BASE_URL` or academy.analyticsUrl | frame: Evidence admin analytics; default https://analytics.cloudaiacademy.ca |
 | stackblitz.com | frame: lesson coding/embed tools |

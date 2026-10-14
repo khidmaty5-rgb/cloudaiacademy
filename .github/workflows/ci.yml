@@ -65,7 +65,7 @@ jobs:
         run: npm run test:roles
 
       - name: Test callable and Telegram role consistency
-        run: node --test tests/roles/admin-callable.test.mjs tests/roles/telegram-access.test.mjs tests/roles/route-guard.test.mjs
+        run: node --test tests/roles/admin-callable.test.mjs tests/roles/telegram-access.test.mjs tests/roles/route-guard.test.mjs tests/roles/spark-workflow.test.mjs
 
       - name: Test responsive layout contracts
         run: npm run test:layout

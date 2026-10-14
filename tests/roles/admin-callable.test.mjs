@@ -50,13 +50,6 @@ test('claim-sync triggers never publish invalid role values',async()=>{
   assert.deepEqual(definitions.USER_ROLES,['student','teacher','reviewer','editor','admin']);
 });
 
-test('audit worker retries transient failure, uses latest profile and preserves other claims',async()=>{
-  const f=fixture({role:'student'},false,1);
-  const states=[];
-  const event={data:()=>({targetUid:'caller',newRole:'admin'}),ref:{update:async data=>states.push(data)}};
-  await assert.rejects(f.api.onRoleChangeAuditCreate(event),/transient/);
-  assert.equal(states.length,0);
-  await f.api.onRoleChangeAuditCreate(event);
-  assert.deepEqual(f.calls[0],['claims','caller',{otherClaim:true,role:'student'}]);
-  assert.deepEqual(states,[{claimsSync:'complete'}]);
+test('Spark workflow does not export a paid audit retry worker', () => {
+  assert.equal(fixture({role:'admin'}).api.onRoleChangeAuditCreate, undefined);
 });

@@ -1,10 +1,9 @@
 'use client';
 
 import { updateProfile, User } from 'firebase/auth';
-import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { PersonalizedLearningPathOutput } from '@/ai/flows/personalized-learning-paths';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { UserRole } from '@/lib/user-roles';
 
 const pendingRoleRequests = new Map<string,string>();
@@ -21,15 +20,9 @@ export async function createUserWithRole(
   email: string,
   password: string,
   fullName: string,
-  role: 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin',
+  role: UserRole,
 ) {
-    // Try callable function first (prod with Functions). If unavailable (no Blaze), fallback to Next API route.
-    try {
-        const functions = getFunctions();
-        const createFn = httpsCallable(functions, 'adminCreateUser');
-        await createFn({ email, password, fullName, role });
-        return;
-    } catch (err) {
+    // Spark-compatible: the privileged operation runs on our existing Next server.
         const currentUser = auth.currentUser;
         if (!currentUser) {
             throw new Error('You must be signed in as an admin.');
@@ -51,7 +44,6 @@ export async function createUserWithRole(
             } catch {}
             throw new Error(msg);
         }
-    }
 }
 
 export async function updateUserProfile(user: User, data: UserProfileData) {
@@ -63,15 +55,10 @@ export async function updateUserProfile(user: User, data: UserProfileData) {
   });
 
   const userDocRef = doc(firestore, 'users', user.uid);
-  const userDoc = await getDoc(userDocRef);
-  const currentRole = userDoc.data()?.role || 'student';
-
-  // Update Firestore user document, including re-saving the role.
-  // This is CRITICAL to trigger the onUserUpdate Cloud Function which sets custom claims for existing users.
+  // Profile edits must not write roles or depend on a deployed Firestore trigger.
   await updateDoc(userDocRef, {
     firstName: data.firstName,
     lastName: data.lastName,
-    role: currentRole, // Re-assert the role to trigger the update function
   });
 
   await user.getIdToken(true);

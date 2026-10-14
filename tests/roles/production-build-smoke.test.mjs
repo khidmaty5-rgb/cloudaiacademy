@@ -22,6 +22,8 @@ test('built production HTML and middleware agree on fresh nonces and security he
   for(const tag of tags)assert.ok(tag[1].includes(`nonce="${firstNonce}"`),'Every built script must carry the response nonce');
   assert.ok(html.includes('theme-init'));assert.ok(html.includes('lang-dir-init'));
   assert.equal((await fetch(base+'/api/courses/business-intelligence/lesson-imports')).status,401);
+  assert.equal((await fetch(base+'/api/admin/role-sync')).status,401);
+  assert.equal((await fetch(base+'/api/admin/role-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,401);
 });
 
 test('full enforced policy blocks a parser-inserted inline script in an inherited test frame',{skip:!base||!enforced},async()=>{

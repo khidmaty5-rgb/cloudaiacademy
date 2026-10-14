@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserUpdate = exports.adminCreateUser = exports.onUserCreate = exports.onRoleChangeAuditCreate = void 0;
+exports.onUserUpdate = exports.adminCreateUser = exports.onUserCreate = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const user_roles_1 = require("./user-roles");
@@ -48,18 +48,8 @@ async function synchronizeProfileRole(userId) {
     await admin.auth().setCustomUserClaims(userId, Object.assign(Object.assign({}, account.customClaims), { role }));
     return true;
 }
-// Profile + audit are committed atomically by the Next API. This durable event
-// retries claim synchronization independently if the API's immediate sync fails.
-exports.onRoleChangeAuditCreate = functions.runWith({ failurePolicy: true }).firestore
-    .document('roleChangeAudit/{eventId}')
-    .onCreate(async (snap) => {
-    var _a;
-    const targetUid = (_a = snap.data()) === null || _a === void 0 ? void 0 : _a.targetUid;
-    if (typeof targetUid !== 'string' || !targetUid || targetUid.includes('/'))
-        return;
-    const complete = await synchronizeProfileRole(targetUid);
-    await snap.ref.update({ claimsSync: complete ? 'complete' : 'blocked' });
-});
+// Legacy optional Functions source only. The Spark-compatible application uses
+// Next API routes and explicit admin recovery; deploying Functions is not required.
 // This Cloud Function is triggered when a user's document in Firestore is created.
 // Its purpose is to set a custom claim (`role`) on the user's authentication token.
 // This allows Firestore Security Rules to perform role-based access control efficiently
