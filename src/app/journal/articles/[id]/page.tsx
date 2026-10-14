@@ -1,4 +1,6 @@
 import { academy } from '@/lib/academy';
+import { headers } from 'next/headers';
+import { serializeJsonLd } from '@/lib/security-headers';
 export const runtime = 'nodejs';
 
 import { Button } from '@/components/ui/button';
@@ -118,6 +120,7 @@ export async function generateMetadata(context: {
 export default async function JournalArticlePage(context: {
   params: Promise<{ id: string }>;
 }) {
+  const nonce = (await headers()).get('x-nonce') || undefined;
   if (!(await isJournalEnabled())) return notFound();
   const { id } = await context.params;
   const article = await fetchArticle(id);
@@ -162,8 +165,9 @@ export default async function JournalArticlePage(context: {
         <div className="container max-w-3xl">
           <section className="space-y-6">
             <script
+              nonce={nonce}
               type="application/ld+json"
-              dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+              dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
             />
             <a href="/journal" className="text-sm text-muted-foreground hover:text-primary">Back to Journal</a>
 

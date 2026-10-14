@@ -1,12 +1,11 @@
 import type { User } from 'firebase/auth';
 import type { Course, UserRole } from '@/types/models';
+import { isUserRole } from '@/lib/user-roles';
 
 export type Role = UserRole | null;
 
 export function roleFromClaims(claims: any): UserRole {
-  const r = (claims?.role as string) || 'student';
-  if (r === 'admin' || r === 'teacher' || r === 'editor' || r === 'reviewer') return r as UserRole;
-  return 'student';
+  return isUserRole(claims?.role) ? claims.role : 'student';
 }
 
 export const isAdmin = (role: Role) => role === 'admin';

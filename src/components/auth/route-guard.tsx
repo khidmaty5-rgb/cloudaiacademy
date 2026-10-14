@@ -7,7 +7,7 @@ import { useUser } from '@/firebase';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useLang } from '@/components/i18n/lang';
 import {
-  allowedRolesForPath,
+  routePolicyForPath,
   roleHomePath,
   type AppRole,
 } from '@/lib/route-access';
@@ -18,18 +18,19 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   const { user, isUserLoading } = useUser();
   const { role, loading: roleLoading } = useCurrentRole();
   const { lang } = useLang();
-  const allowed = allowedRolesForPath(pathname);
-  const authorized = !!user && (allowed === null || allowed.includes(role as AppRole));
+  const policy = routePolicyForPath(pathname);
+  const authorized = policy.kind === 'public' || (!!user &&
+    (policy.kind === 'authenticated' || (policy.kind === 'roles' && policy.roles.includes(role as AppRole))));
   const loading = isUserLoading || (!!user && roleLoading);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
+    if (!user && policy.kind !== 'public') {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
     if (!authorized) router.replace(roleHomePath(role as AppRole));
-  }, [authorized, loading, pathname, role, router, user]);
+  }, [authorized, loading, pathname, policy.kind, role, router, user]);
 
   if (loading || !authorized) {
     return (

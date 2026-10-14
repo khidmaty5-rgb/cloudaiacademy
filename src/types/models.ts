@@ -1,7 +1,8 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type FirestoreTimestamp = Timestamp | FieldValue | Date | null;
-export type UserRole = 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin';
+import type { UserRole } from '@/lib/user-roles';
+export type { UserRole } from '@/lib/user-roles';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type LivePlatform = 'jitsi' | 'google-meet' | 'none';
 export type CourseStatus = 'DRAFT' | 'PUBLISHED';

@@ -6,6 +6,7 @@ import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { getAuthorizedUserRole } from '@/server/effective-user-role';
+import { isUserRole } from '@/lib/user-roles';
 
 export const runtime = 'nodejs';
 
@@ -25,12 +26,15 @@ function getAdminApp(): App {
   }
   // Try multiple locations for local service account
   const explicitPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  const tryPaths: string[] = [];
-  if (explicitPath) tryPaths.push(explicitPath);
-  const levels = ['', '..', '../..', '../../..', '../../../..'];
-  for (const lvl of levels) {
-    tryPaths.push(path.join(process.cwd(), lvl, 'config', 'serviceAccount.local.json'));
-  }
+  // Literal candidates avoid recursive wildcard discovery during Next tracing.
+  const tryPaths: string[] = [
+    path.join(process.cwd(), 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../../..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../../../..', 'config', 'serviceAccount.local.json'),
+  ];
+  if (explicitPath) tryPaths.unshift(explicitPath);
   for (const p of tryPaths) {
     try {
       if (p && existsSync(p)) {
@@ -81,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     const assignedRole = typeof role === 'string' && role.length ? role : 'student';
-    if (!['student', 'teacher', 'reviewer', 'editor', 'admin'].includes(assignedRole)) {
+    if (!isUserRole(assignedRole)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 

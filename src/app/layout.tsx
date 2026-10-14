@@ -2,6 +2,7 @@ import { academy } from '@/lib/academy';
 import type { Metadata } from 'next';
 import { Inter, Space_Grotesk, Cairo } from 'next/font/google';
 import Script from 'next/script';
+import { headers } from 'next/headers';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -27,7 +28,10 @@ export const metadata: Metadata = {
 
 const arabic = Cairo({ subsets: ['arabic'], display: 'swap', variable: '--font-arabic' });
 
-export default function RootLayout(props: { children: React.ReactNode }) {
+export const dynamic = 'force-dynamic';
+
+export default async function RootLayout(props: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') || undefined;
   const { children } = props;
   return (
     <html
@@ -36,10 +40,10 @@ export default function RootLayout(props: { children: React.ReactNode }) {
       className={`${inter.variable} ${spaceGrotesk.variable} ${arabic.variable}`}
     >
       <head>
-        <Script id="theme-init" strategy="beforeInteractive">
+        <Script id="theme-init" strategy="beforeInteractive" nonce={nonce}>
           {`(function(){try{var s=localStorage.getItem('theme');var d=s? s==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; if(d) document.documentElement.classList.add('dark');}catch(e){}})();`}
         </Script>
-        <Script id="lang-dir-init" strategy="beforeInteractive">
+        <Script id="lang-dir-init" strategy="beforeInteractive" nonce={nonce}>
           {`(function(){try{var l=localStorage.getItem('appLang')||${JSON.stringify(academy.defaultLanguage)}; if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';} else {document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){}})();`}
         </Script>
       </head>

@@ -5,7 +5,6 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import { connectAuthEmulator } from 'firebase/auth';
 import { connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -27,10 +26,6 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     } catch {}
     try {
       connectFirestoreEmulator(firebaseServices.firestore, 'localhost', 8080);
-    } catch {}
-    try {
-      const functions = getFunctions(firebaseServices.firebaseApp);
-      connectFunctionsEmulator(functions, 'localhost', 5001);
     } catch {}
   }, [firebaseServices, useEmulators]);
 

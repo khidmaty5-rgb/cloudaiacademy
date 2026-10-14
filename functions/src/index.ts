@@ -1,7 +1,20 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { isUserRole } from './user-roles';
 
 admin.initializeApp();
+
+async function synchronizeProfileRole(userId:string):Promise<boolean> {
+  const current=await admin.firestore().doc(`users/${userId}`).get();
+  const role=current.exists ? current.data()?.role : undefined;
+  if (!isUserRole(role)) return false;
+  const account=await admin.auth().getUser(userId);
+  await admin.auth().setCustomUserClaims(userId,{...account.customClaims,role});
+  return true;
+}
+
+// Legacy optional Functions source only. The Spark-compatible application uses
+// Next API routes and explicit admin recovery; deploying Functions is not required.
 
 // This Cloud Function is triggered when a user's document in Firestore is created.
 // Its purpose is to set a custom claim (`role`) on the user's authentication token.
@@ -23,10 +36,10 @@ export const onUserCreate = functions.firestore
     const role = userRecord.role;
 
     // If a role is defined, set it as a custom claim on the user's auth token.
-    if (role) {
+    if (isUserRole(role)) {
       try {
-        await admin.auth().setCustomUserClaims(userId, { role });
-        console.log(`Custom claim 'role: ${role}' set for user ${userId}`);
+        await synchronizeProfileRole(userId);
+        console.log(`Role claims synchronized for user ${userId}`);
       } catch (error) {
         console.error(
           `Failed to set custom claim for user ${userId}:`,
@@ -38,16 +51,27 @@ export const onUserCreate = functions.firestore
 
 // Admin-only callable to create a user without affecting the caller's session
 export const adminCreateUser = functions.https.onCall(async (data, context) => {
-  if (!context.auth || context.auth.token.role !== 'admin') {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+  }
+  let callerRole: unknown;
+  try {
+    const profile = await admin.firestore().doc(`users/${context.auth.uid}`).get();
+    callerRole = profile.exists ? profile.data()?.role : undefined;
+  } catch {
+    throw new functions.https.HttpsError('permission-denied', 'Unable to verify current admin privileges.');
+  }
+  // Callable account creation requires a current admin profile, never stale claims.
+  if (callerRole !== 'admin') {
     throw new functions.https.HttpsError('permission-denied', 'Admin privileges required.');
   }
 
   const email: string = (data && data.email) || '';
   const password: string = (data && data.password) || '';
   const fullName: string = (data && data.fullName) || '';
-  const userRole: 'student' | 'teacher' | 'reviewer' | 'editor' | 'admin' = (data && data.role) || 'student';
+  const userRole: unknown = data?.role === undefined ? 'student' : data.role;
 
-  if (!email || !password || !fullName) {
+  if (typeof email !== 'string' || typeof password !== 'string' || typeof fullName !== 'string' || !email || !password || !fullName.trim() || !isUserRole(userRole)) {
     throw new functions.https.HttpsError('invalid-argument', 'email, password, and fullName are required.');
   }
 
@@ -103,11 +127,11 @@ export const onUserUpdate = functions.firestore
     const oldRole = beforeData.role;
 
     // Only update claims if the role has actually changed to avoid unnecessary operations.
-    if (newRole && newRole !== oldRole) {
+    if (isUserRole(newRole) && newRole !== oldRole) {
       try {
-        await admin.auth().setCustomUserClaims(userId, { role: newRole });
+        await synchronizeProfileRole(userId);
         console.log(
-          `Custom claim 'role' updated to '${newRole}' for user ${userId}`
+          `Role claims synchronized for user ${userId}`
         );
       } catch (error) {
         console.error(

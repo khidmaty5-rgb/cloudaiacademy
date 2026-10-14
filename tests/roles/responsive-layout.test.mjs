@@ -11,6 +11,9 @@ test('user cards adapt to content width and controls remain in flow', async () =
   assert.ok(source.includes('break-all text-sm font-medium'));
   assert.ok(source.includes('aria-label={t.role}'));
   assert.ok(source.includes('Intl.DateTimeFormat'));
+  assert.ok(source.includes('limit(51)'));
+  assert.ok(source.includes('startAfter(cursor.dateJoined, cursor.id)'));
+  assert.ok(source.includes('Search this page'));
 });
 test('auth resolves before selecting shell without swapping public wrappers', async () => {
   const shell = await read('src/components/layout/site-shell.tsx');

@@ -5,14 +5,13 @@ import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { doc, getFirestore, onSnapshot } from 'firebase/firestore';
 import type { UserRole } from '@/types/models';
 import { resolveCurrentRole, roleFromClaims } from '@/lib/roles';
+import { isUserRole } from '@/lib/user-roles';
 
 const CLAIMS_REFRESH_KEY = 'cloudai:claimsRefreshedAt';
 const CLAIMS_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 
 function normalizeRole(raw: unknown): UserRole | null {
-  return raw === 'admin' || raw === 'teacher' || raw === 'editor' || raw === 'reviewer' || raw === 'student'
-    ? (raw as UserRole)
-    : null;
+  return isUserRole(raw) ? raw : null;
 }
 
 export function useCurrentRole() {

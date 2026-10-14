@@ -6,6 +6,9 @@ import { firebaseConfig } from '@/firebase/config';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { getAuthorizedUserRole } from '@/server/effective-user-role';
+import { isUserRole } from '@/lib/user-roles';
+import { randomUUID } from 'node:crypto';
+import { changeUserRole, RoleChangeError } from '@/server/role-change';
 
 export const runtime = 'nodejs';
 
@@ -29,12 +32,15 @@ function getAdminApp(): App {
     return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }, name);
   }
   const explicitPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  const tryPaths: string[] = [];
-  if (explicitPath) tryPaths.push(explicitPath);
-  const levels = ['', '..', '../..', '../../..', '../../../..'];
-  for (const lvl of levels) {
-    tryPaths.push(path.join(process.cwd(), lvl, 'config', 'serviceAccount.local.json'));
-  }
+  // Literal candidates avoid recursive wildcard discovery during Next tracing.
+  const tryPaths: string[] = [
+    path.join(process.cwd(), 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../../..', 'config', 'serviceAccount.local.json'),
+    path.join(process.cwd(), '../../../..', 'config', 'serviceAccount.local.json'),
+  ];
+  if (explicitPath) tryPaths.unshift(explicitPath);
   for (const p of tryPaths) {
     try {
       if (p && existsSync(p)) {
@@ -70,9 +76,12 @@ export async function POST(req: NextRequest) {
     const requesterRole = requesterUid
       ? await getAuthorizedUserRole(db, requesterUid, requesterRoleRaw, ['admin'])
       : null;
-    const { userId, role } = (await req.json()) as { userId?: string; role?: string };
+    const { userId, role, requestId: suppliedId, reason } = await req.json();
     const hasRole = typeof role === 'string' && role.length > 0;
-    if (!userId || (hasRole && !['student', 'teacher', 'reviewer', 'editor', 'admin'].includes(role))) {
+    if (typeof userId !== 'string' || !userId || userId.length > 128 || userId.includes('/') ||
+      (role !== undefined && !isUserRole(role)) ||
+      (suppliedId !== undefined && (typeof suppliedId !== 'string' || !/^[a-zA-Z0-9_-]{16,80}$/.test(suppliedId))) ||
+      (reason !== undefined && (typeof reason !== 'string' || reason.length > 500))) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
@@ -82,9 +91,11 @@ export async function POST(req: NextRequest) {
     if (requesterUid === userId) {
       const userSnap = await db.doc(`users/${userId}`).get();
       const desiredRole = userSnap.exists ? ((userSnap.data() as any)?.role as string | undefined) : undefined;
-      if (!desiredRole) {
+      if (!userSnap.exists) {
         return NextResponse.json({ ok: true, selfSync: true, updated: false }, { status: 200 });
       }
+
+      if (!isUserRole(desiredRole)) return NextResponse.json({error:'INVALID_CURRENT_ROLE'}, {status:409});
 
       // If a role was provided by the client, require it to match what's stored.
       if (hasRole && desiredRole !== role) {
@@ -95,51 +106,34 @@ export async function POST(req: NextRequest) {
       const needsUpdate = currentClaimRole !== desiredRole;
 
       if (needsUpdate) {
-        await getAuth(app).setCustomUserClaims(userId, { role: desiredRole });
+        const account = await getAuth(app).getUser(userId);
+        await getAuth(app).setCustomUserClaims(userId, { ...account.customClaims, role: desiredRole });
       }
       return NextResponse.json({ ok: true, selfSync: true, updated: needsUpdate, role: desiredRole }, { status: 200 });
     }
 
-    if (!hasRole) {
+    if (!isUserRole(role)) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const allowBootstrap = process.env.ALLOW_BOOTSTRAP_ADMIN === 'true';
-
-    // Owner email override: allow the configured owner to self-promote to admin for local/dev setup
-    if (requesterUid === userId && role === 'admin') {
-      const ownerEmail = (process.env.INITIAL_ADMIN_EMAIL || '').toLowerCase();
-      const requesterEmail = (decoded.email || '').toLowerCase();
-      if (ownerEmail && requesterEmail && requesterEmail === ownerEmail) {
-        await getAuth(app).setCustomUserClaims(userId, { role: 'admin' });
-        await db.doc(`users/${userId}`).set({ role: 'admin' }, { merge: true });
-        return NextResponse.json({ ok: true, owner: true }, { status: 200 });
-      }
+    if (!requesterRole || !requesterUid) return NextResponse.json({error:'Forbidden'}, {status:403});
+    const result = await changeUserRole(db, requesterUid, userId, role, suppliedId || randomUUID(), reason);
+    let claimsSyncPending = false;
+    try {
+      // Sync the latest authoritative profile, never resurrect an earlier role.
+      const latest = await db.doc(`users/${userId}`).get();
+      const latestRole = latest.data()?.role;
+      if (!isUserRole(latestRole)) throw new Error('Role is unavailable');
+      const account = await getAuth(app).getUser(userId);
+      await getAuth(app).setCustomUserClaims(userId, {...account.customClaims, role:latestRole});
+      if (result.auditId) await db.doc(`roleChangeAudit/${result.auditId}`).update({claimsSync:'complete'});
+    } catch {
+      // Profile + audit already committed. Retrying the same request ID is safe.
+      claimsSyncPending = true;
     }
-
-    // Bootstrap: if there are no admins in the system yet, allow the first
-    // signed-in user to promote themselves to admin by requesting role 'admin',
-    // but only when explicitly allowed via ALLOW_BOOTSTRAP_ADMIN=true.
-    if (allowBootstrap && requesterUid === userId && role === 'admin') {
-      const adminsSnap = await db.collection('users').where('role', '==', 'admin').limit(1).get();
-      if (adminsSnap.empty) {
-        await getAuth(app).setCustomUserClaims(userId, { role: 'admin' });
-        await db.doc(`users/${userId}`).set({ role: 'admin' }, { merge: true });
-        return NextResponse.json({ ok: true, bootstrap: true }, { status: 200 });
-      }
-    }
-
-    // Case A: Admin can set any user's role (updates claims and doc)
-    if (requesterRole) {
-      await getAuth(app).setCustomUserClaims(userId, { role });
-      await db.doc(`users/${userId}`).set({ role }, { merge: true });
-      return NextResponse.json({ ok: true }, { status: 200 });
-    }
-
-    // Non-admins cannot modify roles via this route
-
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ok:true, ...result, claimsSyncPending}, {status:200});
   } catch (e: any) {
+    if (e instanceof RoleChangeError) return NextResponse.json({error:e.code},{status:e.status});
     console.error('update-user-role error:', e);
     const status = e?.code === 'auth/argument-error' ? 401 : 500;
     return NextResponse.json({ error: e?.message || 'Internal error' }, { status });

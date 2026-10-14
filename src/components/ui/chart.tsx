@@ -68,8 +68,11 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart"
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  // Current callers use developer-defined colors. Also prevent a future stored
+  // chart config from escaping the raw CSS element/selector/declaration context.
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) return null
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color
+    ([key, config]) => /^[a-zA-Z0-9_-]+$/.test(key) && (config.theme || config.color)
   )
 
   if (!colorConfig.length) {
@@ -88,7 +91,7 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    return color && !/[<>;{}\\]/.test(color) ? `  --color-${key}: ${color};` : null
   })
   .join("\n")}
 }
