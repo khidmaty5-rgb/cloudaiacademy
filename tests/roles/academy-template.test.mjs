@@ -66,7 +66,7 @@ test('middleware overwrites spoofed security headers, rotates nonces and support
     const firstNonce=forwarded.get('x-nonce');
     assert.equal(Buffer.from(firstNonce,'base64').length,32);
     assert.notEqual(firstNonce,'attacker');
-    assert.equal(forwarded.get('Content-Security-Policy-Report-Only'),null);
+    assert.equal(forwarded.get('Content-Security-Policy-Report-Only'),forwarded.get('Content-Security-Policy'));
     assert.equal(first.headers.get('Content-Security-Policy-Report-Only'),forwarded.get('Content-Security-Policy'));
     assert.equal(first.headers.get('Content-Security-Policy'),null);
     assert.equal(load('src/lib/security-headers.ts').globalSecurityHeaders.find(header=>header.key==='Content-Security-Policy').value,"frame-ancestors 'self'; object-src 'none'; base-uri 'self'");
