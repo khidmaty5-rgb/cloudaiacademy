@@ -49,6 +49,19 @@ test('ZIP upload fills details, respects typed price, retries without creating t
   page.on('pageerror',error=>console.error('Course fixture:',error.message));
   try{
     await page.goto(origin);
+    const image = await page.evaluate(() => {
+      const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=675;
+      const context=canvas.getContext('2d');context.fillStyle='orange';context.fillRect(0,0,1200,675);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await page.getByLabel('Choose course image',{exact:true}).setInputFiles({name:'cover.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
+    await page.getByAltText('Course image preview').waitFor();
+    const cover=await page.getByAltText('Course image preview').getAttribute('src');
+    assert.match(cover,/^data:image\/jpeg;base64,/);
+    await page.getByRole('button',{name:'Remove image',exact:true}).click();
+    assert.equal(await page.getByAltText('Course image preview').count(),0);
+    await page.getByLabel('Choose course image',{exact:true}).setInputFiles({name:'cover.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
+    await page.getByAltText('Course image preview').waitFor();
     await page.getByLabel('Price',{exact:true}).fill('199');
     await page.getByLabel('Course ZIP or HTML file',{exact:true}).setInputFiles({name:'Tailscale.zip',mimeType:'application/zip',buffer:Buffer.from(zip)});
     await page.getByRole('status').filter({hasText:'lessons ready'}).waitFor();
@@ -60,6 +73,7 @@ test('ZIP upload fills details, respects typed price, retries without creating t
     await page.getByRole('button',{name:'Create Course',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'retry'}).waitFor();
     assert.equal(await page.evaluate(()=>window.qaCreates),1);
+    assert.equal(await page.evaluate(()=>window.qaCourse.imageUrl),cover);
     await page.getByRole('button',{name:'Retry lesson upload',exact:true}).click();
     await page.getByRole('dialog').waitFor();
     await page.getByRole('button',{name:'Review publication',exact:true}).waitFor();

@@ -104,7 +104,7 @@ export async function updateCourse(courseId: string, data: Partial<CourseData & 
     ...(data.status ? { status: data.status } : {}),
     ...(data.courseCode ? { courseCode: data.courseCode.trim().toUpperCase() } : {}),
     ...(typeof (data as any).isFull === 'boolean' ? { isFull: (data as any).isFull } : {}),
-    ...(typeof (data as any).imageUrl === 'string' ? { imageUrl: (data as any).imageUrl.trim() || undefined } : {}),
+    ...(typeof (data as any).imageUrl === 'string' ? { imageUrl: (data as any).imageUrl.trim() } : {}),
     ...(typeof totalHours === 'number' ? { totalHours } : {}),
   } as Record<string, any>;
   const sanitized = removeUndefined(normalized);
