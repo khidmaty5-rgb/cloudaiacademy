@@ -103,7 +103,14 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
       try {
         const results = await Promise.all(
           enrolledCourseIds.map(async (courseId) => {
-            const snap = await getDoc(doc(firestore, 'courses', courseId));
+            // An unpublished course may still have an enrollment record.
+            // Skip that denied read without hiding other enrolled courses.
+            let snap;
+            try { snap = await getDoc(doc(firestore, 'courses', courseId)); }
+            catch (error) {
+              if ((error as { code?: string })?.code === 'permission-denied') return null;
+              throw error;
+            }
             if (!snap.exists()) return null;
             const data = snap.data() as Course;
             return { ...(data as any), id: snap.id } as Course;

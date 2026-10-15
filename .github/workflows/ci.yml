@@ -58,6 +58,12 @@ jobs:
       - name: Test transactional role-change safeguards
         run: npx firebase emulators:exec --config firebase.test.json --only firestore --project demo-cloudai-role-tests "node --test tests/firestore/role-change.transaction.test.mjs"
 
+      - name: Test draft course access and publication transitions
+        run: npx firebase emulators:exec --config firebase.test.json --only firestore --project demo-course-lifecycle "node --test tests/firestore/course-lifecycle.rules.test.mjs"
+
+      - name: Test lesson PDF publication authorization
+        run: node --test tests/roles/lesson-pdf-publication.test.mjs
+
       - name: Test billing payments
         run: npm run test:billing
 
