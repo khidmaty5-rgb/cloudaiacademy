@@ -136,6 +136,12 @@ service cloud.firestore {
       );
     }
 
+    // Enrollment/payment history must not reopen unpublished course content.
+    function courseIsPublished(courseId) {
+      return exists(/databases/$(database)/documents/courses/$(courseId)) &&
+        get(/databases/$(database)/documents/courses/$(courseId)).data.get('status', null) == 'PUBLISHED';
+    }
+
     function defaultRequirePayment() {
       return (
         paywallEnabled() &&
@@ -250,11 +256,10 @@ service cloud.firestore {
           request.auth.uid in resource.data.get('instructorIds', [])
         );
       }
-      // Public can only see published courses; staff and enrolled users can see their courses.
+      // Drafts are visible only to admins and assigned teachers, even after enrollment.
       allow get, list: if (
         isAdmin() || teachesThisCourse() ||
-        (resource.data.status != 'DRAFT') ||
-        (accountActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)))
+        (resource.data.status == 'PUBLISHED')
       );
       // Admins can create/update/delete courses. Teachers cannot update course metadata.
       allow create, delete: if isAdmin();
@@ -264,6 +269,7 @@ service cloud.firestore {
       match /lessons/{lessonId} {
         // Read if admin/assigned instructor, or the user is enrolled AND account is active (no payment required)
         allow get, list: if isInstructorOfCourse(courseId) || (
+          isSignedIn() && courseIsPublished(courseId) &&
           exists(/databases/$(database)/documents/users/$(request.auth.uid)/enrollments/$(courseId)) &&
           (courseIsFree(courseId) || coursePurchased(courseId) || accountActive())
         );
@@ -292,6 +298,7 @@ service cloud.firestore {
         isStudent() &&
         request.resource.data.userId == userId &&
         request.resource.data.courseId == enrollmentId &&
+        courseIsPublished(enrollmentId) &&
         // Course open => direct enrollment allowed. Course full => must be approved first.
         (
           exists(/databases/$(database)/documents/courses/$(enrollmentId)) &&
@@ -304,6 +311,8 @@ service cloud.firestore {
       allow update: if (
         isExistingOwner(userId) &&
         request.resource.data.userId == resource.data.userId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        courseIsPublished(enrollmentId) &&
         (courseIsFree(enrollmentId) || coursePurchased(enrollmentId) || accountActive())
       );
       // Admins can unenroll students.
@@ -337,6 +346,7 @@ service cloud.firestore {
         request.resource.data.userId == userId &&
         request.resource.data.courseId == courseId &&
         request.resource.data.status == 'PENDING' &&
+        courseIsPublished(courseId) &&
         // Only allow waitlist requests when the course is marked full.
         exists(/databases/$(database)/documents/courses/$(courseId)) &&
         get(/databases/$(database)/documents/courses/$(courseId)).data.isFull == true

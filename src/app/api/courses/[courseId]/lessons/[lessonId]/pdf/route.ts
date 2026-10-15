@@ -102,6 +102,10 @@ export async function GET(
 
     let allowed = isAdmin || isTeacherInstructor;
     if (!allowed) {
+      // Admin SDK bypasses Firestore rules; apply the same publication gate here.
+      if (course?.status !== 'PUBLISHED') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       // Learner access: must be enrolled AND either the course is free, the course was purchased,
       // or the learner's account is not paywalled (e.g. subscription active / paywall off).
       if (!isLearnerRole(role)) {
