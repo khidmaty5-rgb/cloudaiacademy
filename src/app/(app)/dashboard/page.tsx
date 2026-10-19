@@ -31,6 +31,7 @@ type DashboardText = {
   myCourses: string;
   myLearningPaths: string;
   aiRecommendations: string;
+  openCourse: string;
 };
 
 const dashboardCopy = {
@@ -46,6 +47,7 @@ const dashboardCopy = {
     myCourses: 'My Courses',
     myLearningPaths: 'My Learning Paths',
     aiRecommendations: 'AI Recommendations',
+    openCourse: 'Open course',
   },
   ar: {
     noEnrollments: 'لم تسجّل في أي دورة بعد.',
@@ -59,6 +61,7 @@ const dashboardCopy = {
     myCourses: 'دوراتي',
     myLearningPaths: 'مسارات التعلم الخاصة بي',
     aiRecommendations: 'توصيات الذكاء الاصطناعي',
+    openCourse: 'فتح الدورة',
   },
 } satisfies Record<'en' | 'ar', DashboardText>;
 
@@ -183,15 +186,16 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
              const isContain = image.fit === 'contain';
             return (
             <Link href={`/learn/${course.slug}`} key={course.id}>
-                <Card  className="overflow-hidden group hover:shadow-lg transition-shadow duration-300 h-full">
+                <Card className="flex h-full flex-col overflow-hidden group hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
-                    <div className="relative h-48 w-full bg-white">
+                    <div className="relative aspect-video w-full bg-white">
                     <div className={`absolute inset-0 ${isContain ? 'p-6' : ''}`}>
                       <div className="relative h-full w-full">
                         <Image
                           src={image.src}
                           alt={course.title}
                           fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 45vw, 400px"
                           className={`${isContain ? 'object-contain' : 'object-cover'} bg-white ${isContain ? '' : 'group-hover:scale-105'} transition-transform duration-300`}
                           data-ai-hint={image.hint}
                         />
@@ -199,10 +203,10 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
                     </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 flex flex-col h-full">
+                <CardContent className="p-5 flex flex-1 flex-col">
                     <Badge variant="secondary" className="bg-accent/10 text-accent mb-2 w-fit">{course.category}</Badge>
                     <h3 className="font-headline text-lg font-bold flex-grow">{course.title}</h3>
-                     <div className="flex justify-between text-muted-foreground text-sm mt-2 border-t pt-2">
+                     <div className="flex flex-wrap gap-3 justify-between text-muted-foreground text-sm mt-4 border-t pt-3">
                         <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" /> {course.duration}
                         </div>
@@ -217,6 +221,7 @@ function EnrolledCourses({ t }: { t: DashboardText }) {
                         </div>
                         <Progress value={course.progress} className="h-2" />
                     </div>
+                    <span className="mt-4 border-t pt-3 text-sm font-semibold text-accent">{t.openCourse} <span aria-hidden="true">↗</span></span>
                 </CardContent>
                 </Card>
             </Link>
@@ -251,8 +256,8 @@ function SavedLearningPaths({ t }: { t: DashboardText }) {
 
   if (!learningPaths || learningPaths.length === 0) {
     return (
-       <div className="flex flex-col items-center justify-center text-center p-10 bg-muted/50 rounded-lg">
-            <p className="text-muted-foreground mb-4">
+       <div className="flex flex-wrap items-center justify-between gap-4 p-5 border bg-card rounded-xl">
+            <p className="text-sm text-muted-foreground">
             {t.noLearningPaths}
             </p>
             <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
@@ -337,13 +342,13 @@ export default function DashboardPage() {
             {t.startLearning}
           </p>
 
-          <div className="mt-8 grid gap-8 xl:grid-cols-3">
+          <div className="mt-8 grid items-start gap-8 xl:grid-cols-3">
             <div className="min-w-0 xl:col-span-2 space-y-8">
-                 <div>
-                    <AnnouncementsFeed />
-                </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold mb-4">{t.myCourses}</h2>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-2xl font-headline font-bold">{t.myCourses}</h2>
+                    <Button asChild variant="outline" size="sm"><Link href="/courses">{t.exploreCourses}</Link></Button>
+                  </div>
                   <EnrolledCourses t={t} />
                 </div>
                 <div>
@@ -352,13 +357,12 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className="lg:col-span-1">
-                <h2 className="text-2xl font-headline font-bold mb-4">{t.aiRecommendations}</h2>
-                <Card>
-                    <CardContent className="pt-6">
-                        <Recommendations />
-                    </CardContent>
-                </Card>
+            <div className="min-w-0 space-y-5 xl:col-span-1">
+                <AnnouncementsFeed />
+                <details className="rounded-xl border bg-card p-5">
+                    <summary className="cursor-pointer font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t.aiRecommendations}</summary>
+                    <div className="pt-4"><Recommendations /></div>
+                </details>
             </div>
           </div>
         </div>

@@ -59,6 +59,7 @@ function WorkspaceNavigation({ links, lang, pathname, onNavigate }: {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const active = activeWorkspaceLink(pathname, links);
   const activeSection = active?.section.en;
+  const defaultOpen = (key: string, index: number) => key === activeSection || index === 0 || (key !== 'Research & publishing' && links.length <= 12);
   useEffect(() => { if (activeSection) setExpanded(previous => ({ ...previous, [activeSection]: true })); }, [activeSection]);
   const matching = links.filter(link => `${link.label.en} ${link.label.ar} ${link.section.en} ${link.section.ar} ${link.href}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const groups = Array.from(new Set(matching.map(link => link.section.en))).map(key => ({
@@ -71,8 +72,8 @@ function WorkspaceNavigation({ links, lang, pathname, onNavigate }: {
       <Input type="search" value={query} onChange={event => setQuery(event.target.value)} aria-label={lang === 'ar' ? 'البحث في القائمة' : 'Search navigation'} placeholder={lang === 'ar' ? 'ابحث عن أداة…' : 'Find a tool…'} className="rounded-xl border-transparent bg-muted/60 ps-9 focus-visible:bg-background" />
     </div></div>}
     <nav aria-label={lang === 'ar' ? 'قائمة مساحة العمل' : 'Workspace navigation'} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-5">
-      {groups.map((group, index) => <details key={group.key} open={!!query || (expanded[group.key] ?? (links.length <= 12 || index === 0 || group.key === active?.section.en))} className="group/nav-section">
-        <summary onClick={event => { event.preventDefault(); setExpanded(previous => ({ ...previous, [group.key]: !(previous[group.key] ?? (links.length <= 12 || index === 0 || group.key === active?.section.en)) })); }} className="mb-1 flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+      {groups.map((group, index) => <details key={group.key} open={!!query || (expanded[group.key] ?? defaultOpen(group.key, index))} className="group/nav-section">
+        <summary onClick={event => { event.preventDefault(); setExpanded(previous => ({ ...previous, [group.key]: !(previous[group.key] ?? defaultOpen(group.key, index)) })); }} className="mb-1 flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
           <span className="flex-1">{group.links[0].section[lang]}</span><ChevronDown className="size-3.5 transition-transform group-open/nav-section:rotate-180" aria-hidden="true" />
         </summary>
         <div className="space-y-1">{group.links.map(link => {
