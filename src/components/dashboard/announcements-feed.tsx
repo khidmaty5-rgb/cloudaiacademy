@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useLang } from '@/components/i18n/lang';
+import { ar } from 'date-fns/locale';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Megaphone } from 'lucide-react';
 
 export default function AnnouncementsFeed() {
+  const { lang } = useLang();
   const firestore = getFirestore();
 
   const announcementsQuery = useMemoFirebase(() => {
@@ -35,7 +37,7 @@ export default function AnnouncementsFeed() {
   if (error) {
     return (
       <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-        {error.message || 'Failed to load announcements.'}
+        {lang === 'ar' ? 'تعذّر تحميل الإعلانات. حاول مجددًا لاحقًا.' : 'Could not load announcements. Please try again later.'}
       </div>
     );
   }
@@ -43,9 +45,9 @@ export default function AnnouncementsFeed() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-headline">
+        <CardTitle className="flex items-center gap-2 text-lg font-headline">
           <Megaphone className="text-accent" />
-          Latest Announcements
+          {lang === 'ar' ? 'آخر الإعلانات' : 'Latest announcements'}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -53,11 +55,11 @@ export default function AnnouncementsFeed() {
           <ul className="space-y-4">
             {announcements.map((announcement) => (
               <li key={announcement.id} className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-wrap gap-2 justify-between items-start">
                     <h4 className="font-semibold">{announcement.title}</h4>
                     {announcement.createdAt && (
                     <Badge variant="secondary" className="text-xs">
-                        {formatDistanceToNow(announcement.createdAt.toDate(), { addSuffix: true })}
+                        {formatDistanceToNow(announcement.createdAt.toDate(), { addSuffix: true, locale: lang === 'ar' ? ar : undefined })}
                     </Badge>
                     )}
                 </div>
@@ -66,7 +68,7 @@ export default function AnnouncementsFeed() {
             ))}
           </ul>
         ) : (
-          <p className="text-center text-muted-foreground py-4">No announcements yet.</p>
+          <p className="text-sm text-muted-foreground">{lang === 'ar' ? 'لا توجد إعلانات جديدة.' : 'No new announcements.'}</p>
         )}
       </CardContent>
     </Card>

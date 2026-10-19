@@ -73,6 +73,17 @@ test('five-role menus at desktop and mobile in both languages; form widths survi
       await nav.waitFor();
       assert.equal(await nav.locator('[aria-current="page"]').count(), 1);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      if (role === 'student') {
+        const research = nav.locator('details').filter({ has: page.locator('a[href="/research"]') });
+        assert.equal(await research.getAttribute('open'), null, 'secondary research tools start collapsed');
+        await research.locator('summary').click();
+        await nav.locator('a[href="/journal/my-submissions"]').waitFor();
+        await nav.locator('a[href="/journal/submit"]').waitFor();
+        await nav.locator('a[href="/research"]').click();
+        assert.equal(await page.evaluate(() => window.qaPath), '/research');
+        if (width === 390) await page.getByRole('button', { name: lang === 'ar' ? 'فتح القائمة' : 'Open navigation' }).click();
+        await nav.locator('a[href="/research"][aria-current="page"]').waitFor();
+      }
       if (role === 'admin') {
         await page.getByRole('combobox', { name: lang === 'ar' ? 'اختر مساحة العمل' : 'Choose workspace' }).filter({ visible: true }).click();
         await page.getByRole('option', { name: lang === 'ar' ? 'التدريس' : 'Teaching', exact: true }).click();

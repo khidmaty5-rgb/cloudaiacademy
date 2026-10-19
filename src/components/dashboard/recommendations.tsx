@@ -8,8 +8,11 @@ import { Sparkles } from 'lucide-react';
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, getDoc, getFirestore } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
+import { useLang } from '@/components/i18n/lang';
 
 export default function Recommendations() {
+  const { lang } = useLang();
+  const arabic = lang === 'ar';
   const { user, isUserLoading } = useUser();
   const firestore = getFirestore();
   const [careerGoals, setCareerGoals] = useState('');
@@ -95,9 +98,9 @@ export default function Recommendations() {
       console.error('Failed to get recommendations:', error);
       const msg = String(error?.message || error);
       if (msg.includes('AI_DISABLED')) {
-        setAiError('AI recommendations are currently unavailable. Please try again later.');
+        setAiError(arabic ? 'التوصيات غير متاحة حاليًا. حاول لاحقًا.' : 'AI recommendations are currently unavailable. Please try again later.');
       } else {
-        setAiError('Failed to get recommendations. Please try again.');
+        setAiError(arabic ? 'تعذّر الحصول على التوصيات. حاول مجددًا.' : 'Failed to get recommendations. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -118,21 +121,23 @@ export default function Recommendations() {
     <div className="space-y-4">
       {(enrollmentsError || coursesError) && (
         <p className="text-sm text-destructive">
-          Couldn't load your learning history. Recommendations may be less accurate.
+          {arabic ? 'تعذّر تحميل سجل تعلمك. قد تكون التوصيات أقل دقة.' : "Couldn't load your learning history. Recommendations may be less accurate."}
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        Tell us your career goals, and our AI will suggest the perfect courses for you based on your learning history.
+        {arabic ? 'شارك أهدافك المهنية للحصول على اقتراحات دورات بناءً على سجل تعلمك.' : 'Share your career goals for course suggestions based on your learning history.'}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <label htmlFor="career-goals" className="block text-sm font-medium">{arabic ? 'أهدافك المهنية' : 'Your career goals'}</label>
         <Textarea
-          placeholder="e.g., 'Become a cloud architect' or 'Specialize in machine learning applications'"
+          id="career-goals"
+          placeholder={arabic ? 'مثال: التخصص في الحوسبة السحابية أو تعلم الآلة' : 'e.g., Become a cloud architect'}
           value={careerGoals}
           onChange={(e) => setCareerGoals(e.target.value)}
           rows={3}
         />
         <Button type="submit" disabled={isLoading || !careerGoals.trim()} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-          {isLoading ? 'Generating...' : 'Get Recommendations'}
+          {isLoading ? (arabic ? 'جارٍ إعداد التوصيات…' : 'Generating…') : (arabic ? 'الحصول على توصيات' : 'Get recommendations')}
         </Button>
       </form>
       {aiError && (
@@ -143,7 +148,7 @@ export default function Recommendations() {
         <div className="space-y-2 pt-4">
           <h4 className="font-semibold flex items-center gap-2">
             <Sparkles className="text-accent" />
-            Recommended Courses
+            {arabic ? 'الدورات المقترحة' : 'Recommended courses'}
           </h4>
           <ul className="list-disc list-inside text-muted-foreground space-y-1">
             {recommendations.map((course, index) => (
