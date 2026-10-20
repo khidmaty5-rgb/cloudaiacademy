@@ -70,6 +70,9 @@ jobs:
       - name: Test role access matrix
         run: npm run test:roles
 
+      - name: Test author navigation independence from public menu visibility
+        run: node --test tests/roles/journal-author-navigation.test.mjs
+
       - name: Test callable and Telegram role consistency
         run: node --test tests/roles/admin-callable.test.mjs tests/roles/telegram-access.test.mjs tests/roles/route-guard.test.mjs tests/roles/spark-workflow.test.mjs
 

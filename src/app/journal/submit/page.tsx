@@ -2,7 +2,7 @@
 import { academy } from '@/lib/academy';
 
 import { useLang } from '@/components/i18n/lang';
-import { useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getAuth } from 'firebase/auth';
-import { doc, getFirestore } from 'firebase/firestore';
 
 export default function JournalSubmitPage() {
   const { lang, dir } = useLang();
@@ -33,15 +32,8 @@ export default function JournalSubmitPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const firestore = getFirestore();
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'ui'), [firestore]);
-  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
-  const journalEnabled = ui?.showJournalNav !== false;
-
-  useEffect(() => {
-    if (isUiLoading) return;
-    if (!journalEnabled) router.replace('/');
-  }, [isUiLoading, journalEnabled, router]);
+  // Public menu visibility is not author access. The journal feature flag
+  // remains enforced by middleware; authenticated API checks still apply.
 
   const t = {
     en: {
@@ -105,7 +97,6 @@ export default function JournalSubmitPage() {
   }[lang];
 
   useEffect(() => {
-    if (isUiLoading || !journalEnabled) return;
     if (!isUserLoading && !user) {
       toast({
         variant: 'destructive',
@@ -113,7 +104,7 @@ export default function JournalSubmitPage() {
       });
       router.push('/login');
     }
-  }, [isUiLoading, journalEnabled, isUserLoading, user, router, toast, t.mustLogin]);
+  }, [isUserLoading, user, router, toast, t.mustLogin]);
 
   const [form, setForm] = useState({
     title: '',
@@ -228,7 +219,7 @@ export default function JournalSubmitPage() {
         title: t.toastSuccessTitle,
         description: t.toastSuccessDesc,
       });
-      router.push('/journal');
+      router.push('/journal/my-submissions');
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -240,7 +231,6 @@ export default function JournalSubmitPage() {
     }
   };
 
-  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
