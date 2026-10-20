@@ -2,6 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+test('English headings and body use Inter while Arabic retains Cairo', async () => {
+  const layout = await read('src/app/layout.tsx');
+  const config = await read('tailwind.config.ts');
+  const css = await read('src/app/globals.css');
+  assert.ok(!layout.includes('Space_Grotesk'));
+  assert.ok(config.includes("body: ['var(--font-inter)'"));
+  assert.ok(config.includes("headline: ['var(--font-inter)'"));
+  assert.ok(layout.includes('const arabic = Cairo('));
+  assert.match(css, /html\[lang='ar'\] body\s*\{\s*font-family: var\(--font-arabic\)/);
+});
 // These source contracts supplement, not replace, browser geometry checks.
 test('user cards adapt to content width and controls remain in flow', async () => {
   const source = await read('src/app/admin/users/page.tsx');
