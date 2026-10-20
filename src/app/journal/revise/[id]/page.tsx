@@ -25,22 +25,10 @@ export default function JournalRevisePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const firestore = getFirestore();
-  const settingsDocRef = useMemoFirebase(
-    () => doc(firestore, "settings", "ui"),
-    [firestore],
-  );
-  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
-  const journalEnabled = ui?.showJournalNav !== false;
 
   useEffect(() => {
-    if (isUiLoading) return;
-    if (!journalEnabled) router.replace("/");
-  }, [isUiLoading, journalEnabled, router]);
-
-  useEffect(() => {
-    if (isUiLoading || !journalEnabled) return;
     if (!isUserLoading && !user) router.push("/login");
-  }, [isUiLoading, journalEnabled, isUserLoading, user, router]);
+  }, [isUserLoading, user, router]);
 
   const articleDocRef = useMemoFirebase(
     () => (user && articleId ? doc(firestore, "journalArticles", articleId) : null),
@@ -183,7 +171,6 @@ export default function JournalRevisePage() {
     }
   };
 
-  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">

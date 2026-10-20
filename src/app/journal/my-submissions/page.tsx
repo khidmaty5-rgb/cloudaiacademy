@@ -1,10 +1,9 @@
 "use client";
 
 import { useLang } from "@/components/i18n/lang";
-import { useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useCollection, useMemoFirebase } from "@/firebase";
 import {
   collection,
-  doc,
   getFirestore,
   orderBy,
   query,
@@ -57,17 +56,6 @@ export default function JournalMySubmissionsPage() {
   const firestore = getFirestore();
   const { toast } = useToast();
 
-  const settingsDocRef = useMemoFirebase(
-    () => doc(firestore, "settings", "ui"),
-    [firestore],
-  );
-  const { data: ui, isLoading: isUiLoading } = useDoc<any>(settingsDocRef);
-  const journalEnabled = ui?.showJournalNav !== false;
-
-  useEffect(() => {
-    if (isUiLoading) return;
-    if (!journalEnabled) router.replace("/");
-  }, [isUiLoading, journalEnabled, router]);
 
   const t = {
     en: {
@@ -109,22 +97,21 @@ export default function JournalMySubmissionsPage() {
   }[lang];
 
   useEffect(() => {
-    if (isUiLoading || !journalEnabled) return;
     if (!isUserLoading && !user) {
       router.push("/login");
     }
-  }, [isUiLoading, journalEnabled, user, isUserLoading, router]);
+  }, [user, isUserLoading, router]);
 
   const submissionsQuery = useMemoFirebase(
     () =>
-      user && journalEnabled
+      user
         ? query(
             collection(firestore, "journalArticles"),
             where("createdBy", "==", user.uid),
             orderBy("createdAt", "desc"),
           )
         : null,
-    [firestore, user, journalEnabled],
+    [firestore, user],
   );
 
   const { data: submissions, isLoading } =
@@ -164,7 +151,6 @@ export default function JournalMySubmissionsPage() {
     }
   };
 
-  if (!isUiLoading && !journalEnabled) return null;
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
