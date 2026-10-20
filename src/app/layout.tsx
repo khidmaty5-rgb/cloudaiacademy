@@ -1,6 +1,6 @@
 import { academy } from '@/lib/academy';
 import type { Metadata } from 'next';
-import { Inter, Space_Grotesk, Cairo } from 'next/font/google';
+import { Inter, Cairo } from 'next/font/google';
 import Script from 'next/script';
 import { headers } from 'next/headers';
 import './globals.css';
@@ -12,12 +12,6 @@ const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-space-grotesk',
 });
 
 export const metadata: Metadata = {
@@ -37,7 +31,7 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
     <html
       lang={academy.defaultLanguage}
       suppressHydrationWarning
-      className={`${inter.variable} ${spaceGrotesk.variable} ${arabic.variable}`}
+      className={`${inter.variable} ${arabic.variable}`}
     >
       <head>
         <Script id="theme-init" strategy="beforeInteractive" nonce={nonce}>
