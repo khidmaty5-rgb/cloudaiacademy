@@ -72,7 +72,7 @@ export const workspaceLinks: readonly WorkspaceLink[] = [
   { href: '/journal/my-submissions', label: { en: 'My article submissions', ar: 'مقالاتي المرسلة' }, section: publishing, roles: all },
   { href: '/journal/submit', label: { en: 'Submit an article', ar: 'إرسال مقال' }, section: publishing, roles: all },
   { href: '/journal', label: { en: 'Read the journal', ar: 'تصفّح المجلة' }, section: publishing, roles: all },
-  { href: '/research', label: { en: 'Research lab', ar: 'مختبر الأبحاث' }, section: publishing, roles: all },
+  { href: '/research', label: { en: 'Research overview', ar: 'نظرة عامة على الأبحاث' }, section: publishing, roles: all },
   { href: '/admin/announcements', label: { en: 'Announcements', ar: 'الإعلانات' }, section: settings, roles: ['admin'] },
   { href: '/admin/payment', label: { en: 'Payments', ar: 'المدفوعات' }, section: settings, roles: ['admin'] },
   { href: '/admin/access', label: { en: 'Access settings', ar: 'إعدادات الوصول' }, section: settings, roles: ['admin'] },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,8 +115,8 @@ export default function ReviewerDashboardPage() {
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Failed to load assignments');
       setAssignments(Array.isArray(j?.assignments) ? j.assignments : []);
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch {
+      setError(lang === 'ar' ? 'تعذّر تحميل الأبحاث. تحقّق من اتصالك ثم اضغط تحديث.' : 'Assignments could not be loaded. Check your connection and select Refresh.');
     } finally {
       setLoading(false);
     }
@@ -164,8 +164,8 @@ export default function ReviewerDashboardPage() {
     try {
       const url = await fetchPdfUrl(articleId, 'inline');
       setPreviewUrl(url);
-    } catch (e: any) {
-      setPreviewError(e?.message || String(e));
+    } catch {
+      setPreviewError(lang === 'ar' ? 'تعذّر تحميل ملف PDF. حاول مجددًا.' : 'PDF could not be loaded. Please retry.');
     } finally {
       setPreviewLoading(false);
     }
@@ -175,11 +175,11 @@ export default function ReviewerDashboardPage() {
     try {
       const url = await fetchPdfUrl(articleId, 'attachment');
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (e: any) {
+    } catch {
       toast({
         variant: 'destructive',
-        title: 'Failed to download PDF',
-        description: e?.message || String(e),
+        title: lang === 'ar' ? 'تعذّر تحميل ملف PDF' : 'Failed to download PDF',
+        description: lang === 'ar' ? 'تحقّق من اتصالك وصلاحيتك ثم حاول مجددًا.' : 'Check your connection and access, then retry.',
       });
     }
   };
@@ -188,11 +188,22 @@ export default function ReviewerDashboardPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewArticle, setReviewArticle] = useState<{ id: string; title: string } | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const reviewRequest = useRef(0);
+  const reviewSaveLock = useRef(false);
+  useEffect(() => () => { reviewRequest.current++; }, []);
   const [recommendation, setRecommendation] = useState<'ACCEPT' | 'MINOR_REVISION' | 'MAJOR_REVISION' | 'REJECT'>('MINOR_REVISION');
   const [commentsToAuthor, setCommentsToAuthor] = useState('');
   const [commentsToEditor, setCommentsToEditor] = useState('');
 
   const openReview = async (articleId: string, title: string) => {
+    if (reviewSaveLock.current) return;
+    const request = ++reviewRequest.current;
+    setRecommendation('MINOR_REVISION');
+    setCommentsToAuthor('');
+    setCommentsToEditor('');
+    setReviewError(false);
     setReviewArticle({ id: articleId, title });
     setReviewOpen(true);
     setReviewLoading(true);
@@ -204,6 +215,7 @@ export default function ReviewerDashboardPage() {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Failed to load review');
+      if (request !== reviewRequest.current) return;
       const review = j?.review as any;
       if (review) {
         if (typeof review.recommendation === 'string') setRecommendation(review.recommendation);
@@ -214,19 +226,27 @@ export default function ReviewerDashboardPage() {
         setCommentsToAuthor('');
         setCommentsToEditor('');
       }
-    } catch (e: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to load review',
-        description: e?.message || String(e),
-      });
+    } catch {
+      if (request === reviewRequest.current) setReviewError(true);
     } finally {
-      setReviewLoading(false);
+      if (request === reviewRequest.current) setReviewLoading(false);
     }
   };
 
+  const closeReview = () => {
+    if (reviewSaveLock.current) return;
+    reviewRequest.current++;
+    setReviewOpen(false);
+    setReviewArticle(null);
+    setReviewLoading(false);
+    setCommentsToAuthor('');
+    setCommentsToEditor('');
+  };
+
   const submitReview = async () => {
-    if (!reviewArticle) return;
+    if (!reviewArticle || reviewLoading || reviewError || reviewSaveLock.current) return;
+    reviewSaveLock.current = true;
+    setReviewSaving(true);
     try {
       const token = await getAuth().currentUser?.getIdToken();
       if (!token) throw new Error('Not signed in');
@@ -241,15 +261,20 @@ export default function ReviewerDashboardPage() {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Failed to submit review');
-      toast({ title: 'Review submitted' });
+      toast({ title: lang === 'ar' ? 'تم إرسال التقييم' : 'Review submitted' });
       setReviewOpen(false);
       setReviewArticle(null);
-    } catch (e: any) {
+      reviewRequest.current++;
+      void fetchAssignments();
+    } catch {
       toast({
         variant: 'destructive',
-        title: 'Failed to submit review',
-        description: e?.message || String(e),
+        title: lang === 'ar' ? 'تعذّر إرسال التقييم' : 'Failed to submit review',
+        description: lang === 'ar' ? 'لم يتم تأكيد الحفظ. تحقّق من اتصالك وحاول مجددًا.' : 'Save was not confirmed. Check your connection and retry.',
       });
+    } finally {
+      reviewSaveLock.current = false;
+      setReviewSaving(false);
     }
   };
 
@@ -263,7 +288,7 @@ export default function ReviewerDashboardPage() {
 
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => fetchAssignments()} disabled={loading}>
-              Refresh
+              {lang === 'ar' ? 'تحديث' : 'Refresh'}
             </Button>
           </div>
 
@@ -373,11 +398,7 @@ export default function ReviewerDashboardPage() {
         <Dialog
           open={reviewOpen}
           onOpenChange={(open) => {
-            setReviewOpen(open);
-            if (!open) {
-              setReviewArticle(null);
-              setReviewLoading(false);
-            }
+            if (!open) closeReview();
           }}
         >
           <DialogContent className="max-w-2xl">
@@ -387,6 +408,11 @@ export default function ReviewerDashboardPage() {
             </DialogHeader>
             {reviewLoading ? (
               <div className="py-8 text-center text-sm text-muted-foreground">{t.loading}</div>
+            ) : reviewError ? (
+              <div role="alert" className="space-y-3">
+                <p>{lang === 'ar' ? 'تعذّر تحميل التقييم. لا يمكن الإرسال حتى يكتمل التحميل.' : 'Review could not be loaded. Submission is disabled until loading succeeds.'}</p>
+                <Button variant="outline" onClick={() => reviewArticle && openReview(reviewArticle.id, reviewArticle.title)}>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>
+              </div>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -433,11 +459,11 @@ export default function ReviewerDashboardPage() {
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setReviewOpen(false)}>
+              <Button variant="outline" onClick={closeReview} disabled={reviewSaving}>
                 {t.close}
               </Button>
-              <Button onClick={submitReview} disabled={reviewLoading || !reviewArticle}>
-                {t.submit}
+              <Button onClick={submitReview} disabled={reviewLoading || reviewError || reviewSaving || !reviewArticle || commentsToAuthor.trim().length < 10}>
+                {reviewSaving ? t.loading : t.submit}
               </Button>
             </DialogFooter>
           </DialogContent>

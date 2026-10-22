@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { DataLoadError } from '@/components/data-load-error';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, getFirestore, query, orderBy } from 'firebase/firestore';
 import type { Lesson } from '@/lib/lessons';
@@ -43,7 +44,7 @@ export default function LessonManager({ course }: LessonManagerProps) {
     );
   }, [firestore, course]);
 
-  const { data: lessons, isLoading } = useCollection<Lesson>(lessonsQuery);
+  const { data: lessons, isLoading, error } = useCollection<Lesson>(lessonsQuery);
 
   const handleEdit = (lesson: Lesson) => {
     setSelectedLesson(lesson);
@@ -90,7 +91,7 @@ export default function LessonManager({ course }: LessonManagerProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {error ? <DataLoadError /> : isLoading ? (
             <div className="space-y-3">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />

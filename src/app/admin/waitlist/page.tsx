@@ -97,13 +97,14 @@ export default function AdminWaitlistPage() {
   }, [user, isUserLoading, router]);
 
   const [useFallbackQuery, setUseFallbackQuery] = useState(false);
+  const [requestLimit, setRequestLimit] = useState(50);
   const requestsQuery = useMemoFirebase(() => {
     if (!canView) return null;
     const base = collectionGroup(firestore, 'enrollmentRequests');
     return useFallbackQuery
-      ? query(base, limit(50))
-      : query(base, orderBy('createdAt', 'desc'), limit(50));
-  }, [firestore, canView, useFallbackQuery]);
+      ? query(base, limit(requestLimit))
+      : query(base, orderBy('createdAt', 'desc'), limit(requestLimit));
+  }, [firestore, canView, useFallbackQuery, requestLimit]);
   const { data: requests, isLoading: requestsLoading, error: requestsError } =
     useCollection<EnrollmentRequest>(requestsQuery);
 
@@ -224,7 +225,7 @@ export default function AdminWaitlistPage() {
             <CardHeader>
               <CardTitle>{ar ? 'أحدث الطلبات' : 'Requests (recent)'}</CardTitle>
               <CardDescription>
-                {ar ? 'نعرض أحدث 50 طلباً. استخدم البحث للتصفية.' : 'Showing the latest 50 requests. Use search to filter.'}
+                {useFallbackQuery ? (ar ? 'نتائج جزئية، وليست بالضرورة الأحدث.' : 'Partial results, not necessarily the latest.') : (ar ? 'الطلبات الأحدث أولاً.' : 'Newest requests first.')} {ar ? 'البحث ضمن النتائج المحمّلة فقط.' : 'Search applies to loaded results only.'} ({requests?.length ?? 0})
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -234,13 +235,14 @@ export default function AdminWaitlistPage() {
                 placeholder={ar ? 'ابحث بالطالب أو البريد أو الدورة أو الرمز أو الحالة…' : 'Search by student, email, course, code, status...'}
               />
 
+              {!requestsError && (requests?.length ?? 0) >= requestLimit && <Button variant="outline" disabled={requestsLoading} onClick={() => setRequestLimit(value => value + 50)}>{ar ? 'تحميل المزيد' : 'Load more'}</Button>}
               {requestsError && !indexRelatedError ? (
                 <div className="text-sm text-destructive">
                   {requestsError.message || 'Failed to load requests.'}
                 </div>
               ) : null}
 
-              {useFallbackQuery && indexRelatedError ? (
+              {useFallbackQuery ? (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   {ar ? 'فهرس Firestore غير جاهز بعد، لذلك تستخدم الصفحة استعلاماً بديلاً. قد تكون النتائج غير مكتملة حتى يكتمل بناء الفهرس.' : 'Firestore index is not ready yet, so this page is using a fallback query. Results may be incomplete until the index finishes building.'}
                   {indexConsoleUrl ? (

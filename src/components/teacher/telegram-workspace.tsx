@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAuth } from 'firebase/auth';
 import { doc, getFirestore } from 'firebase/firestore';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
@@ -47,6 +47,9 @@ export default function TelegramDashboardPage() {
 
   const [jobs, setJobs] = useState<TgJob[] | null>(null);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState(false);
+  const [sending, setSending] = useState(false);
+  const sendLock = useRef(false);
 
   const isProvider = isAdmin || isTeacher;
 
@@ -81,12 +84,13 @@ export default function TelegramDashboardPage() {
   async function loadJobs() {
     try {
       setJobsLoading(true);
+      setJobsError(false);
       const resp = await authFetch('/api/telegram/jobs/list');
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || 'Failed');
       setJobs(Array.isArray(j.jobs) ? j.jobs : []);
-    } catch (e) {
-      setJobs([]);
+    } catch {
+      setJobsError(true);
     } finally {
       setJobsLoading(false);
     }
@@ -109,18 +113,24 @@ export default function TelegramDashboardPage() {
   }
 
   async function handleSendNow() {
+    if (sendLock.current || !text.trim()) return;
+    sendLock.current = true; setSending(true);
     try {
       if (!text.trim()) return;
       await createJob({ text, mediaUrl, linkUrl });
       setText(''); setMediaUrl(''); setLinkUrl('');
-      toast({ title: lang === 'ar' ? 'تم الإرسال' : 'Sent' });
+      toast({ title: lang === 'ar' ? 'أُضيفت إلى قائمة الانتظار' : 'Queued for delivery', description: lang === 'ar' ? 'لم يتم تأكيد التسليم بعد. راجع حالة المهمة.' : 'Delivery is not confirmed yet. Check the job status.' });
       loadJobs();
     } catch (e: any) {
       toast({ variant: 'destructive', title: lang === 'ar' ? 'فشل' : 'Failed', description: e?.message || 'Error' });
+    } finally {
+      sendLock.current = false; setSending(false);
     }
   }
 
   async function handleSchedule() {
+    if (sendLock.current || !text.trim()) return;
+    sendLock.current = true; setSending(true);
     try {
       if (!text.trim()) return;
       if (!sendAtLocal) throw new Error('Pick a date/time');
@@ -132,6 +142,8 @@ export default function TelegramDashboardPage() {
       loadJobs();
     } catch (e: any) {
       toast({ variant: 'destructive', title: lang === 'ar' ? 'فشل' : 'Failed', description: e?.message || 'Error' });
+    } finally {
+      sendLock.current = false; setSending(false);
     }
   }
 
@@ -177,6 +189,7 @@ export default function TelegramDashboardPage() {
           <CardTitle>{lang === 'ar' ? 'الاتصال' : 'Connection'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{lang === 'ar' ? 'التسليم يعتمد على خدمة الأتمتة الخارجية. الإضافة إلى الانتظار لا تعني التسليم؛ حدّث حالة المهام للتحقق.' : 'Delivery depends on the external automation worker. Queued does not mean delivered; refresh jobs to check the result.'}</p>
           {!telegram?.verified ? (
             <div className="space-y-3">
               <Button onClick={handleGenerateCode} disabled={genLoading}>{genLoading ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Generating...') : (lang === 'ar' ? 'إنشاء رمز' : 'Generate code')}</Button>
@@ -214,12 +227,12 @@ export default function TelegramDashboardPage() {
               <Input value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} placeholder={lang === 'ar' ? 'رابط صورة اختياري' : 'Optional media URL'} />
               <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder={lang === 'ar' ? 'رابط اختياري' : 'Optional link URL'} />
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleSendNow} disabled={!text.trim()}>{lang === 'ar' ? 'أرسل الآن' : 'Send now'}</Button>
+                <Button onClick={handleSendNow} disabled={sending || !text.trim()}>{lang === 'ar' ? 'إضافة للإرسال' : 'Queue now'}</Button>
                 <Button variant="secondary" onClick={() => setScheduleOpen((s) => !s)}>{lang === 'ar' ? 'جدولة' : 'Schedule'}</Button>
                 {scheduleOpen && (
                   <div className="flex items-center gap-2">
                     <input type="datetime-local" value={sendAtLocal} onChange={(e) => setSendAtLocal(e.target.value)} className="border rounded px-2 py-1" />
-                    <Button onClick={handleSchedule} disabled={!text.trim() || !sendAtLocal}>{lang === 'ar' ? 'تأكيد الجدولة' : 'Confirm schedule'}</Button>
+                    <Button onClick={handleSchedule} disabled={sending || !text.trim() || !sendAtLocal}>{lang === 'ar' ? 'تأكيد الجدولة' : 'Confirm schedule'}</Button>
                   </div>
                 )}
               </div>
@@ -232,9 +245,10 @@ export default function TelegramDashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>{lang === 'ar' ? 'المهام' : 'Jobs'}</CardTitle>
+          <Button variant="outline" onClick={loadJobs} disabled={jobsLoading}>{lang === 'ar' ? 'تحديث' : 'Refresh'}</Button>
         </CardHeader>
         <CardContent>
-          {jobsLoading ? (
+          {jobsError ? <p role="alert" className="text-destructive">{lang === 'ar' ? 'تعذّر تحميل المهام. اضغط تحديث لإعادة المحاولة.' : 'Jobs could not be loaded. Select Refresh to retry.'}</p> : jobsLoading ? (
             <Skeleton className="h-32 w-full" />
           ) : !jobs || jobs.length === 0 ? (
             <div className="text-muted-foreground text-sm">{lang === 'ar' ? 'لا توجد مهام.' : 'No jobs yet.'}</div>

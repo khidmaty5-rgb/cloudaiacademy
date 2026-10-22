@@ -1,4 +1,5 @@
 "use client";
+import { DataLoadError } from '@/components/data-load-error';
 
 import { useLang } from "@/components/i18n/lang";
 import { useUser, useCollection, useMemoFirebase } from "@/firebase";
@@ -114,7 +115,7 @@ export default function JournalMySubmissionsPage() {
     [firestore, user],
   );
 
-  const { data: submissions, isLoading } =
+  const { data: submissions, isLoading, error: submissionsError } =
     useCollection<Article>(submissionsQuery as any);
 
   const hasSubmissions = (submissions?.length ?? 0) > 0;
@@ -151,6 +152,8 @@ export default function JournalMySubmissionsPage() {
     }
   };
 
+
+  if (submissionsError) return <DataLoadError />;
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">

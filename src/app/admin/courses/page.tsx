@@ -1,4 +1,5 @@
 'use client';
+import { DataLoadError } from '@/components/data-load-error';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -114,9 +115,9 @@ export default function AdminCoursesPage() {
     return query(collection(firestore, 'courses'), where('instructorIds', 'array-contains', uid));
   }, [firestore, uid, isTeacher]);
 
-  const { data: allCourses, isLoading: isAllLoading } = useCollection(allCoursesQuery);
-  const { data: ownedCourses, isLoading: isOwnedLoading } = useCollection(teacherOwnerQuery);
-  const { data: assignedCourses, isLoading: isAssignedLoading } = useCollection(teacherInstructorQuery);
+  const { data: allCourses, isLoading: isAllLoading, error: allError } = useCollection(allCoursesQuery);
+  const { data: ownedCourses, isLoading: isOwnedLoading, error: ownedError } = useCollection(teacherOwnerQuery);
+  const { data: assignedCourses, isLoading: isAssignedLoading, error: assignedError } = useCollection(teacherInstructorQuery);
 
   // No fallback; teachers only see assigned courses
 
@@ -300,6 +301,8 @@ export default function AdminCoursesPage() {
       </div>
     );
   }
+
+  if (canView && (allError || ownedError || assignedError)) return <DataLoadError />;
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">

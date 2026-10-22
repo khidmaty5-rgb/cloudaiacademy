@@ -11,6 +11,10 @@ import { PACKAGE_LIMITS, validatePackage, type LessonPackage } from '@/lib/lesso
 import { lessonImportRequest } from '@/lib/lesson-import-client';
 
 type Draft = {id:string;name:string;count:number};
+function readDrafts(data: { imports?: unknown }): Draft[] {
+  if (!Array.isArray(data.imports) || !data.imports.every(d => d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.count === 'number')) throw new Error('IMPORT_FAILED');
+  return data.imports;
+}
 export default function LessonZipImport({courseId}:{courseId:string}) {
   const {lang}=useLang(); const ar=lang==='ar';
   const t=(en:string,arabic:string)=>ar?arabic:en;
@@ -19,6 +23,16 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
   const [drafts,setDrafts]=useState<Draft[]>([]);
+  const [draftsLoading,setDraftsLoading]=useState(true);
+  const [draftsError,setDraftsError]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    setDraftsLoading(true);setDraftsError(false);
+    void lessonImportRequest(courseId).then(data=>{if(active)setDrafts(readDrafts(data));})
+      .catch(()=>{if(active)setDraftsError(true);})
+      .finally(()=>{if(active)setDraftsLoading(false);});
+    return()=>{active=false;};
+  },[courseId]);
   const [preview,setPreview]=useState<LessonPackage|null>(null);
   const [name,setName]=useState('');
   const [importId,setImportId]=useState('');
@@ -66,7 +80,7 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
   }
   async function show() {
     setOpen(true); setBusy(true); setError(''); setMessage(''); setPreview(null); setConfirm(false);
-    try {const data=await request(); setDrafts(data.imports);} catch(e){report(e);} finally{setBusy(false);}
+    try {const data=await request(); setDrafts(readDrafts(data));setDraftsError(false);} catch(e){setDraftsError(true);report(e);} finally{setBusy(false);setDraftsLoading(false);}
   }
   async function read(file:File) {
     setBusy(true); setError(''); setMessage(''); setPreview(null); setSaved(false); setConfirm(false);
@@ -85,7 +99,7 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     } catch(e){report(e);} finally{setBusy(false);}
   }
   async function resume(draft:Draft) {
-    setBusy(true); setError(''); setMessage(''); setConfirm(false);
+    setBusy(true); setError(''); setMessage(''); setConfirm(false);setPreview(null);setSaved(false);setImportId('');
     try {const data=await request(undefined,'?importId='+draft.id); const clean=validatePackage(data); setPreview(clean); setMode(clean.lessons.some(l=>l.interactiveHtml !== undefined)?'interactive':'standard'); setPreviewKey(null); setName(draft.name); setImportId(draft.id); setSaved(true);} catch(e){report(e);} finally{setBusy(false);}
   }
   async function save() {
@@ -119,7 +133,10 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
     MISSING_IMAGES:['Some images are external, missing or unsupported; review each lesson before saving.','بعض الصور خارجية أو مفقودة أو غير مدعومة؛ راجع كل درس قبل الحفظ.'],
     UNSUPPORTED_LINKS:['Some local attachments or anchor links could not be preserved. Their text remains.','تعذر الاحتفاظ ببعض روابط المرفقات المحلية أو الروابط الداخلية. احتُفظ بنصوصها.'],
   };
-  return <Dialog open={open} onOpenChange={value=>{if(!busy)setOpen(value);}}>
+  return <><div className="basis-full space-y-2 rounded-lg border p-3 text-sm">
+    <p className="font-medium">{t('Saved import drafts','مسودات الاستيراد المحفوظة')}{!draftsLoading&&!draftsError?' ('+drafts.length+')':''}</p>
+    {draftsLoading?<p role="status">{t('Loading drafts…','جارٍ تحميل المسودات…')}</p>:draftsError?<div role="alert"><p>{t('Drafts could not be loaded. This does not mean none were saved.','تعذّر تحميل المسودات. هذا لا يعني عدم حفظها.')}</p><Button variant="outline" size="sm" onClick={show}>{t('Retry','إعادة المحاولة')}</Button></div>:drafts.length===0?<p className="text-muted-foreground">{t('No saved import drafts. Published lessons are listed separately.','لا توجد مسودات استيراد محفوظة. الدروس المنشورة مدرجة بشكل منفصل.')}</p>:drafts.map(d=><div key={d.id} className="flex flex-wrap items-center gap-2"><span dir="auto">{d.name} ({d.count})</span><Button size="sm" variant="outline" disabled={busy} onClick={()=>{setOpen(true);void resume(d);}}>{t('Resume import','متابعة الاستيراد')}</Button></div>)}
+  </div><Dialog open={open} onOpenChange={value=>{if(!busy)setOpen(value);}}>
     <DialogTrigger asChild><Button variant="outline" onClick={show}><Upload className="size-4"/>{t('Import ZIP','استيراد ZIP')}</Button></DialogTrigger>
     <DialogContent className="sm:max-w-3xl">
       <DialogHeader><DialogTitle>{t('Import course lessons','استيراد دروس الدورة')}</DialogTitle><DialogDescription>{t('Preview → save drafts → publish. Existing lessons are never replaced. Only import content you have permission to use.','معاينة ← حفظ المسودات ← نشر. لن تُستبدل الدروس الحالية. استورد المحتوى الذي لديك إذن باستخدامه فقط.')}</DialogDescription></DialogHeader>
@@ -155,5 +172,5 @@ export default function LessonZipImport({courseId}:{courseId:string}) {
         {drafts.length>0&&<section className="space-y-2 border-t pt-4"><h3 className="font-semibold">{t('Saved drafts','المسودات المحفوظة')}</h3>{drafts.map(d=><div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-3"><span className="min-w-0 break-words text-sm">{d.name} ({d.count})</span><Button size="sm" variant="outline" onClick={()=>resume(d)} disabled={busy}>{t('Review','مراجعة')}</Button></div>)}</section>}
       </div>
     </DialogContent>
-  </Dialog>;
+  </Dialog></>;
 }

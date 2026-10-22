@@ -206,7 +206,7 @@ export default function JournalSubmitPage() {
           affiliations: affiliationsArr,
           keywords: keywordsArr,
           license,
-          language: language === 'both' ? 'en' : language, // restrict to en|ar server side
+          language,
           codeUrl,
           pdfPath: s3Key,
         }),

@@ -1,7 +1,8 @@
 'use client';
+import { DataLoadError } from '@/components/data-load-error';
 
 import { useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, getFirestore, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getFirestore, orderBy, query, limit } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -143,6 +144,7 @@ export default function AdminJournalPage() {
 
   const isLoading = isUserLoading || isProfileLoading || roleLoading;
   const canView = isAdmin === true || isEditor === true;
+  const [articleLimit, setArticleLimit] = useState(50);
 
   const articlesQuery = useMemoFirebase(
     () =>
@@ -150,18 +152,19 @@ export default function AdminJournalPage() {
         ? query(
             collection(firestore, 'journalArticles'),
             orderBy('createdAt', 'desc'),
+            limit(articleLimit),
           )
         : null,
-    [firestore, canView],
+    [firestore, canView, articleLimit],
   );
-  const { data: articles, isLoading: isArticlesLoading } =
+  const { data: articles, isLoading: isArticlesLoading, error: articlesError } =
     useCollection<WithId<any>>(articlesQuery as any);
 
   const issuesQuery = useMemoFirebase(
     () => (canView ? collection(firestore, 'journalIssues') : null),
     [firestore, canView],
   );
-  const { data: issues, isLoading: isIssuesLoading } =
+  const { data: issues, isLoading: isIssuesLoading, error: issuesError } =
     useCollection<WithId<any>>(issuesQuery as any);
 
   const issuesById = useMemo(() => {
@@ -649,10 +652,16 @@ export default function AdminJournalPage() {
     );
   }
 
+  if (articlesError || issuesError) return <DataLoadError />;
+
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
       <main className="flex-1 py-10 md:py-16">
         <div className="container space-y-8">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <p>{lang === 'ar' ? 'التصفية والبحث ضمن الأبحاث المحمّلة فقط.' : 'Search and filters apply to loaded articles only.'} ({articles?.length ?? 0})</p>
+            {(articles?.length ?? 0) >= articleLimit && <Button variant="outline" disabled={isArticlesLoading} onClick={() => setArticleLimit(value => value + 50)}>{lang === 'ar' ? 'تحميل المزيد' : 'Load more'}</Button>}
+          </div>
           <header className="space-y-1">
             <h1 className="font-headline text-3xl md:text-4xl font-bold">
               {t.pageTitle}

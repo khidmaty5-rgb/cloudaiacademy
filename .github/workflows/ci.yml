@@ -85,6 +85,9 @@ jobs:
       - name: Test free course-based learning planner
         run: node --test tests/roles/course-learning-plan.test.mjs
 
+      - name: Test dashboard audit regressions
+        run: node --test tests/roles/dashboard-audit.test.mjs
+
       - name: Test ZIP import parser and API
         run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/interactive-import.test.mjs tests/roles/course-package.test.mjs tests/roles/lesson-import-api.test.mjs
 
