@@ -22,11 +22,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sparkles, Bot, Save } from 'lucide-react';
-import {
-  generatePersonalizedLearningPath,
-  PersonalizedLearningPathOutput,
-} from '@/ai/flows/personalized-learning-paths';
+import { BookOpen, Save } from 'lucide-react';
+import Link from 'next/link';
+import { collection, getDocs, getFirestore, query, where } from 'firebase/firestore';
+import { buildCourseLearningPlan, type CourseLearningPlan } from '@/lib/course-learning-plan';
+import type { Course } from '@/types/models';
 import { useUser } from '@/firebase';
 import { saveLearningPath } from '@/lib/user';
 import { useToast } from '@/hooks/use-toast';
@@ -40,8 +40,8 @@ export default function LearningPathPage() {
 
   const t = {
     en: {
-      pageTitle: 'Personalized Learning Path Generator',
-      pageSubtitle: 'Let our AI craft the perfect learning journey for you.',
+      pageTitle: 'Course-based Learning Planner',
+      pageSubtitle: 'Build a free plan from published Academy courses. No AI service required.',
       formTitle: 'Tell us about yourself',
       formDescription:
         'The more details you provide, the better the recommendation.',
@@ -62,7 +62,9 @@ export default function LearningPathPage() {
       submitButton: 'Generate My Learning Path',
       submittingButton: 'Generating Your Path...',
       errorFillAll: 'Please fill out all fields.',
-      errorGenerate: 'Failed to generate learning path. Please try again.',
+      errorGenerate: 'Could not load the course catalog. Check your connection and try again.',
+      explore: 'Explore courses',
+      openCourse: 'View course',
       loadingTitle: 'Generating your personalized path...',
       resultCardTitle: 'Your Personalized Learning Path',
       saveButton: 'Save Path',
@@ -73,9 +75,9 @@ export default function LearningPathPage() {
       toastSaveFailedDesc: 'Could not save your learning path.',
     },
     ar: {
-      pageTitle: 'مولِّد مسار التعلّم الشخصي',
+      pageTitle: 'مخطّط التعلّم المبني على الدورات',
       pageSubtitle:
-        'دع نموذج الذكاء الاصطناعي لدينا يقترح لك رحلة تعلّم مناسبة.',
+        'أنشئ خطة مجانية من دورات الأكاديمية المنشورة، دون الحاجة إلى خدمة ذكاء اصطناعي.',
       formTitle: 'حدِّثنا عن نفسك',
       formDescription:
         'كلما قدّمت تفاصيل أكثر، كانت التوصية أدق وأنسب لك.',
@@ -97,7 +99,9 @@ export default function LearningPathPage() {
       submittingButton: 'جارٍ إنشاء مسار التعلّم...',
       errorFillAll: 'يرجى تعبئة جميع الحقول قبل المتابعة.',
       errorGenerate:
-        'تعذّر إنشاء مسار التعلّم. يرجى المحاولة مرة أخرى.',
+        'تعذّر تحميل قائمة الدورات. تحقّق من اتصالك وحاول مجددًا.',
+      explore: 'استكشاف الدورات',
+      openCourse: 'عرض الدورة',
       loadingTitle: 'جارٍ إعداد مسار التعلّم الشخصي...',
       resultCardTitle: 'مسار التعلّم المقترح لك',
       saveButton: 'حفظ المسار',
@@ -117,7 +121,7 @@ export default function LearningPathPage() {
   const [language, setLanguage] = useState<'English' | 'Arabic'>('English');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [result, setResult] = useState<PersonalizedLearningPathOutput | null>(
+  const [result, setResult] = useState<CourseLearningPlan | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +166,7 @@ export default function LearningPathPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interests || !experienceLevel || !careerGoals) {
+    if (!interests.trim() || !experienceLevel || !careerGoals.trim()) {
       setError(t.errorFillAll);
       return;
     }
@@ -170,17 +174,17 @@ export default function LearningPathPage() {
     setResult(null);
     setError(null);
     try {
-      const response = await generatePersonalizedLearningPath({
+      const snapshot = await getDocs(query(collection(getFirestore(), 'courses'), where('status', '==', 'PUBLISHED')));
+      const response = buildCourseLearningPlan({
         interests,
         experienceLevel:
           experienceLevel as 'beginner' | 'intermediate' | 'advanced',
         careerGoals,
         language,
-      });
+      }, snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Course));
       setResult(response);
-    } catch (err: any) {
-      const msg = String(err?.message || err);
-      setError(msg.includes('AI_DISABLED') ? 'AI is currently unavailable. Please try again later.' : t.errorGenerate);
+    } catch (err: unknown) {
+      setError(t.errorGenerate);
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -188,10 +192,10 @@ export default function LearningPathPage() {
   };
 
   const handleSavePath = async () => {
-    if (!user || !result) return;
+    if (!user || !result || !result.courses.length) return;
     setIsSaving(true);
     try {
-      await saveLearningPath(user.uid, result);
+      await saveLearningPath(user.uid, { title: result.title, description: result.description });
       toast({
         title: t.toastSavedTitle,
         description: t.toastSavedDesc,
@@ -230,6 +234,8 @@ export default function LearningPathPage() {
               <Label htmlFor="interests">{t.interestsLabel}</Label>
               <Input
                 id="interests"
+                required
+                maxLength={300}
                 placeholder={t.interestsPlaceholder}
                 value={interests}
                 onChange={(e) => setInterests(e.target.value)}
@@ -284,6 +290,8 @@ export default function LearningPathPage() {
               <Label htmlFor="goals">{t.goalsLabel}</Label>
               <Textarea
                 id="goals"
+                required
+                maxLength={1000}
                 placeholder={t.goalsPlaceholder}
                 value={careerGoals}
                 onChange={(e) => setCareerGoals(e.target.value)}
@@ -300,7 +308,7 @@ export default function LearningPathPage() {
               {isLoading ? t.submittingButton : t.submitButton}
             </Button>
             {error && (
-              <p className="mt-2 text-center text-sm text-destructive">
+              <p role="alert" className="mt-2 text-center text-sm text-destructive">
                 {error}
               </p>
             )}
@@ -311,7 +319,7 @@ export default function LearningPathPage() {
       {isLoading && (
         <Card className="mt-8">
           <CardHeader className="flex flex-row items-center gap-2">
-            <Sparkles className="text-accent" />
+            <BookOpen className="text-accent" />
             <CardTitle>{t.loadingTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -324,13 +332,13 @@ export default function LearningPathPage() {
 
       {result && (
         <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Bot className="h-6 w-6 text-accent" />
+              <BookOpen className="h-6 w-6 text-accent" />
               <CardTitle>{t.resultCardTitle}</CardTitle>
             </div>
-            <Button onClick={handleSavePath} disabled={isSaving}>
-              <Save className="mr-2 h-4 w-4" />
+            <Button onClick={handleSavePath} disabled={isSaving || !result.courses.length}>
+              <Save className="me-2 h-4 w-4" />
               {isSaving ? t.savingButton : t.saveButton}
             </Button>
           </CardHeader>
@@ -341,6 +349,12 @@ export default function LearningPathPage() {
               className="prose prose-sm max-w-none whitespace-pre-wrap text-foreground md:prose-base"
             >
               {result.description}
+            </div>
+            <div className="mt-5 flex flex-col gap-3">
+              {result.courses.map(course => <Button key={course.id} variant="outline" asChild className="h-auto whitespace-normal justify-start text-start">
+                <Link href={`/courses/${encodeURIComponent(course.slug)}`}>{t.openCourse}: {course.title}</Link>
+              </Button>)}
+              {!result.courses.length && <Button asChild variant="outline"><Link href="/courses">{t.explore}</Link></Button>}
             </div>
           </CardContent>
         </Card>
