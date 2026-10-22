@@ -637,9 +637,10 @@ export default function AdminCertificatesPage() {
           }
           toast({
             variant: 'destructive',
-            title: 'PDF generation/upload failed',
-            description: err?.message || String(err),
+            title: lang === 'ar' ? 'أُنشئ سجل الشهادة، لكن ملف PDF غير جاهز' : 'Certificate record created; PDF not ready',
+            description: (lang === 'ar' ? 'لا تُصدر شهادة أخرى. السجل محفوظ؛ افتحه في عرض الشهادات للتحقق والطباعة. المعرّف: ' : 'Do not issue a duplicate. The record is saved; open it in View certificates to verify and print. ID: ') + previewCertificate.id,
           });
+          return;
         }
       }
 

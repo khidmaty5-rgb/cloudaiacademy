@@ -46,7 +46,7 @@ const dashboardCopy = {
     startLearning: "Let’s start learning.",
     myCourses: 'My Courses',
     myLearningPaths: 'My Learning Paths',
-    aiRecommendations: 'AI Recommendations',
+    aiRecommendations: 'Course suggestions',
     openCourse: 'Open course',
   },
   ar: {
@@ -60,7 +60,7 @@ const dashboardCopy = {
     startLearning: 'لنبدأ التعلم.',
     myCourses: 'دوراتي',
     myLearningPaths: 'مسارات التعلم الخاصة بي',
-    aiRecommendations: 'توصيات الذكاء الاصطناعي',
+    aiRecommendations: 'اقتراحات الدورات',
     openCourse: 'فتح الدورة',
   },
 } satisfies Record<'en' | 'ar', DashboardText>;

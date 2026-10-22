@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '@/components/i18n/lang';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
 import { useDoc, useMemoFirebase, useUser } from '@/firebase';
@@ -62,23 +62,39 @@ export default function AdminPaymentSettingsPage() {
       noteBody:
         'Do NOT store Stripe secret keys in Firestore. Use env vars (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET) in your hosting environment.',
     };
-    const ar = en;
+    const ar = {
+      pageTitle: 'إعدادات الدفع', noPermission: 'ليس لديك إذن لعرض هذه الصفحة.',
+      save: 'حفظ الإعدادات', saving: 'جارٍ الحفظ…', saved: 'تم الحفظ', savedDesc: 'تم تحديث إعدادات الدفع.',
+      failed: 'تعذّر الحفظ', failedDesc: 'تعذّر حفظ إعدادات الدفع.', paymentsEnabled: 'تفعيل الدفع',
+      provider: 'مزوّد الخدمة', model: 'نموذج الدفع', currency: 'العملة', intervals: 'فترات الفوترة',
+      defaultInterval: 'الفترة الافتراضية', paywall: 'الدفع للوصول', paywallEnabled: 'تفعيل الدفع للوصول',
+      defaultRequirePayment: 'اشتراط الدفع للطلاب الجدد افتراضيًا', plans: 'الخطط', planEnabled: 'مفعّل',
+      contactOnly: 'للمؤسسات / بالتواصل فقط', stripePriceIds: 'معرّفات أسعار Stripe',
+      monthlyPriceId: 'معرّف السعر الشهري', yearlyPriceId: 'معرّف السعر السنوي', oneTimePriceId: 'معرّف الدفع لمرة واحدة',
+      enterpriseContact: 'التواصل للمؤسسات', contactEmail: 'البريد الإلكتروني', contactUrl: 'رابط التواصل',
+      noteTitle: 'مهم', noteBody: 'لا تخزّن مفاتيح Stripe السرية في Firestore. استخدم متغيرات البيئة في الاستضافة.',
+    };
     return lang === 'ar' ? ar : en;
   }, [lang]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'payment'), [firestore]);
-  const { data: paymentDoc, isLoading: isPaymentDocLoading } = useDoc(settingsDocRef);
+  const { data: paymentDoc, isLoading: isPaymentDocLoading, error: paymentError } = useDoc(settingsDocRef);
 
   const [draft, setDraft] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user || isPaymentDocLoading || paymentError || loadedFor === user.uid) return;
     const next = sanitizePaymentSettings(paymentDoc, DEFAULT_PAYMENT_SETTINGS);
     setDraft(next);
-  }, [paymentDoc]);
+    setLoadedFor(user.uid);
+  }, [paymentDoc, isPaymentDocLoading, paymentError, user, loadedFor]);
 
   const isLoading = isUserLoading || roleLoading || isPaymentDocLoading;
   const canView = isAdmin === true;
+  const ready = canView && !!user && loadedFor === user.uid && !isLoading && !paymentError;
 
   const setPlan = (planId: PaymentPlanId, updater: (prev: PaymentSettings['plans'][PaymentPlanId]) => PaymentSettings['plans'][PaymentPlanId]) => {
     setDraft((prev) => ({
@@ -105,7 +121,8 @@ export default function AdminPaymentSettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!canView) return;
+    if (!ready || saveLock.current) return;
+    saveLock.current = true;
     setSaving(true);
     try {
       const sanitized = sanitizePaymentSettings(draft, DEFAULT_PAYMENT_SETTINGS);
@@ -114,6 +131,7 @@ export default function AdminPaymentSettingsPage() {
     } catch {
       toast({ variant: 'destructive', title: t.failed, description: t.failedDesc });
     } finally {
+      saveLock.current = false;
       setSaving(false);
     }
   };
@@ -129,7 +147,7 @@ export default function AdminPaymentSettingsPage() {
               <h1 className="font-headline text-3xl md:text-4xl font-bold">{t.pageTitle}</h1>
             )}
             {canView && (
-              <Button onClick={handleSave} disabled={saving || !user}>
+              <Button onClick={handleSave} disabled={saving || !ready}>
                 {saving ? t.saving : t.save}
               </Button>
             )}
@@ -141,8 +159,14 @@ export default function AdminPaymentSettingsPage() {
             </div>
           )}
 
-          {canView && (
-            <div className="mt-8 space-y-6">
+          {canView && paymentError && (
+            <div role="alert" className="mt-8 space-y-3">
+              <p>{lang === 'ar' ? 'تعذّر تحميل إعدادات الدفع. الحفظ معطّل لحماية إعداداتك الحالية.' : 'Payment settings could not be loaded. Saving is disabled to protect existing settings.'}</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>
+            </div>
+          )}
+          {ready && (
+            <fieldset disabled={saving} className="mt-8 space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>{t.noteTitle}</CardTitle>
@@ -159,7 +183,7 @@ export default function AdminPaymentSettingsPage() {
                     <div className="space-y-1">
                       <div className="font-medium">{t.paymentsEnabled}</div>
                       <div className="text-sm text-muted-foreground">
-                        {draft.enabled ? 'Enabled' : 'Disabled'}
+                        {draft.enabled ? (lang === 'ar' ? 'مفعّل' : 'Enabled') : (lang === 'ar' ? 'معطّل' : 'Disabled')}
                       </div>
                     </div>
                     <Switch
@@ -198,9 +222,9 @@ export default function AdminPaymentSettingsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="subscription">Subscription</SelectItem>
-                          <SelectItem value="one_time">One-time</SelectItem>
-                          <SelectItem value="per_course">Per course</SelectItem>
+                          <SelectItem value="subscription">{lang === 'ar' ? 'اشتراك' : 'Subscription'}</SelectItem>
+                          <SelectItem value="one_time">{lang === 'ar' ? 'دفعة واحدة' : 'One-time'}</SelectItem>
+                          <SelectItem value="per_course">{lang === 'ar' ? 'لكل دورة' : 'Per course'}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -259,10 +283,10 @@ export default function AdminPaymentSettingsPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="month" disabled={!draft.intervals.month}>
-                              Monthly
+                              {lang === 'ar' ? 'شهريًا' : 'Monthly'}
                             </SelectItem>
                             <SelectItem value="year" disabled={!draft.intervals.year}>
-                              Yearly
+                              {lang === 'ar' ? 'سنويًا' : 'Yearly'}
                             </SelectItem>
                           </SelectContent>
                         </Select>
@@ -281,7 +305,7 @@ export default function AdminPaymentSettingsPage() {
                     <div className="space-y-1">
                       <div className="font-medium">{t.paywallEnabled}</div>
                       <div className="text-sm text-muted-foreground">
-                        {draft.paywall.enabled ? 'Enabled' : 'Disabled'}
+                        {draft.paywall.enabled ? (lang === 'ar' ? 'مفعّل' : 'Enabled') : (lang === 'ar' ? 'معطّل' : 'Disabled')}
                       </div>
                     </div>
                     <Switch
@@ -295,7 +319,7 @@ export default function AdminPaymentSettingsPage() {
                     <div className="space-y-1">
                       <div className="font-medium">{t.defaultRequirePayment}</div>
                       <div className="text-sm text-muted-foreground">
-                        {draft.paywall.defaultRequirePayment ? 'Yes' : 'No'}
+                        {draft.paywall.defaultRequirePayment ? (lang === 'ar' ? 'نعم' : 'Yes') : (lang === 'ar' ? 'لا' : 'No')}
                       </div>
                     </div>
                     <Switch
@@ -320,7 +344,7 @@ export default function AdminPaymentSettingsPage() {
                   {PLAN_ORDER.map((planId) => {
                     const plan = draft.plans[planId];
                     const label =
-                      planId === 'basic' ? 'Basic' : planId === 'pro' ? 'Pro' : 'Enterprise';
+                      planId === 'basic' ? (lang === 'ar' ? 'أساسي' : 'Basic') : planId === 'pro' ? (lang === 'ar' ? 'احترافي' : 'Pro') : (lang === 'ar' ? 'مؤسسات' : 'Enterprise');
 
                     return (
                       <div key={planId} className="rounded-lg border p-4 space-y-4">
@@ -328,7 +352,7 @@ export default function AdminPaymentSettingsPage() {
                           <div className="space-y-1">
                             <div className="font-medium">{label}</div>
                             <div className="text-sm text-muted-foreground">
-                              {plan.enabled ? 'Enabled' : 'Disabled'}
+                              {plan.enabled ? (lang === 'ar' ? 'مفعّل' : 'Enabled') : (lang === 'ar' ? 'معطّل' : 'Disabled')}
                             </div>
                           </div>
                           <div className="flex items-center gap-6 flex-wrap">
@@ -442,7 +466,7 @@ export default function AdminPaymentSettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </fieldset>
           )}
         </div>
       </main>

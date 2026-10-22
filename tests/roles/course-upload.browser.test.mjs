@@ -33,6 +33,7 @@ before(async()=>{
         if(++saveAttempts===1){res.statusCode=500;res.end('{"error":"IMPORT_FAILED"}');return;}
         draft=data;res.end(JSON.stringify({id:data.importId,status:'DRAFT'}));return;
       }
+      if(!req.url.includes('importId=')) { res.end(JSON.stringify({imports:draft?[{id:draft.importId,name:draft.name,count:draft.lessons.length}]:[]}));return; }
       res.end(JSON.stringify({...draft,status:'DRAFT'}));return;
     }
     res.setHeader('Content-Type','text/html');res.end('<!doctype html><div id="root"></div><script>'+bundle.replace(/<\/script/gi,'<\\/script')+'</script>');
@@ -83,5 +84,9 @@ test('ZIP upload fills details, respects typed price, retries without creating t
     await page.getByRole('button',{name:'Preview interactive lesson',exact:true}).click();
     const frame=page.frameLocator('iframe');await frame.locator('#quiz').click();assert.equal(await frame.locator('#quiz').textContent(),'Scored');
     assert.ok(!page.url().includes('lessonImport='));
+    await page.getByRole('dialog').getByRole('button',{name:/^Close\s*إغلاق$/}).click();
+    await page.getByRole('button',{name:'Resume import',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Resume import',exact:true}).click();
+    await page.getByRole('button',{name:'Review publication',exact:true}).waitFor();
   }finally{await page.close();}
 });

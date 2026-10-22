@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
     if (!title || !abstract || !authors || !pdfPath) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    if (!['en', 'ar'].includes(language)) {
-      return NextResponse.json({ error: 'Invalid language; must be en or ar' }, { status: 400 });
+    if (!['en', 'ar', 'both'].includes(language)) {
+      return NextResponse.json({ error: 'Invalid language; must be en, ar, or both' }, { status: 400 });
     }
     if (
       typeof pdfPath !== 'string' ||

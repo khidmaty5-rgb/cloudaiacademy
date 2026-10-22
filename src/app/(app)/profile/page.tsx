@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { DataLoadError } from '@/components/data-load-error';
 import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,13 +32,15 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const loadedFor = useRef<string | null>(null);
+  const saveLock = useRef(false);
   
   const userDocRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userDocRef);
+  const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc(userDocRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -46,15 +49,17 @@ export default function ProfilePage() {
   }, [user, isUserLoading, router]);
   
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && user && !profileError && !isProfileLoading && loadedFor.current !== user.uid) {
         setFirstName(userProfile.firstName || '');
         setLastName(userProfile.lastName || '');
+        loadedFor.current = user.uid;
     }
-  }, [userProfile])
+  }, [userProfile, user, profileError, isProfileLoading])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !userProfile || isProfileLoading || profileError || saveLock.current) return;
+    saveLock.current = true;
     setIsLoading(true);
     try {
       await updateUserProfile(user, { firstName, lastName });
@@ -62,13 +67,14 @@ export default function ProfilePage() {
         title: ar ? 'تم تحديث الملف الشخصي' : 'Profile Updated',
         description: ar ? 'تم تحديث معلوماتك بنجاح.' : 'Your profile has been successfully updated.',
       });
-    } catch (error: any) {
+    } catch {
       toast({
         variant: 'destructive',
         title: ar ? 'تعذّر التحديث' : 'Update Failed',
-        description: error.message || (ar ? 'حدث خطأ أثناء تحديث ملفك الشخصي.' : 'There was an error updating your profile.'),
+        description: ar ? 'لم يتم تأكيد حفظ جميع تغييراتك. احتفظ بالقيم وحاول مجددًا؛ قد يكون الاسم في حساب الدخول قد تغيّر.' : 'Not all changes were confirmed saved. Keep your values and retry; your sign-in display name may already have changed.',
       });
     } finally {
+      saveLock.current = false;
       setIsLoading(false);
     }
   };
@@ -101,6 +107,8 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  if (profileError || !userProfile) return <DataLoadError />;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-10 md:px-6">

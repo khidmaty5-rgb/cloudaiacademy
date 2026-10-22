@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, deleteDoc, doc, getFirestore, collection, query, where } from 'firebase/firestore';
+import { collectionGroup, deleteDoc, doc, getFirestore, collection, query, where, limit, orderBy, getCountFromServer } from 'firebase/firestore';
+import { DataLoadError } from '@/components/data-load-error';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -170,13 +171,13 @@ export default function AdminDashboardPage() {
   const canListUsers = isAdmin;
 
   const usersQuery = useMemoFirebase(
-    () => (canListUsers ? collection(firestore, 'users') : null),
+    () => (canListUsers ? query(collection(firestore, 'users'), limit(50)) : null),
     [firestore, canListUsers]
   );
-  const { data: users, isLoading: isUsersLoading, error: usersError } = useCollection(usersQuery);
+  const { data: users, error: usersError } = useCollection(usersQuery);
 
   const adminCoursesQuery = useMemoFirebase(
-    () => (isAdmin ? collection(firestore, 'courses') : null),
+    () => (isAdmin ? query(collection(firestore, 'courses'), limit(100)) : null),
     [firestore, isAdmin]
   );
   const teacherOwnedCoursesQuery = useMemoFirebase(
@@ -196,17 +197,14 @@ export default function AdminDashboardPage() {
 
   const {
     data: adminCourses,
-    isLoading: isAdminCoursesLoading,
     error: adminCoursesError,
   } = useCollection(adminCoursesQuery);
   const {
     data: teacherOwnedCourses,
-    isLoading: isTeacherOwnedCoursesLoading,
     error: teacherOwnedCoursesError,
   } = useCollection(teacherOwnedCoursesQuery);
   const {
     data: teacherAssignedCourses,
-    isLoading: isTeacherAssignedCoursesLoading,
     error: teacherAssignedCoursesError,
   } = useCollection(teacherAssignedCoursesQuery);
 
@@ -221,12 +219,6 @@ export default function AdminDashboardPage() {
     return null;
   }, [isAdmin, isTeacher, adminCourses, teacherOwnedCourses, teacherAssignedCourses]);
 
-  const isCoursesLoading = isAdmin
-    ? isAdminCoursesLoading
-    : isTeacher
-    ? isTeacherOwnedCoursesLoading || isTeacherAssignedCoursesLoading
-    : false;
-
   const coursesError =
     adminCoursesError || teacherOwnedCoursesError || teacherAssignedCoursesError;
 
@@ -240,7 +232,7 @@ export default function AdminDashboardPage() {
   // Fetch enrollments for total enrollment count and recent enrollments
   const enrollmentsQuery = useMemoFirebase(() => {
     if (isAdmin) {
-      return query(collectionGroup(firestore, 'enrollments'));
+      return query(collectionGroup(firestore, 'enrollments'), orderBy('enrollmentDate', 'desc'), limit(50));
     }
 
     if (isTeacher) {
@@ -263,10 +255,10 @@ export default function AdminDashboardPage() {
 
   // Calculate enrollments by course for the chart (replace fake revenue)
   const enrollmentsByCourse = useMemo(() => {
-    if (!enrollments || !allCourses) return [] as Array<{ name: string; count: number }>;
+    if (!enrollments) return [] as Array<{ name: string; count: number }>;
 
     const courseTitleById = new Map<string, string>();
-    for (const c of allCourses) {
+    for (const c of allCourses || []) {
       courseTitleById.set(c.id, c.title ?? c.id);
     }
 
@@ -282,38 +274,35 @@ export default function AdminDashboardPage() {
     }));
   }, [enrollments, allCourses]);
 
-  // Calculate user growth percentage
-  const userGrowth = useMemo(() => {
-    if (!users) return { percentage: 0, count: 0 };
+  // Server aggregates avoid subscribing to every user/enrollment document.
+  const [counts, setCounts] = useState<(number | null)[]>([null, null, null, null]);
+  const [countsLoading, setCountsLoading] = useState(false);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    setCountsLoading(true);
     const now = new Date();
-    const thisMonth = now.getMonth();
-    const thisYear = now.getFullYear();
-    const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
-    const lastMonth = lastMonthDate.getMonth();
-    const lastMonthYear = lastMonthDate.getFullYear();
-
-    const thisMonthSignups = users.filter((u) => {
-      const d = toDateValue(u.dateJoined);
-      return d && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-    }).length;
-    const lastMonthSignups = users.filter((u) => {
-      const d = toDateValue(u.dateJoined);
-      return d && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-    }).length;
-
-    if (lastMonthSignups === 0) {
-      return { percentage: thisMonthSignups > 0 ? 100 : 0, count: thisMonthSignups };
-    }
-
-    const percentage =
-      ((thisMonthSignups - lastMonthSignups) / lastMonthSignups) * 100;
-    return { percentage: Math.round(percentage), count: thisMonthSignups };
-  }, [users]);
-
+    const month = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const queries = [
+      query(collection(firestore, 'users')),
+      query(collectionGroup(firestore, 'enrollments')),
+      query(collection(firestore, 'users'), where('dateJoined', '>=', month)),
+      query(collection(firestore, 'users'), where('dateJoined', '>=', previous), where('dateJoined', '<', month)),
+    ];
+    void Promise.allSettled(queries.map(q => getCountFromServer(q))).then(results => {
+      if (!active) return;
+      setCounts(results.map(result => result.status === 'fulfilled' ? result.value.data().count : null));
+      setCountsLoading(false);
+    });
+    return () => { active = false; };
+  }, [firestore, isAdmin]);
+  const growthPercentage = counts[2] !== null && counts[3] !== null && counts[3] > 0
+    ? Math.round(((counts[2] - counts[3]) / counts[3]) * 100) : null;
 
   // Get recent enrollments for the table
   const recentEnrollments = useMemo(() => {
-    if (!enrollments || !allCourses) return [];
+    if (!enrollments) return [];
 
     const userEmailById = new Map<string, string | undefined>();
     for (const u of users || []) {
@@ -321,7 +310,7 @@ export default function AdminDashboardPage() {
     }
 
     const courseTitleById = new Map<string, string>();
-    for (const c of allCourses) {
+    for (const c of allCourses || []) {
       courseTitleById.set(c.id, c.title ?? c.id);
     }
 
@@ -336,7 +325,7 @@ export default function AdminDashboardPage() {
         return {
           ...enrollment,
           userEmail: userEmailById.get(enrollment.userId) ?? (enrollment as any).userEmail,
-          courseTitle: courseTitleById.get(enrollment.courseId),
+          courseTitle: courseTitleById.get(enrollment.courseId) ?? enrollment.courseId,
         };
       });
   }, [enrollments, users, allCourses]);
@@ -351,8 +340,6 @@ export default function AdminDashboardPage() {
   const loadError =
     usersError || enrollmentsError || coursesError || teacherCourseLimitError;
   const canView = isAdmin || isTeacher;
-  const isDataLoading =
-    isUsersLoading || isEnrollmentsLoading || isCoursesLoading;
 
   if (isLoading) {
     return (
@@ -370,19 +357,6 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (loadError) {
-    return (
-      <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
-        <main className="flex-1 py-6 md:py-8">
-          <div className="container">
-            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-              {loadError.message || 'Failed to load dashboard data. Please try again.'}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background">
@@ -412,37 +386,39 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+          {loadError && <DataLoadError />}
+          <p className="mt-4 text-sm text-muted-foreground">{lang === 'ar' ? 'الإجماليات تُحسب على الخادم. الرسم والجدول يعرضان أحدث 50 تسجيلًا له تاريخ؛ قد تُعرض المعرّفات بدل الأسماء. أعد تحميل الصفحة لتحديث الإجماليات.' : 'Totals use server counts. Chart and table use the latest 50 dated enrollments; IDs may appear where names are unavailable. Reload to refresh totals.'}</p>
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 mt-8">
             {isAdmin && (
               <StatCard
                 title={t.totalRevenue}
                 value={'—'}
                 icon={DollarSign}
-                isLoading={isDataLoading}
+                isLoading={countsLoading}
                 description={t.revenueNotConfigured}
               />
             )}
             {isAdmin && (
               <StatCard
                 title={t.totalUsers}
-                value={users?.length ?? 0}
+                value={counts[0] ?? '—'}
                 icon={Users}
-                isLoading={isDataLoading}
+                isLoading={countsLoading}
               />
             )}
             <StatCard
               title={t.totalEnrollments}
-              value={enrollments?.length ?? 0}
+              value={isAdmin ? (counts[1] ?? '—') : (enrollmentsError ? '—' : enrollments?.length ?? 0)}
               icon={BookOpen}
-              isLoading={isDataLoading}
+              isLoading={countsLoading}
             />
             {isAdmin && (
               <StatCard
                 title={t.monthlyGrowth}
-                value={`${userGrowth.percentage > 0 ? '+' : ''}${userGrowth.percentage}%`}
+                value={growthPercentage === null ? '—' : `${growthPercentage}%`}
                 icon={LineChart}
-                isLoading={isDataLoading}
-                description={t.growthThisMonth(userGrowth.count)}
+                isLoading={countsLoading}
+                description={counts[2] === null ? (lang === 'ar' ? 'العدد غير متاح' : 'Count unavailable') : t.growthThisMonth(counts[2])}
               />
             )}
           </div>
@@ -455,7 +431,7 @@ export default function AdminDashboardPage() {
                   <CardDescription>{t.enrollmentsByCourseDesc}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isDataLoading ? (
+                  {enrollmentsError || teacherCourseLimitError ? <DataLoadError /> : isEnrollmentsLoading ? (
                     <Skeleton className="h-80 w-full" />
                   ) : (
                     <ChartContainer
@@ -502,7 +478,7 @@ export default function AdminDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isDataLoading ? (
+                    {enrollmentsError || teacherCourseLimitError ? <TableRow><TableCell colSpan={4}><DataLoadError /></TableCell></TableRow> : isEnrollmentsLoading ? (
                       Array.from({ length: 5 }).map((_, i) => (
                         <TableRow key={i}>
                           <TableCell>

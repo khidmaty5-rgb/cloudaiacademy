@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCurrentRole } from '@/hooks/useCurrentRole';
@@ -11,6 +12,7 @@ export default function AdminAnalyticsPage() {
   const { isAdmin, loading } = useCurrentRole();
   const { lang } = useLang();
   const ar = lang === 'ar';
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Loading shim to keep UX consistent with other admin pages
   if (loading) {
@@ -66,14 +68,21 @@ export default function AdminAnalyticsPage() {
               <CardDescription>{ar ? 'نظرة عامة على تقدم المتعلمين في الدورات.' : 'Overview of learner progress across courses.'}</CardDescription>
             </CardHeader>
             <CardContent>
+              <p role="status" className="mb-4 text-sm text-muted-foreground">{ar ? 'هذه لوحة خارجية. إذا لم تظهر، فقد تكون الخدمة غير متاحة أو تمنع التضمين. استخدم نظرة عامة للإدارة أو جرّب الرابط الخارجي؛ لا يلزم تفعيل خطة مدفوعة.' : 'This is an external dashboard. If it does not appear, the service may be unavailable or block embedding. Use the admin overview or try the external link; no paid plan needs to be enabled.'}</p>
+              <div className="mb-4 flex flex-wrap gap-3">
+                <Button variant="outline" onClick={() => setShowDashboard(value => !value)}>{ar ? 'إظهار / إخفاء اللوحة الخارجية' : 'Show / hide external dashboard'}</Button>
+                <Button asChild variant="outline"><Link href="/admin/dashboard">{ar ? 'نظرة عامة للإدارة' : 'Admin overview'}</Link></Button>
+              </div>
+              {showDashboard &&
               <div className="w-full overflow-hidden rounded-xl">
                 <iframe
+                  title={ar ? 'تحليلات تقدم الطلاب الخارجية' : 'External student progress analytics'}
                   src={studentProgressUrl}
                   className="w-full h-[800px] border rounded-xl bg-white"
                   loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
+                  referrerPolicy="strict-origin-when-cross-origin"
                 />
-              </div>
+              </div>}
               <div className="mt-3">
                 <Button asChild variant="outline" size="sm">
                   <a href={studentProgressUrl} target="_blank" rel="noopener noreferrer">{ar ? 'فتح بملء الشاشة' : 'Open full-screen'}</a>
