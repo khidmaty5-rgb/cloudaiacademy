@@ -24,6 +24,8 @@ const sectionOrder: Record<AppRole, readonly string[]> = {
 };
 
 const destinationCapabilities: Record<string, Capability> = {
+  '/resources': 'academy.discover',
+  '/admin/resources': 'academy.manageCourses',
   '/admin/dashboard': 'academy.overview',
   '/admin/courses': 'academy.manageCourses',
   '/admin/users': 'academy.manageUsers',
@@ -54,6 +56,8 @@ const destinationCapabilities: Record<string, Capability> = {
 };
 
 export const workspaceLinks: readonly WorkspaceLink[] = [
+  { href: '/admin/resources', label: { en: 'Lecture resources', ar: 'أوراق المحاضرات' }, section: manage, roles: ['admin'] },
+  { href: '/resources', label: { en: 'Lecture resources', ar: 'أوراق المحاضرات' }, section: learning, roles: all },
   { href: '/admin/academy', label: { en: 'Academy template', ar: 'قالب الأكاديمية' }, section: settings, roles: ['admin'] },
   { href: '/admin/dashboard', label: { en: 'Overview', ar: 'نظرة عامة' }, section: manage, roles: ['admin'] },
   { href: '/admin/courses', label: { en: 'Courses', ar: 'الدورات' }, section: manage, roles: ['admin'] },

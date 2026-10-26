@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 const publicLinks = [
   { href: '/', en: 'Home', ar: 'الرئيسية' },
   { href: '/courses', en: 'Courses', ar: 'الدورات' },
+  { href: '/resources', en: 'Lecture resources', ar: 'أوراق المحاضرات' },
   { href: '/research', en: 'Research', ar: 'الأبحاث' },
   { href: '/journal', en: 'Journal', ar: 'المجلة' },
 ] as const;

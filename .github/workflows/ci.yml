@@ -88,11 +88,17 @@ jobs:
       - name: Test dashboard audit regressions
         run: node --test tests/roles/dashboard-audit.test.mjs
 
+      - name: Test public lecture resource boundaries
+        run: node --test tests/roles/lecture-resources.test.mjs
+
       - name: Test ZIP import parser and API
         run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/interactive-import.test.mjs tests/roles/course-package.test.mjs tests/roles/lesson-import-api.test.mjs
 
       - name: Install isolated lesson test browser
         run: npx playwright install --with-deps chromium
+
+      - name: Test lecture resource upload and public browsing
+        run: node --test tests/roles/lecture-resources.browser.test.mjs
 
       - name: Test interactive lesson browser isolation
         run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs tests/roles/course-image-upload.browser.test.mjs
