@@ -2,21 +2,7 @@
 
 import Link from 'next/link';
 import { useLang } from '@/components/i18n/lang';
-import { Button } from '@/components/ui/button';
 import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-player';
-
-export const NUMBER_SYSTEMS_PATH = '/open-courses/number-systems';
-
-export function NumberSystemsCourseCard() {
-  const { lang } = useLang();
-  const ar = lang === 'ar';
-  return <section aria-label={ar ? 'دورة مفتوحة للجميع' : 'Open-access course'} className="my-6 space-y-3 rounded-2xl border bg-card p-6">
-    <p className="text-sm font-medium text-accent">{ar ? 'مجاني · دون تسجيل · بالعربية · مبتدئ · 90 دقيقة' : 'Free · No registration · Arabic · Beginner · 90 minutes'}</p>
-    <h2 className="text-2xl font-bold" dir="auto">{ar ? 'الأنظمة العددية' : 'Number Systems — الأنظمة العددية'}</h2>
-    <p className="text-muted-foreground">{ar ? 'تعلّم الثنائي والثماني والعشري والسادس عشر مع مختبر تحويل واختبار تفاعلي.' : 'Learn binary, octal, decimal and hexadecimal with a conversion lab and an interactive quiz.'}</p>
-    <Button asChild><Link href={NUMBER_SYSTEMS_PATH}>{ar ? 'ابدأ الدورة دون تسجيل' : 'Start course without registration'}</Link></Button>
-  </section>;
-}
 
 export function OpenNumberSystems({ html }: { html: string }) {
   const { lang, dir } = useLang();

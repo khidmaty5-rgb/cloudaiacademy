@@ -3,6 +3,16 @@
 Public URL: `/open-courses/number-systems`. Linked from Courses, public Lecture
 Resources, and the administrator's Resources page. Available without registration.
 
+## Homepage discovery
+
+The homepage shows **Free Courses — No Registration Required** directly after the
+hero. Homepage, Courses and Resources render the same `OpenCoursesSection` from
+`src/lib/open-courses.ts`. Only entries with `published: true` and `access: 'open'`
+appear. Free enrollment courses are not inferred to be anonymously accessible.
+To add another curated course, first implement and verify its public player/route,
+then add its bilingual metadata to the catalog. All three listings update on the
+next code deployment; this is not an administrator upload/publication control.
+
 This is a curated, repository-managed course, not a Firestore enrollment course.
 Updates and withdrawal require a code release. Existing private courses, lesson
 APIs, storage buckets, certificate records, and Firestore rules are unchanged.

@@ -4,7 +4,7 @@ import { useUser } from '@/firebase';
 import { useLang } from '@/components/i18n/lang';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NumberSystemsCourseCard } from '@/components/open-number-systems';
+import { OpenCoursesSection } from '@/components/open-courses-section';
 import { MAX_LECTURE_PDF_BYTES, type LectureResource } from '@/lib/lecture-resources';
 
 export default function LectureResources({ manage = false }: { manage?: boolean }) {
@@ -60,7 +60,7 @@ export default function LectureResources({ manage = false }: { manage?: boolean 
   return <main dir={dir} className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
     <header className="space-y-2"><h1 className="text-3xl font-bold">{tr('Lecture resources', 'أوراق المحاضرات')}</h1>
       <p className="text-muted-foreground">{manage ? tr('Upload a PDF as a private draft, then publish it for everyone. Published files require no account.', 'ارفع ملف PDF كمسودة خاصة، ثم انشره للجميع دون الحاجة إلى حساب.') : tr('Download lecture sheets shared by the academy. No registration required.', 'حمّل أوراق المحاضرات التي تنشرها الأكاديمية دون تسجيل أو إنشاء حساب.')}</p></header>
-    <NumberSystemsCourseCard />
+    <OpenCoursesSection />
     {manage && <form onSubmit={upload} className="space-y-4 rounded-2xl border bg-card p-5">
       <h2 className="text-xl font-semibold">{tr('Upload a lecture sheet', 'رفع ورقة محاضرة')}</h2>
       <fieldset disabled={busy} className="space-y-4">
