@@ -28,7 +28,7 @@ export type RoutePolicy = {kind:'public'} | {kind:'authenticated'} |
 export function routePolicyForPath(pathname: string): RoutePolicy {
   const roles = (allowed:readonly AppRole[]):RoutePolicy => ({kind:'roles',roles:allowed});
   // /admin is the existing public staff login, not an administrative workspace.
-  if (['/', '/login', '/signup', '/admin', '/courses', '/resources', '/journal', '/journal/guidelines', '/print/qr',
+  if (['/', '/login', '/signup', '/admin', '/courses', '/resources', '/open-courses/number-systems', '/journal', '/journal/guidelines', '/print/qr',
     '/research', '/research/submit', '/research/standards', '/research/propose', '/research/partner',
     '/research/mentor', '/research/join'].includes(pathname) ||
     /^\/courses\/[^/]+$/.test(pathname) || /^\/journal\/articles\/[^/]+$/.test(pathname) ||

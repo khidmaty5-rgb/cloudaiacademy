@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { NumberSystemsCourseCard } from '@/components/open-number-systems';
 import { Clock, Signal, Search } from 'lucide-react';
 import {
   Select,
@@ -102,6 +103,7 @@ export default function CoursesPage() {
             </p>
           </div>
 
+          <NumberSystemsCourseCard />
           <div className="mt-8 mb-10 max-w-3xl mx-auto">
             <div className="grid sm:grid-cols-2 gap-4">
                 <div className='sm:col-span-2'>
