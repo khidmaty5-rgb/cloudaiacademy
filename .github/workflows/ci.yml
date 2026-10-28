@@ -104,7 +104,7 @@ jobs:
         run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs tests/roles/course-image-upload.browser.test.mjs
 
       - name: Test public Arabic Number Systems course
-        run: node --test tests/roles/open-number-systems.browser.test.mjs
+        run: node --test tests/roles/open-courses.test.mjs tests/roles/open-number-systems.browser.test.mjs
 
       - name: Test contextual workspace and role confirmation browser behavior
         run: node --test tests/roles/workspace.browser.test.mjs
