@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic resources',async()=>{
  const mocks={
+  'next/link':`import React from 'react';export default function Link({href,children,...props}){return React.createElement('a',{href,...props},children);}`,
   '@/firebase':`const user={getIdToken:async()=>'admin-test'};export const useUser=()=>({user:location.pathname==='/manage'?user:null});`,
   '@/components/i18n/lang':`export const useLang=()=>({lang:location.search.includes('ar')?'ar':'en',dir:location.search.includes('ar')?'rtl':'ltr'});`,
  };
