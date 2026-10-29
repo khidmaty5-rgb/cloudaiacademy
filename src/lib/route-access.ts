@@ -31,13 +31,13 @@ export function routePolicyForPath(pathname: string): RoutePolicy {
   if (['/', '/login', '/signup', '/admin', '/courses', '/resources', '/open-courses/number-systems', '/journal', '/journal/guidelines', '/print/qr',
     '/research', '/research/submit', '/research/standards', '/research/propose', '/research/partner',
     '/research/mentor', '/research/join'].includes(pathname) ||
-    /^\/courses\/[^/]+$/.test(pathname) || /^\/journal\/articles\/[^/]+$/.test(pathname) ||
+    /^\/courses\/[^/]+$/.test(pathname) || /^\/open-courses\/[^/]+$/.test(pathname) || /^\/journal\/articles\/[^/]+$/.test(pathname) ||
     /^\/verify\/[^/]+$/.test(pathname)) return {kind:'public'};
   if (pathname === '/admin/dashboard' || /^\/admin\/courses\/edit\/[^/]+$/.test(pathname) ||
     ['/teacher/dashboard','/teacher/courses','/teacher/telegram','/dashboard/telegram'].includes(pathname)) return roles(teachingRoles);
   if (pathname === '/admin/journal') return roles(editorialRoles);
   if (['/admin/users','/admin/users/new','/admin/courses','/admin/courses/new','/admin/waitlist',
-    '/admin/resources','/admin/certificates','/admin/analytics','/admin/academy','/admin/announcements','/admin/payment',
+    '/admin/open-courses','/admin/resources','/admin/certificates','/admin/analytics','/admin/academy','/admin/announcements','/admin/payment',
     '/admin/access','/admin/landing','/admin/seed'].includes(pathname)) return roles(['admin']);
   if (pathname === '/reviewer') return roles(reviewRoles);
   if (['/dashboard','/learning-path','/certificates'].includes(pathname)) return roles(learnerRoles);

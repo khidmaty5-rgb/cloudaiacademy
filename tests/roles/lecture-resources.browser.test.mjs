@@ -17,6 +17,7 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   plugins:[{name:'fixture',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'fixture'}:null);b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],loader:'js',resolveDir:root}));}}]});
  let items=[],attempts=0; const errors=[];
  const server=createServer(async(req,res)=>{
+  if(req.url.startsWith('/api/open-courses')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({items:[],next:null}));return;}
   if(req.url.startsWith('/api/lecture-resources')){
    res.setHeader('Content-Type','application/json');
    if(req.method==='POST'){for await(const _ of req){};if(++attempts===1){res.statusCode=503;res.end('{}');return;}items=[{id:'11111111-1111-4111-8111-111111111111',title:'Networking sheet',topic:'Networking',description:'QA sheet',published:false,size:128}];res.statusCode=201;res.end('{}');return;}

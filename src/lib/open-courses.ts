@@ -1,5 +1,5 @@
-// Explicitly reviewed, anonymous-access courses. A zero price never implies
-// anonymous access. Publishing here also requires a public page/route policy.
+// Legacy built-in seed only. Live listings use /api/open-courses, including saved
+// publication overrides. A zero price never implies anonymous access.
 type Copy = { en: string; ar: string };
 export type OpenCourse = {
   id: string;
@@ -9,6 +9,7 @@ export type OpenCourse = {
   title: Copy;
   description: Copy;
   details: Copy;
+  image?: string;
 };
 
 export const openCourseCatalog: readonly OpenCourse[] = [
