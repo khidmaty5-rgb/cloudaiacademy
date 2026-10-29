@@ -27,7 +27,9 @@ const { InteractiveLessonPlayer } = await load('src/components/learn/interactive
 
 test('only the curated course is public; normal learning routes remain protected', () => {
   assert.equal(routes.routePolicyForPath('/open-courses/number-systems').kind, 'public');
-  assert.equal(routes.routePolicyForPath('/open-courses/private-course').kind, 'denied');
+  // Public route shells never include draft content; the detail API enforces publication.
+  assert.equal(routes.routePolicyForPath('/open-courses/private-course').kind, 'public');
+  assert.equal(routes.canRoleAccessPath('student', '/admin/open-courses'), false);
   assert.equal(routes.routePolicyForPath('/learn/number-systems/lesson-1').kind, 'authenticated');
   assert.equal(routes.routePolicyForPath('/admin/resources').kind, 'roles');
   assert.ok(Buffer.byteLength(lesson.html) < policy.INTERACTIVE_HTML_LIMIT);

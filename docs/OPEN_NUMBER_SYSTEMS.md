@@ -3,7 +3,49 @@
 Public URL: `/open-courses/number-systems`. Linked from Courses, public Lecture
 Resources, and the administrator's Resources page. Available without registration.
 
-## Homepage discovery
+## Admin-managed courses (current)
+
+Administrators use `/admin/open-courses` (Open courses in Academy management).
+Upload a ZIP, edit bilingual metadata/language/duration and optional thumbnail,
+save a private draft, preview the saved package, then explicitly Publish. Withdraw
+blocks subsequent anonymous API reads and removes the course from new listings;
+already loaded/downloaded copies cannot be recalled. Metadata edits use revision
+checks to reject stale saves. Replacing lesson packages is not supported in this
+version: create and preview a new draft, then withdraw the old course if needed.
+
+The homepage, Courses and Resources now read `/api/open-courses`; failures show a
+retry state, never a stale built-in fallback. Number Systems remains available at
+its original URL. Its original content remains bundled, but administrator metadata
+and publication overrides are persisted in `openCourses/number-systems`. A saved
+withdrawal suppresses the built-in fallback even if no published records remain.
+
+New content is validated again on the server and stored as private JSON objects
+in the existing lessons/journal MinIO bucket at `open-courses/{UUID}.json`.
+Metadata is stored in server-only Firestore `openCourses` records; no new client
+rules or Firebase Blaze functions are needed. The default-deny Firestore rules
+are covered by the course-lifecycle emulator test. APIs verify revoked ID tokens
+and current administrator profiles. Storage privacy is checked before upload;
+new objects are cleaned up if creating their metadata fails. No storage settings
+or certificate records are modified. Deployment uses existing server credentials.
+
+ZIP parsing is local (10 MB ZIP limit) and only the validated self-contained
+package is sent to the server (3 MB request maximum, about 2.9 MB lesson package).
+Up to 20 HTML lessons are supported. Local CSS/JS/images/fonts are bundled by the
+existing importer. External CSS imports, network APIs and form submission are not
+supported: bundle assets and use local button handlers. Always preview imported
+quizzes. Thumbnail uploads are resized and rasterized locally, capped at 80 KB
+data-URL text; SVG is not accepted. Lists paginate 20 records per request.
+
+This workflow does not create enrollment/progress/certificate records. Public
+content is returned only after publication checks; private previews require an
+administrator bearer token. All content APIs are no-store. Uploaded scripts run
+only in the existing opaque iframe sandbox, never in the parent DOM.
+
+Tests: `open-course-management.test.mjs` (API authorization/storage/publication),
+`manage-open-courses.browser.test.mjs` (admin/guest EN/AR workflow), existing
+interactive-isolation browser tests, and Firestore course-lifecycle tests.
+
+## Initial homepage discovery (superseded by API-backed listings)
 
 The homepage shows **Free Courses — No Registration Required** directly after the
 hero. Homepage, Courses and Resources render the same `OpenCoursesSection` from
@@ -13,8 +55,9 @@ To add another curated course, first implement and verify its public player/rout
 then add its bilingual metadata to the catalog. All three listings update on the
 next code deployment; this is not an administrator upload/publication control.
 
-This is a curated, repository-managed course, not a Firestore enrollment course.
-Updates and withdrawal require a code release. Existing private courses, lesson
+This is not a Firestore enrollment course. Its bundled lesson content still
+requires a code release to change; metadata and withdrawal use the admin workflow.
+Existing private courses, lesson
 APIs, storage buckets, certificate records, and Firestore rules are unchanged.
 No paid service or new infrastructure is required. Quiz scores are transient;
 no progress persistence or certificates are promised.

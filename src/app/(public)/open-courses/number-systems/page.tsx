@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import lesson from '@/content/number-systems.json';
-import { OpenNumberSystems } from '@/components/open-number-systems';
+import PublicOpenCourse from '@/components/open-course-player';
 
 export const metadata: Metadata = {
   title: 'Number Systems — الأنظمة العددية',
@@ -8,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function NumberSystemsPage() {
-  return <OpenNumberSystems html={lesson.html} />;
+  return <PublicOpenCourse id="number-systems" />;
 }

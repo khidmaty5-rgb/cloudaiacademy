@@ -16,6 +16,17 @@ before(async () => {
 after(async () => env?.cleanup());
 const dbFor = role => env.authenticatedContext(role,{role:role==='other'?'student':role}).firestore();
 
+test('open-course records are server-only, including drafts and administrator clients', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'openCourses', 'qa-private'), { title: 'Private draft', published: false });
+  });
+  for (const db of [env.unauthenticatedContext().firestore(), dbFor('student'), dbFor('teacher'), dbFor('admin')]) {
+    await assertFails(getDoc(doc(db, 'openCourses', 'qa-private')));
+    await assertFails(getDocs(collection(db, 'openCourses')));
+    await assertFails(setDoc(doc(db, 'openCourses', 'qa-private'), { published: true }));
+  }
+});
+
 test('course persists through creation, assignment, publication, enrollment, progress and certificate records',async () => {
   const admin=dbFor('admin'),teacher=dbFor('teacher'),student=dbFor('student');
   const course={title:'QA دورة',status:'DRAFT',price:'Free',isFull:false,imageUrl:'data:image/jpeg;base64,/9j/2Q==',instructorIds:[]};

@@ -31,6 +31,7 @@ test('shared section renders every eligible course in English and Arabic', async
     const courses = [...catalog.publishedOpenCourses(), { ...catalog.openCourseCatalog[0], id: 'second', href: '/open-courses/second' }];
     const { OpenCoursesSection } = await load('src/components/open-courses-section.tsx', {
       '@/lib/open-courses': { publishedOpenCourses: () => courses },
+      '@/components/use-open-courses': { usePublicOpenCourses: () => ({ items: courses, loading: false, error: false, next: null }) },
       '@/components/i18n/lang': { useLang: () => ({ lang, dir: lang === 'ar' ? 'rtl' : 'ltr' }) },
       '@/components/ui/button': { Button: ({ children }) => children },
       'lucide-react': { BookOpen: () => null, ArrowUpRight: () => null },
