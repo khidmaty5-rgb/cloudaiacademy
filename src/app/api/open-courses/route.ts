@@ -62,3 +62,31 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: true }, { headers });
   } catch (error) { return openCourseError(error); }
 }
+
+// Replace private content only. Upload immutable bytes first, then atomically
+// advance the pointer and revision. Retain previous versions for recovery.
+export async function PUT(request: Request) {
+  try {
+    const uid = await requireLectureAdmin(request);
+    const data = await body(request, OPEN_COURSE_REQUEST_LIMIT);
+    if (!validOpenCourseId(data.id || '') || data.id === 'number-systems' || !Number.isInteger(data.revision) || data.revision < 1) throw new Error('INVALID_REQUEST');
+    const pkg = interactivePackage(data.package);
+    const metadata = courseMetadata(data.metadata);
+    const db = getFirebaseAdminFirestore(); const ref = db.doc(`openCourses/${data.id}`);
+    const before = await ref.get();
+    if (!before.exists) throw new Error('NOT_FOUND');
+    if (before.data()!.published || before.data()!.revision !== data.revision) throw new Error('CONFLICT');
+    const bucket = lectureBucket(); await requirePrivateLectureBucket(bucket);
+    const key = `open-courses/${data.id}/${randomUUID()}.json`;
+    await getS3Client().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: JSON.stringify(pkg), ContentType: 'application/json' }));
+    // On an ambiguous commit failure retain the private uploaded object: deleting
+    // it could break a transaction that committed despite a network timeout.
+    await db.runTransaction(async tx => {
+      const doc = await tx.get(ref); const current = doc.data();
+      if (!doc.exists || !current) throw new Error('NOT_FOUND');
+      if (current.published || current.revision !== data.revision) throw new Error('CONFLICT');
+      tx.set(ref, { ...current, ...metadata, contentKey: key, published: false, revision: current.revision + 1, updatedBy: uid, updatedAt: new Date().toISOString() });
+    });
+    return Response.json({ ok: true }, { headers });
+  } catch (error) { return openCourseError(error); }
+}

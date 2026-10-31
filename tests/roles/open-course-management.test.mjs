@@ -46,6 +46,23 @@ const req = (method, data, token = 'admin') => new Request(base, { method, heade
 const list = (manage = false, token = 'admin', after = '') => api.GET(new Request(base + (manage ? '?manage=1' : '?') + (after ? '&after=' + after : ''), { headers: manage ? auth(token) : {} }));
 const content = (id, preview = false, token = 'admin') => detail.GET(new Request(base + '/' + id + (preview ? '?preview=1' : ''), { headers: preview ? auth(token) : {} }), { params: Promise.resolve({ id }) });
 function seed() { records.clear(); objects.clear(); privateBucket = true; failCreate = false; for (const role of ['admin', 'teacher', 'student', 'editor', 'stale']) records.set('users/' + role, { role: role === 'stale' ? 'student' : role }); }
+test('replace private draft atomically, preserve old bytes and reject published/stale/non-admin updates', async () => {
+  seed(); const { id } = await (await api.POST(req('POST', { metadata, package: pkg }))).json();
+  const updated = { lessons: [{ ...pkg.lessons[0], title: 'Revised lesson', interactiveHtml: '<h1>Revised material</h1>' }] };
+  for (const role of ['', 'student', 'teacher', 'stale']) assert.ok([401,403].includes((await api.PUT(req('PUT', { id, revision: 1, metadata, package: updated }, role))).status));
+  assert.equal((await api.PUT(req('PUT', { id, revision: 1, metadata, package: updated }))).status,200);
+  assert.equal(records.get('openCourses/' + id).published,false);
+  assert.equal(records.get('openCourses/' + id).revision,2);
+  assert.ok(objects.has('open-courses/' + id + '.json'), 'old version retained');
+  assert.equal((await (await content(id,true)).json()).package.lessons[0].title,'Revised lesson');
+  assert.equal((await content(id)).status,404);
+  assert.equal((await api.PUT(req('PUT', { id, revision: 1, metadata, package: pkg }))).status,409);
+  assert.equal((await api.PUT(req('PUT', { id, revision: 2, metadata, package: {} }))).status,400);
+  assert.equal((await api.PATCH(req('PATCH', { id, revision: 2, published: true }))).status,200);
+  assert.equal((await api.PUT(req('PUT', { id, revision: 3, metadata, package: pkg }))).status,409);
+  assert.equal((await (await content(id)).json()).package.lessons[0].title,'Revised lesson');
+  assert.equal((await api.PUT(req('PUT', { id:'number-systems', revision:1, metadata, package:pkg }))).status,400);
+});
 test('draft -> private preview -> public course -> withdrawal; no private fields exposed', async () => {
   seed(); const saved = await api.POST(req('POST', { metadata, package: pkg })); assert.equal(saved.status, 201); const { id } = await saved.json();
   assert.equal((await content(id)).status, 404); assert.equal((await content(id, true)).status, 200);

@@ -83,6 +83,28 @@ camera or microphone. Its internal CSP permits inline/data scripts only inside
 this isolated document. No Academy CSP was weakened. The existing full Academy
 CSP remains report-only; future enforcement must rerun iframe inheritance tests.
 
+## Private draft package updates (2026-10-31)
+
+Administrators can edit a private open course and select **Replace draft ZIP**.
+The new package is previewed locally and saved with **Save details**. It retains
+the course ID/URL, saves metadata and content pointer together, and never publishes.
+Published courses and the bundled Number Systems lesson cannot use replacement.
+
+PUT /api/open-courses requires the current administrator role, validated metadata,
+a validated bounded package and the current revision. It uploads to an immutable
+private key under open-courses/{courseId}/{versionUUID}.json, then uses a Firestore
+transaction to recheck private status/revision before changing the pointer. Old
+objects remain available for operator recovery. Failed/ambiguous transactions may
+leave private orphan objects; do not automatically delete them after a timeout,
+as the transaction may have committed. No public bucket permissions change.
+There is no rollback UI yet; recovery requires an audited administrative action.
+GET responses do not expose contentKey. Existing legacy object paths still work.
+
+Tests cover same-ID replacement/preview, published and stale rejection, role
+checks, legacy fallback, and retaining old content. New instructional packages are
+review drafts, not approved semester curricula; content publication is separate
+from shipping this editor feature.
+
 ## Verification
 
 `node --test tests/roles/open-number-systems.browser.test.mjs`
