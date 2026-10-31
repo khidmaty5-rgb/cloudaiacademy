@@ -12,7 +12,7 @@ export const builtinCourse = { ...courseMetadata({ ...openCourseCatalog[0], lang
 export async function openCourseRecord(id: string) {
   if (!validOpenCourseId(id)) throw new Error('NOT_FOUND');
   const doc = await getFirebaseAdminFirestore().doc(`openCourses/${id}`).get();
-  if (doc.exists) return doc.data() as typeof builtinCourse;
+  if (doc.exists) return doc.data() as typeof builtinCourse & { contentKey?: string };
   if (id === 'number-systems') return builtinCourse;
   throw new Error('NOT_FOUND');
 }
@@ -27,7 +27,11 @@ export function interactivePackage(value: unknown) {
 export async function openCourseContent(id: string) {
   if (!validOpenCourseId(id)) throw new Error('NOT_FOUND');
   if (id === 'number-systems') return interactivePackage({ lessons: [{ key: 'l0', title: 'الأنظمة العددية', nodes: [], interactiveHtml: builtinLesson.html }] });
-  const result = await getS3Client().send(new GetObjectCommand({ Bucket: lectureBucket(), Key: `open-courses/${id}.json` }));
+  const record = await openCourseRecord(id);
+  const key = 'contentKey' in record ? record.contentKey : undefined;
+  // Never trust a stored pointer outside this course's version namespace.
+  if (key !== undefined && (typeof key !== 'string' || !new RegExp(`^open-courses/${id}/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.json$`).test(key))) throw new Error('CONTENT_UNAVAILABLE');
+  const result = await getS3Client().send(new GetObjectCommand({ Bucket: lectureBucket(), Key: key || `open-courses/${id}.json` }));
   if (!result.Body || (result.ContentLength || 0) > OPEN_COURSE_REQUEST_LIMIT) throw new Error('CONTENT_UNAVAILABLE');
   const reader = result.Body.transformToWebStream().getReader();
   const chunks: Uint8Array[] = []; let size = 0;
