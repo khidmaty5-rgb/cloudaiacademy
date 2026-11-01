@@ -10,6 +10,7 @@ import { parseInteractiveZip } from '@/lib/parse-interactive-zip';
 import type { LessonPackage } from '@/lib/lesson-package';
 import { OPEN_COURSE_REQUEST_LIMIT, type CourseMetadata, type ManagedOpenCourse } from '@/lib/open-course-management';
 import { OpenCourseLessons } from '@/components/open-course-player';
+import { OpenCourseModuleEditor } from '@/components/open-course-module-editor';
 import { BookOpen, UploadCloud, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const empty = (): CourseMetadata => ({ title: { en: '', ar: '' }, description: { en: '', ar: '' }, language: 'ar', minutes: 90, image: '' });
@@ -57,6 +58,8 @@ export default function ManageOpenCourses() {
     error === 'INTERACTIVE_CSS_IMPORT' || error === 'EXTERNAL_DEPENDENCY' ? tr('The ZIP uses external CSS/fonts/scripts. Bundle these assets inside the ZIP before importing. Nothing was saved.', 'يتضمن الملف موارد خارجية. ضمّن ملفات التنسيق والخطوط والبرامج داخل ZIP قبل الاستيراد. لم يُحفظ شيء.') :
     error === 'STORAGE_PRIVACY_UNVERIFIED' ? tr('Storage privacy could not be verified. Upload blocked; no draft created.', 'تعذّر التحقق من خصوصية التخزين. تم منع الرفع.') :
     error === 'IMAGE_INVALID' ? tr('Choose a PNG, JPEG or WebP image under 5 MB and 25 megapixels.', 'اختر صورة PNG أو JPEG أو WebP أصغر من 5 ميغابايت و25 ميغابكسل.') :
+    error === 'SINGLE_MODULE_REQUIRED' ? tr('Choose one HTML file or a ZIP containing exactly one HTML lesson and its local assets. Your existing modules were not changed.', 'اختر ملف HTML واحدًا أو ZIP يحتوي درس HTML واحدًا وموارده المحلية. لم تتغير الوحدات الحالية.') :
+    error === 'LAST_MODULE' ? tr('Keep at least one module in the course.', 'يجب إبقاء وحدة واحدة على الأقل في الدورة.') :
     tr('Could not complete this operation. Check the package and your connection; refresh before retrying to avoid duplicates.', 'تعذّر إكمال العملية. تحقق من الملف والاتصال وحدّث القائمة قبل المحاولة لتجنب التكرار.');
   return <main dir={dir} className="mx-auto w-full max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:py-10">
     <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -87,6 +90,11 @@ export default function ManageOpenCourses() {
           if (new TextEncoder().encode(JSON.stringify(result)).length > OPEN_COURSE_REQUEST_LIMIT - 100_000) throw new Error('FILE_TOO_LARGE');
           setPkg(result); setMetadata(old => ({ ...old, title: { en: old.title.en || result.lessons[0].title, ar: old.title.ar } }));
         }); }} /></label><p className="mt-3 text-xs leading-5 text-muted-foreground">{pkg ? tr(`${pkg.lessons.length} lesson(s) ready to preview. Not saved yet.`, `${pkg.lessons.length} درس جاهز للمعاينة. لم يُحفظ بعد.`) : tr('Include HTML, CSS, scripts and assets in one self-contained package.', 'ضمّن HTML والتنسيق والبرامج والموارد في حزمة مكتملة.')}</p></div>}
+        {selected && selected.id !== 'number-systems' && (selected.published
+          ? <p className="rounded-lg border p-3">{tr('To edit modules, withdraw this course first. Then use Manage modules, save the draft and publish again. The course URL stays the same.', 'لتعديل الوحدات، اسحب نشر الدورة أولًا. ثم استخدم إدارة الوحدات واحفظ المسودة وأعد النشر. يبقى رابط الدورة كما هو.')}</p>
+          : pkg ? <OpenCourseModuleEditor key={selected.id} pkg={pkg} disabled={busy} ar={ar} run={run} onChange={value => { setPkg(value); setReplacement(true); setPreview(true); }} />
+          : <p>{tr('Choose Manage modules on the course card to load its saved modules.', 'اختر إدارة الوحدات في بطاقة الدورة لتحميل الوحدات المحفوظة.')}</p>)}
+        {replacement && selected && <p role="status" className="font-medium text-primary">{tr('Unsaved module changes. Preview, then Save details to keep them. Clearing or reopening the course discards these changes.', 'تغييرات وحدات غير محفوظة. عاين ثم احفظ التفاصيل للاحتفاظ بها. مسح الدورة أو إعادة فتحها يلغي هذه التغييرات.')}</p>}
         <div className="grid gap-4 sm:grid-cols-2">{(['en', 'ar'] as const).map(l => <div key={l} className="space-y-3">
           <label className="block space-y-2"><span>{l === 'en' ? tr('Title (required; any language)', 'العنوان (مطلوب؛ بأي لغة)') : tr('Arabic title (optional)', 'العنوان العربي (اختياري)')}</span><Input required={l === 'en'} maxLength={160} value={metadata.title[l]} onChange={e => setMetadata({ ...metadata, title: { ...metadata.title, [l]: e.target.value } })} /></label>
           <label className="block space-y-2"><span>{l === 'en' ? tr('Description', 'الوصف') : tr('Arabic description (optional)', 'الوصف العربي (اختياري)')}</span><textarea maxLength={1000} className="min-h-24 w-full rounded-md border bg-background p-3" value={metadata.description[l]} onChange={e => setMetadata({ ...metadata, description: { ...metadata.description, [l]: e.target.value } })} /></label>
@@ -112,6 +120,11 @@ export default function ManageOpenCourses() {
     {!busy && !error && items.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center"><BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" /><p className="font-medium">{tr('Your first open course starts here', 'ابدأ أول دورة مفتوحة هنا')}</p><p className="mt-2 text-sm text-muted-foreground">{tr('Upload a ZIP above and save a private draft to get started.', 'ارفع ملف ZIP أعلاه واحفظ مسودة خاصة للبدء.')}</p></div>}
     <div className="grid gap-5 lg:grid-cols-2">{items.map(item => <article key={item.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm"><div className="flex items-start gap-4">{item.image ? <img src={item.image} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" /> : <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookOpen className="h-7 w-7" aria-hidden="true" /></div>}<div className="min-w-0 space-y-2"><h3 className="break-words text-lg font-semibold">{item.title[lang]}</h3><p className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{item.published ? tr('Public — no registration', 'منشورة — دون تسجيل') : tr('Private draft', 'مسودة خاصة')}</p><p className="text-xs text-muted-foreground">{item.details[lang]}</p></div></div>
       <div className="flex flex-wrap gap-2"><Button disabled={busy} variant="outline" onClick={() => { reset(); setSelected(item); setMetadata(item); }}>{tr('Edit details', 'تعديل التفاصيل')}</Button>
+        {item.id !== 'number-systems' && <Button disabled={busy} variant="outline" onClick={() => void run(async () => {
+          const response = await fetch(`/api/open-courses/${item.id}?preview=1`, { headers: await token(), cache: 'no-store' });
+          if (!response.ok) throw new Error('PREVIEW_FAILED');
+          const data = await response.json(); setSelected(data.course); setMetadata(data.course); setPkg(data.package); setReplacement(false); setPreview(false);
+        })}>{tr('Manage modules', 'إدارة الوحدات')}</Button>}
         <Button disabled={busy} variant="outline" onClick={() => void run(async () => {
           const response = await fetch(`/api/open-courses/${item.id}?preview=1`, { headers: await token(), cache: 'no-store' }); if (!response.ok) throw new Error('PREVIEW_FAILED');
           const data = await response.json(); setSelected(data.course); setMetadata(data.course); setPkg(data.package); setReplacement(false); setPreview(true);
