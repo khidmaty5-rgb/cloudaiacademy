@@ -34,6 +34,7 @@ const s3 = { getS3Client: () => ({ send: async command => {
 const pkgLib = await load('src/lib/lesson-package.ts');
 const catalog = await load('src/lib/open-courses.ts');
 const metadataLib = await load('src/lib/open-course-management.ts', { './lesson-package': pkgLib });
+const { loadOpenCourseList } = await load('src/lib/load-open-course-list.ts');
 const lectureLib = await load('src/lib/lecture-resources.ts');
 const common = { 'server-only': {}, '@/server/firebase-admin': firebase, '@/lib/s3': s3, '@aws-sdk/client-s3': aws, 'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } }, '@/lib/lesson-package': pkgLib, '@/lib/open-course-management': metadataLib, '@/lib/open-courses': catalog };
 common['@/server/lecture-resources'] = await load('src/server/lecture-resources.ts', { ...common, '@/lib/lecture-resources': lectureLib });
@@ -165,4 +166,23 @@ test('built-in course trash/delete tombstone prevents fallback resurrection', as
   assert.equal((await (await list()).json()).items.length,0);
   assert.equal((await (await list(true)).json()).items.length,0);
   assert.equal((await content(id)).status,404);
+});
+
+test('admin catalogue automatically crosses empty and Trash-only pages before showing active courses', async () => {
+  const cursors=[];
+  const all=await loadOpenCourseList(async after => {
+    cursors.push(after);
+    if(!after)return {items:[],next:'page2'};
+    if(after==='page2')return {items:[{id:'trash',lifecycle:'trashed'}],next:'page3'};
+    return {items:[{id:'active',title:{en:'Visible course'}},{id:'trash',lifecycle:'trashed'}],next:null};
+  });
+  assert.deepEqual(cursors,[undefined,'page2','page3']);
+  assert.deepEqual(all.filter(x=>!x.lifecycle).map(x=>x.id),['active']);
+  assert.equal(all.length,2);
+});
+test('admin catalogue never reports partial success after failed pages or repeated cursors', async () => {
+  await assert.rejects(loadOpenCourseList(async after => {if(after)throw Error('network');return {items:[],next:'next'};}),/network/);
+  await assert.rejects(loadOpenCourseList(async()=>({items:[],next:'repeated'})),/LOAD_FAILED/);
+  let pages=0;await assert.rejects(loadOpenCourseList(async()=>({items:[],next:String(++pages)})),/LOAD_FAILED/);assert.equal(pages,100);
+  assert.deepEqual(await loadOpenCourseList(async()=>({items:[],next:null})),[]);
 });
