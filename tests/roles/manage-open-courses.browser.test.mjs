@@ -27,7 +27,8 @@ test('ZIP -> draft -> saved preview -> metadata edit -> publish -> guest player 
     if (req.url.startsWith('/api/open-courses')) {
       res.setHeader('Content-Type', 'application/json');
       if (req.method === 'POST') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); pkg = data.package; record = { ...data.metadata, id, href: '/open-courses/' + id, access: 'open', published: false, revision: 1, details: { en: 'Arabic · 90 minutes', ar: 'العربية · 90 دقيقة' } }; res.statusCode = 201; res.end(JSON.stringify({ id })); return; }
-      if (req.method === 'PATCH') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); record = { ...record, ...data.metadata, ...(data.published === undefined ? {} : { published: data.published }), revision: record.revision + 1 }; res.end('{}'); return; }
+      if (req.method === 'DELETE') { let body='';for await(const c of req)body+=c;const data=JSON.parse(body);assert.equal(data.confirmation,'DELETE '+id);assert.equal(record.lifecycle,'trashed');record=null;pkg=null;res.end('{}');return; }
+      if (req.method === 'PATCH') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); record = { ...record, ...(data.action === 'trash' ? { lifecycle:'trashed',published:false } : data.action === 'restore' ? { lifecycle:undefined,published:false } : {}), ...data.metadata, ...(data.published === undefined ? {} : { published: data.published }), revision: record.revision + 1 }; res.end('{}'); return; }
       if (req.method === 'PUT') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); assert.equal(data.id,id); assert.equal(data.revision,record.revision); assert.equal(record.published,false); pkg=data.package; record={...record,...data.metadata,revision:record.revision+1}; res.end('{}'); return; }
       if (req.url.startsWith('/api/open-courses/' + id)) { if (!record?.published && !req.url.includes('preview=1')) { res.statusCode = 404; res.end('{}'); return; } res.end(JSON.stringify({ course: record, package: pkg })); return; }
       res.end(JSON.stringify({ items: record && (record.published || req.url.includes('manage=1')) ? [record] : [], next: null })); return;
@@ -126,6 +127,28 @@ test('ZIP -> draft -> saved preview -> metadata edit -> publish -> guest player 
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Arabic mobile page must not overflow');
     if (process.env.LAYOUT_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.LAYOUT_SCREENSHOT_DIR, 'open-courses-layout-ar-mobile.png'), fullPage: true });
+    await page.goto(origin+'/manage');
+    await page.getByRole('button',{name:'Move to Trash',exact:true}).click();
+    await page.getByText('Moved to Trash. Public access is blocked; student work is retained.',{exact:true}).waitFor();
+    assert.equal(record.lifecycle,'trashed');assert.equal(record.published,false);
+    assert.equal(await page.getByRole('button',{name:'Edit details',exact:true}).count(),0);
+    await page.getByRole('button',{name:'View Trash',exact:true}).click();
+    await page.getByRole('button',{name:'Restore as draft',exact:true}).click();
+    await page.getByText('Restored as a private draft. Preview before publishing.',{exact:true}).waitFor();
+    assert.equal(record.lifecycle,undefined);assert.equal(record.published,false);
+    await page.goto(origin+'/manage?ar');
+    await page.getByRole('button',{name:'نقل إلى سلة المحذوفات',exact:true}).click();
+    await page.getByText('نُقلت إلى سلة المحذوفات. أُوقف الوصول العام مع الاحتفاظ بأعمال الطلاب.',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'عرض سلة المحذوفات',exact:true}).click();
+    await page.getByRole('button',{name:'حذف نهائي',exact:true}).click();
+    const confirm=page.getByRole('region',{name:'تأكيد الحذف النهائي',exact:true});
+    assert.equal(await confirm.getByRole('button',{name:'تأكيد الحذف النهائي',exact:true}).isEnabled(),false);
+    await confirm.getByRole('button',{name:'إلغاء الحذف',exact:true}).click();assert.ok(record);
+    await page.getByRole('button',{name:'حذف نهائي',exact:true}).click();
+    await confirm.getByLabel('تأكيد الحذف',{exact:true}).fill('DELETE '+id);
+    await confirm.getByRole('button',{name:'تأكيد الحذف النهائي',exact:true}).click();
+    await page.getByText('أُزيلت الدورة نهائيًا مع الاحتفاظ بأعمال الطلاب.',{exact:true}).waitFor();
+    assert.equal(record,null);assert.equal(pkg,null);
     assert.deepEqual(errors, []);
   } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
 });

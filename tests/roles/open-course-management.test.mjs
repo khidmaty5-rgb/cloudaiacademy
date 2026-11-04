@@ -3,13 +3,14 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import ts from 'typescript';
+
 const require = createRequire(import.meta.url);
 async function load(path, mocks = {}) {
   const code = ts.transpileModule(await readFile(new URL('../../' + path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
   new Function('require', 'module', 'exports', code)(name => mocks[name] ?? require(name), module, module.exports); return module.exports;
 }
-const records = new Map(), objects = new Map(); let privateBucket = true, failCreate = false;
+const records = new Map(), objects = new Map(); let privateBucket = true, failCreate = false, failDelete = false;
 const snap = path => ({ id: path.split('/').at(-1), exists: records.has(path), data: () => records.get(path) });
 const ref = path => ({ path, get: async () => snap(path), create: async data => { if (failCreate) throw Error('write failed'); records.set(path, data); } });
 const query = (prefix, published = false, after = '', count = 20) => ({
@@ -18,13 +19,15 @@ const query = (prefix, published = false, after = '', count = 20) => ({
 });
 const db = { doc: ref, collection: query, runTransaction: fn => fn({ get: r => r.get(), set: (r, value) => records.set(r.path, value) }) };
 const firebase = { getFirebaseAdminFirestore: () => db, getFirebaseAdminAuth: () => ({ verifyIdToken: async (token, revoked) => { assert.equal(revoked, true); if (!['admin', 'teacher', 'student', 'stale', 'editor'].includes(token)) throw Error(); return { uid: token, role: 'admin' }; } }) };
-const aws = Object.fromEntries(['PutObject', 'GetObject', 'DeleteObject', 'GetBucketAcl', 'GetBucketPolicy'].map(kind => [kind + 'Command', class { constructor(input) { this.kind = kind; this.input = input; } }]));
+const aws = Object.fromEntries(['PutObject', 'GetObject', 'DeleteObject', 'ListObjectsV2', 'DeleteObjects', 'GetBucketAcl', 'GetBucketPolicy'].map(kind => [kind + 'Command', class { constructor(input) { this.kind = kind; this.input = input; } }]));
 const s3 = { getS3Client: () => ({ send: async command => {
   const { Key, Body } = command.input;
   if (command.kind === 'GetBucketAcl') return { Grants: privateBucket ? [] : [{ Grantee: { URI: 'AllUsers' } }] };
   if (command.kind === 'GetBucketPolicy') { const e = Error(); e.name = 'NoSuchBucketPolicy'; throw e; }
   if (command.kind === 'PutObject') objects.set(Key, Body);
   if (command.kind === 'DeleteObject') objects.delete(Key);
+  if (command.kind === 'ListObjectsV2') return { Contents: [...objects.keys()].filter(key => key.startsWith(command.input.Prefix)).map(Key => ({ Key })), IsTruncated: false };
+  if (command.kind === 'DeleteObjects') { if (failDelete) return { Errors: [{ Code:'AccessDenied' }] }; for (const { Key } of command.input.Delete.Objects) objects.delete(Key); return {}; }
   if (command.kind === 'GetObject') { if (!objects.has(Key)) throw Error('missing'); return { ContentLength: Buffer.byteLength(objects.get(Key)), Body: { transformToWebStream: () => new Blob([objects.get(Key)]).stream() } }; }
   return {};
 } }) };
@@ -111,4 +114,55 @@ test('pagination exposes all published entries without drafts or duplicate fallb
   const first = await (await list()).json(); assert.equal(first.items.length, 21); assert.ok(first.next);
   const second = await (await list(false, 'admin', first.next)).json(); assert.equal(second.items.length, 5); assert.equal(second.next, null);
   assert.equal(new Set([...first.items, ...second.items].map(x => x.id)).size, 26);
+});
+
+test('trash blocks public/preview/edit; restore is draft; delete preserves student work and other courses', async () => {
+  seed(); const {id}=await (await api.POST(req('POST',{metadata,package:pkg}))).json();
+  const confirmation='DELETE '+id;
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:1,confirmation}))).status,409);
+  for(const role of ['', 'student','teacher','stale']) {
+    assert.ok([401,403].includes((await api.PATCH(req('PATCH',{id,revision:1,action:'trash'},role))).status));
+    assert.ok([401,403].includes((await api.DELETE(req('DELETE',{id,revision:1,confirmation},role))).status));
+  }
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:1,published:true}))).status,200);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:2,action:'trash'}))).status,200);
+  assert.equal((await content(id)).status,404); assert.equal((await content(id,true)).status,404);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:3,metadata}))).status,409);
+  assert.equal((await api.PUT(req('PUT',{id,revision:3,metadata,package:pkg}))).status,409);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:2,action:'restore'}))).status,409);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:3,action:'restore'}))).status,200);
+  assert.equal(records.get('openCourses/'+id).published,false);
+  assert.equal((await content(id)).status,404); assert.equal((await content(id,true)).status,200);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:4,action:'trash'}))).status,200);
+  objects.set('open-courses/'+id+'/prior.json','prior');
+  objects.set('student-inbox/keep.pdf','student work'); objects.set('open-courses/other.json','other');
+  records.set('studentInbox/keep',{courseId:id,message:'Keep my question'});
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:5,confirmation:'wrong'}))).status,400);
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:5,confirmation}))).status,200);
+  assert.equal(records.get('openCourses/'+id).lifecycle,'purged');
+  assert.equal(objects.has('open-courses/'+id+'.json'),false); assert.equal(objects.has('open-courses/'+id+'/prior.json'),false);
+  assert.equal(objects.get('student-inbox/keep.pdf'),'student work'); assert.equal(objects.get('open-courses/other.json'),'other');
+  assert.equal(records.get('studentInbox/keep').message,'Keep my question');
+  assert.equal((await (await list(true)).json()).items.some(x=>x.id===id),false);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:6,action:'restore'}))).status,409);
+});
+test('failed permanent deletion remains blocked and can be retried, never restored or published', async () => {
+  seed(); const {id}=await (await api.POST(req('POST',{metadata,package:pkg}))).json();
+  await api.PATCH(req('PATCH',{id,revision:1,action:'trash'}));
+  objects.set('open-courses/'+id+'/prior.json','prior'); failDelete=true;
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:2,confirmation:'DELETE '+id}))).status,503);
+  assert.equal(records.get('openCourses/'+id).lifecycle,'purging');
+  assert.equal((await content(id,true)).status,404);
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:2,action:'restore'}))).status,409);
+  failDelete=false;
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:2,confirmation:'DELETE '+id}))).status,200);
+});
+test('built-in course trash/delete tombstone prevents fallback resurrection', async () => {
+  seed(); const id='number-systems';
+  assert.equal((await api.PATCH(req('PATCH',{id,revision:0,action:'trash'}))).status,200);
+  assert.equal((await content(id,true)).status,404);
+  assert.equal((await api.DELETE(req('DELETE',{id,revision:1,confirmation:'DELETE '+id}))).status,200);
+  assert.equal((await (await list()).json()).items.length,0);
+  assert.equal((await (await list(true)).json()).items.length,0);
+  assert.equal((await content(id)).status,404);
 });

@@ -9,7 +9,7 @@ export type CourseMetadata = {
   minutes: number;
   image: string;
 };
-export type ManagedOpenCourse = OpenCourse & CourseMetadata & { revision: number };
+export type ManagedOpenCourse = OpenCourse & CourseMetadata & { revision: number; lifecycle?: 'trashed' | 'purging' };
 export const validOpenCourseId = (id: string) => id === 'number-systems' || /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id);
 export function courseMetadata(input: unknown): CourseMetadata {
   const x = input as CourseMetadata;
@@ -24,11 +24,11 @@ export function courseMetadata(input: unknown): CourseMetadata {
   if (image && !safeImage(image)) throw new Error('INVALID_METADATA');
   return { title, description, language: x.language, minutes: x.minutes, image };
 }
-export function openCourseView(id: string, data: CourseMetadata & { published: boolean; revision: number }): ManagedOpenCourse {
+export function openCourseView(id: string, data: CourseMetadata & { published: boolean; revision: number; lifecycle?: 'trashed' | 'purging' }): ManagedOpenCourse {
   const m = courseMetadata(data);
   return { ...m, title: { en: m.title.en, ar: m.title.ar || m.title.en },
     description: { en: m.description.en, ar: m.description.ar || m.description.en },
-    id, href: '/open-courses/' + id, access: 'open', published: data.published === true, revision: data.revision,
+    id, href: '/open-courses/' + id, access: 'open', published: data.published === true && !data.lifecycle, revision: data.revision, ...(data.lifecycle ? { lifecycle: data.lifecycle } : {}),
     details: { en: `${{ ar: 'Arabic', en: 'English', both: 'Arabic & English' }[m.language]} · ${m.minutes} minutes`,
       ar: `${{ ar: 'العربية', en: 'الإنجليزية', both: 'العربية والإنجليزية' }[m.language]} · ${m.minutes} دقيقة` } };
 }

@@ -12,7 +12,10 @@ export const builtinCourse = { ...courseMetadata({ ...openCourseCatalog[0], lang
 export async function openCourseRecord(id: string) {
   if (!validOpenCourseId(id)) throw new Error('NOT_FOUND');
   const doc = await getFirebaseAdminFirestore().doc(`openCourses/${id}`).get();
-  if (doc.exists) return doc.data() as typeof builtinCourse & { contentKey?: string };
+  if (doc.exists) {
+    if (doc.data()?.lifecycle) throw new Error('NOT_FOUND');
+    return doc.data() as typeof builtinCourse & { contentKey?: string };
+  }
   if (id === 'number-systems') return builtinCourse;
   throw new Error('NOT_FOUND');
 }
@@ -26,8 +29,8 @@ export function interactivePackage(value: unknown) {
 }
 export async function openCourseContent(id: string) {
   if (!validOpenCourseId(id)) throw new Error('NOT_FOUND');
-  if (id === 'number-systems') return interactivePackage({ lessons: [{ key: 'l0', title: 'الأنظمة العددية', nodes: [], interactiveHtml: builtinLesson.html }] });
   const record = await openCourseRecord(id);
+  if (id === 'number-systems') return interactivePackage({ lessons: [{ key: 'l0', title: 'الأنظمة العددية', nodes: [], interactiveHtml: builtinLesson.html }] });
   const key = 'contentKey' in record ? record.contentKey : undefined;
   // Never trust a stored pointer outside this course's version namespace.
   if (key !== undefined && (typeof key !== 'string' || !new RegExp(`^open-courses/${id}/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.json$`).test(key))) throw new Error('CONTENT_UNAVAILABLE');
