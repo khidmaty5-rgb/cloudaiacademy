@@ -12,6 +12,7 @@ import { OPEN_COURSE_REQUEST_LIMIT, type CourseMetadata, type ManagedOpenCourse 
 import { OpenCourseLessons } from '@/components/open-course-player';
 import { OpenCourseModuleEditor } from '@/components/open-course-module-editor';
 import { AdminStudentInbox } from '@/components/admin-student-inbox';
+import { loadOpenCourseList } from '@/lib/load-open-course-list';
 import { BookOpen, UploadCloud, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const empty = (): CourseMetadata => ({ title: { en: '', ar: '' }, description: { en: '', ar: '' }, language: 'ar', minutes: 90, image: '' });
@@ -31,7 +32,7 @@ async function thumbnail(file: File) {
 export default function ManageOpenCourses() {
   const { user } = useUser(); const { lang, dir } = useLang(); const ar = lang === 'ar';
   const tr = (en: string, arabic: string) => ar ? arabic : en;
-  const [items, setItems] = useState<ManagedOpenCourse[]>([]); const [next, setNext] = useState<string | null>(null);
+  const [items, setItems] = useState<ManagedOpenCourse[]>([]); const [loaded, setLoaded] = useState(false);
   const [metadata, setMetadata] = useState<CourseMetadata>(empty); const [selected, setSelected] = useState<ManagedOpenCourse | null>(null);
   const [pkg, setPkg] = useState<LessonPackage | null>(null); const [preview, setPreview] = useState(false);
   const [replacement, setReplacement] = useState(false);
@@ -43,10 +44,12 @@ export default function ManageOpenCourses() {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const lock = useRef(false); const fileInput = useRef<HTMLInputElement>(null);
   const token = async () => { if (!user) throw new Error('UNAUTHORIZED'); return { Authorization: 'Bearer ' + await user.getIdToken() }; };
-  async function load(after?: string) {
-    const response = await fetch('/api/open-courses?manage=1' + (after ? '&after=' + encodeURIComponent(after) : ''), { headers: await token(), cache: 'no-store' });
-    if (!response.ok) throw new Error('LOAD_FAILED'); const data = await response.json();
-    setItems(old => after ? [...old, ...data.items.filter((x: ManagedOpenCourse) => !old.some(y => y.id === x.id))] : data.items); setNext(data.next);
+  async function load() {
+    const all = await loadOpenCourseList(async after => {
+      const response = await fetch('/api/open-courses?manage=1' + (after ? '&after=' + encodeURIComponent(after) : ''), { headers: await token(), cache: 'no-store' });
+      if (!response.ok) throw new Error('LOAD_FAILED'); return response.json();
+    });
+    setItems(all); setLoaded(true);
   }
   async function run(action: () => Promise<void>) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(''); setNotice('');
@@ -133,7 +136,7 @@ export default function ManageOpenCourses() {
     {showTrash && <p className="text-sm text-muted-foreground">{tr('Restore returns a private draft. Permanent deletion removes saved course content, not student assignments or Q&A. Hosting backups and bundled sample code are not erased.', 'الاستعادة تعيد مسودة خاصة. الحذف النهائي يزيل محتوى الدورة المحفوظ، وليس واجبات الطلاب أو الأسئلة. لا تُمحى النسخ الاحتياطية لدى المستضيف أو الشيفرة المضمّنة للعينة.')}</p>}
 {deleting && <section role="region" aria-label={tr('Confirm permanent deletion', 'تأكيد الحذف النهائي')} className="space-y-3 rounded-xl border border-destructive p-5"><h3 className="font-bold">{tr('Permanently delete course?', 'حذف الدورة نهائيًا؟')}</h3><p dir="auto">{deleting.title[lang]}</p><p>{tr('This cannot be restored. Type the exact confirmation below. Student work will not be deleted.', 'لا يمكن استعادة الدورة بعد ذلك. اكتب عبارة التأكيد أدناه حرفيًا. لن تُحذف أعمال الطلاب.')}</p><code className="block break-all" dir="ltr">DELETE {deleting.id}</code><label className="block">{tr('Deletion confirmation', 'تأكيد الحذف')}<Input ref={deletionInput} dir="ltr" disabled={busy} value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label><div className="flex gap-2"><Button variant="destructive" disabled={busy || confirmation !== `DELETE ${deleting.id}`} onClick={() => void run(() => lifecycle(deleting, 'delete'))}>{tr('Confirm permanent delete', 'تأكيد الحذف النهائي')}</Button><Button variant="outline" disabled={busy} onClick={() => { setDeleting(null); setConfirmation(''); }}>{tr('Cancel deletion', 'إلغاء الحذف')}</Button></div></section>}
     {busy && <p role="status">{tr('Working…', 'جارٍ العمل…')}</p>}
-    {!busy && !error && visibleItems.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center"><BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" /><p className="font-medium">{showTrash ? tr('No trashed courses on this page', 'لا توجد دورات محذوفة في هذه الصفحة') : tr('Your first open course starts here', 'ابدأ أول دورة مفتوحة هنا')}</p><p className="mt-2 text-sm text-muted-foreground">{next ? tr('Load more to check the remaining courses.', 'حمّل المزيد للتحقق من بقية الدورات.') : showTrash ? tr('Courses moved to Trash appear here.', 'تظهر هنا الدورات المنقولة إلى سلة المحذوفات.') : tr('Upload a ZIP above and save a private draft to get started.', 'ارفع ملف ZIP أعلاه واحفظ مسودة خاصة للبدء.')}</p></div>}
+{loaded && !busy && !error && visibleItems.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center"><BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" /><p className="font-medium">{showTrash ? tr('Trash is empty', 'سلة المحذوفات فارغة') : tr('Your first open course starts here', 'ابدأ أول دورة مفتوحة هنا')}</p><p className="mt-2 text-sm text-muted-foreground">{showTrash ? tr('Courses moved to Trash appear here.', 'تظهر هنا الدورات المنقولة إلى سلة المحذوفات.') : tr('Upload a ZIP above and save a private draft to get started.', 'ارفع ملف ZIP أعلاه واحفظ مسودة خاصة للبدء.')}</p></div>}
 <div className="grid gap-5 lg:grid-cols-2">{visibleItems.map(item => <article key={item.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm"><div className="flex items-start gap-4">{item.image ? <img src={item.image} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" /> : <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookOpen className="h-7 w-7" aria-hidden="true" /></div>}<div className="min-w-0 space-y-2"><h3 className="break-words text-lg font-semibold">{item.title[lang]}</h3><p className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{item.lifecycle ? (item.lifecycle === 'purging' ? tr('Deletion in progress', 'الحذف قيد التنفيذ') : tr('In Trash', 'في سلة المحذوفات')) : item.published ? tr('Public — no registration', 'منشورة — دون تسجيل') : tr('Private draft', 'مسودة خاصة')}</p><p className="text-xs text-muted-foreground">{item.details[lang]}</p></div></div>
       <div className="flex flex-wrap gap-2">{item.lifecycle ? <>
         {item.lifecycle === 'trashed' && <Button disabled={busy} variant="outline" onClick={() => void run(() => lifecycle(item, 'restore'))}>{tr('Restore as draft', 'استعادة كمسودة')}</Button>}
@@ -156,6 +159,5 @@ export default function ManageOpenCourses() {
           if (window.confirm(tr('Move this course to Trash? Public access stops immediately. You can restore it as a private draft. Student assignments and questions are kept.', 'نقل الدورة إلى سلة المحذوفات؟ سيتوقف الوصول العام فورًا. يمكنك استعادتها كمسودة خاصة. تُحفظ واجبات الطلاب وأسئلتهم.'))) void run(() => lifecycle(item, 'trash'));
         }}>{tr('Move to Trash', 'نقل إلى سلة المحذوفات')}</Button></>}
       </div></article>)}</div>
-    {next && <Button disabled={busy} onClick={() => void run(() => load(next))}>{tr('Load more', 'تحميل المزيد')}</Button>}
   </main>;
 }

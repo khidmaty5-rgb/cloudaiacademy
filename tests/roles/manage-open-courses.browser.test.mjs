@@ -31,6 +31,8 @@ test('ZIP -> draft -> saved preview -> metadata edit -> publish -> guest player 
       if (req.method === 'PATCH') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); record = { ...record, ...(data.action === 'trash' ? { lifecycle:'trashed',published:false } : data.action === 'restore' ? { lifecycle:undefined,published:false } : {}), ...data.metadata, ...(data.published === undefined ? {} : { published: data.published }), revision: record.revision + 1 }; res.end('{}'); return; }
       if (req.method === 'PUT') { let body = ''; for await (const c of req) body += c; const data = JSON.parse(body); assert.equal(data.id,id); assert.equal(data.revision,record.revision); assert.equal(record.published,false); pkg=data.package; record={...record,...data.metadata,revision:record.revision+1}; res.end('{}'); return; }
       if (req.url.startsWith('/api/open-courses/' + id)) { if (!record?.published && !req.url.includes('preview=1')) { res.statusCode = 404; res.end('{}'); return; } res.end(JSON.stringify({ course: record, package: pkg })); return; }
+      // Simulate a first database page consisting entirely of deleted records.
+      if(record && req.url.includes('manage=1') && !req.url.includes('after=')) { res.end(JSON.stringify({items:[],next:id}));return; }
       res.end(JSON.stringify({ items: record && (record.published || req.url.includes('manage=1')) ? [record] : [], next: null })); return;
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<!doctype html><meta name="viewport" content="width=device-width"><style>' + css.css + '</style><div id="root"></div><script>' + bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script') + '</script>');
@@ -52,6 +54,7 @@ test('ZIP -> draft -> saved preview -> metadata edit -> publish -> guest player 
     await page.getByAltText('Course image preview').waitFor();
     await page.getByRole('button', { name: 'Save private draft' }).click();
     await page.getByText('Private draft', { exact: true }).waitFor(); assert.equal(record.published, false); assert.match(record.image, /^data:image\/jpeg;base64,/);
+    assert.equal(await page.getByRole('button',{name:'Load more',exact:true}).count(),0,'admin courses load automatically across empty storage pages');
     const guest = await browser.newPage(); guest.on('pageerror', e => errors.push(e.message)); await guest.goto(origin); assert.equal(await guest.locator('article').count(), 0);
     await page.getByRole('button', { name: 'Preview saved course' }).click();
     await page.frameLocator('iframe').getByRole('button', { name: 'Try' }).click();
