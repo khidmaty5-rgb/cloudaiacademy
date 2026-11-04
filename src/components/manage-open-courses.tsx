@@ -11,6 +11,7 @@ import type { LessonPackage } from '@/lib/lesson-package';
 import { OPEN_COURSE_REQUEST_LIMIT, type CourseMetadata, type ManagedOpenCourse } from '@/lib/open-course-management';
 import { OpenCourseLessons } from '@/components/open-course-player';
 import { OpenCourseModuleEditor } from '@/components/open-course-module-editor';
+import { AdminStudentInbox } from '@/components/admin-student-inbox';
 import { BookOpen, UploadCloud, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const empty = (): CourseMetadata => ({ title: { en: '', ar: '' }, description: { en: '', ar: '' }, language: 'ar', minutes: 90, image: '' });
@@ -66,6 +67,7 @@ export default function ManageOpenCourses() {
       <div className="max-w-2xl space-y-3"><p className="text-xs font-semibold uppercase tracking-widest text-primary">{tr('Academy management', 'إدارة الأكاديمية')}</p><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{tr('Manage open courses', 'إدارة الدورات المفتوحة')}</h1><p className="text-sm leading-7 text-muted-foreground">{tr('Publish interactive courses for everyone, without registration. New uploads are private drafts.', 'انشر دورات تفاعلية للجميع دون تسجيل. تُحفظ الملفات الجديدة كمسودات خاصة.')}</p></div>
       <Button asChild variant="outline" className="shrink-0"><Link href="/#open-courses"><BookOpen className="me-2 h-4 w-4" aria-hidden="true" />{tr('View public courses', 'عرض الدورات العامة')}</Link></Button>
     </header>
+    <AdminStudentInbox />
     {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm leading-6">{errorText}</p>}{notice && <p role="status" className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm"><CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />{notice}</p>}
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
     <form className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm" onSubmit={e => { e.preventDefault(); void run(async () => {

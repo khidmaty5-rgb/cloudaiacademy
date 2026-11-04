@@ -76,6 +76,9 @@ test('ZIP -> draft -> saved preview -> metadata edit -> publish -> guest player 
     const editor=page.getByRole('region',{name:'Course modules',exact:true});
     await editor.getByRole('heading',{name:'Course modules (1)',exact:true}).waitFor();
     assert.equal(await editor.getByRole('button',{name:'Remove module',exact:true}).isEnabled(),false);
+    // setInputFiles does not wait for enabled state; the async package load may
+    // have rendered the editor before its operation lock is released.
+    await page.waitForFunction(() => [...document.querySelectorAll('input[type=file]')].every(input => !input.disabled));
     await editor.getByLabel('Add module HTML / ZIP').setInputFiles({name:'second.html',mimeType:'text/html',buffer:Buffer.from('<title>Second module</title><p>Second content</p>')});
     await editor.getByRole('heading',{name:'Course modules (2)',exact:true}).waitFor();
     assert.equal(pkg.lessons.length,1,'changes stay local until saved');
