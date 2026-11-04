@@ -91,11 +91,17 @@ jobs:
       - name: Test public lecture resource boundaries
         run: node --test tests/roles/lecture-resources.test.mjs
 
+      - name: Test private student inbox boundaries
+        run: node --test tests/roles/student-inbox.test.mjs
+
       - name: Test ZIP import parser and API
         run: node --test tests/roles/lesson-zip-import.test.mjs tests/roles/interactive-import.test.mjs tests/roles/course-package.test.mjs tests/roles/lesson-import-api.test.mjs
 
       - name: Install isolated lesson test browser
         run: npx playwright install --with-deps chromium
+
+      - name: Test anonymous student submission and Q&A interface
+        run: node --test tests/roles/student-inbox.browser.test.mjs
 
       - name: Test lecture resource upload and public browsing
         run: node --test tests/roles/lecture-resources.browser.test.mjs
@@ -104,7 +110,7 @@ jobs:
         run: node --test tests/roles/interactive-player.browser.test.mjs tests/roles/course-upload.browser.test.mjs tests/roles/course-image-upload.browser.test.mjs
 
       - name: Test public Arabic Number Systems course
-        run: node --test tests/roles/open-courses.test.mjs tests/roles/open-course-management.test.mjs tests/roles/open-number-systems.browser.test.mjs tests/roles/manage-open-courses.browser.test.mjs
+        run: node --test tests/roles/open-courses.test.mjs tests/roles/open-course-management.test.mjs tests/roles/open-course-modules.test.mjs tests/roles/open-number-systems.browser.test.mjs tests/roles/manage-open-courses.browser.test.mjs
 
       - name: Test contextual workspace and role confirmation browser behavior
         run: node --test tests/roles/workspace.browser.test.mjs
