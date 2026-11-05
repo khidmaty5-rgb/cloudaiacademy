@@ -12,7 +12,7 @@ const records = new Map(), objects = new Map(); let failStorage = false, failFin
 const snapshot = path => ({ id: path.split('/').at(-1), exists: records.has(path), data: () => records.get(path) });
 const ref = path => ({ path, get: async () => snapshot(path), update: async data => { if (failFinal) throw Error('fail'); records.set(path, { ...records.get(path), ...data }); } });
 const query = (prefix, after = '', limit = 30) => ({ orderBy: () => query(prefix, after, limit), limit: n => query(prefix, after, n), startAfter: id => query(prefix, id, limit), get: async () => { const docs = [...records.keys()].filter(k => k.startsWith(prefix + '/') && k.split('/').at(-1) > after).sort().slice(0, limit).map(snapshot); return { docs, size: docs.length }; } });
-const db = { doc: ref, collection: query, runTransaction: async fn => { const writes = []; const result = await fn({ get: r => r.get(), create: (r, v) => writes.push(() => { assert.equal(records.has(r.path), false); records.set(r.path, v); }), set: (r, v) => writes.push(() => records.set(r.path, v)), update: (r, v) => writes.push(() => records.set(r.path, { ...records.get(r.path), ...v })) }); writes.forEach(f => f()); return result; } };
+const db = { doc: ref, collection: query, runTransaction: async fn => { const writes = []; const result = await fn({ get: r => r.get(), create: (r, v) => writes.push(() => { assert.equal(records.has(r.path), false); records.set(r.path, v); }), set: (r, v) => writes.push(() => records.set(r.path, v)), update: (r, v) => { if (failFinal && v.status === 'under_review') throw Error('fail'); writes.push(() => records.set(r.path, { ...records.get(r.path), ...v })); } }); writes.forEach(f => f()); return result; } };
 const aws = Object.fromEntries(['PutObject', 'GetObject', 'GetBucketAcl', 'GetBucketPolicy'].map(kind => [kind + 'Command', class { constructor(input) { this.kind = kind; this.input = input; } }]));
 const s3 = { getS3Client: () => ({ send: async command => { if (command.kind === 'GetBucketAcl') return { Grants: privateBucket ? [] : [{ Grantee: { URI: 'AllUsers' } }] }; if (command.kind === 'GetBucketPolicy') { const e = Error(); e.name = 'NoSuchBucketPolicy'; throw e; } const { Key, Body } = command.input; if (command.kind === 'PutObject') { if (failStorage) throw Error(); objects.set(Key, Body); return {}; } const bytes = objects.get(Key); return { ContentLength: bytes.length, Body: { transformToWebStream: () => new Blob([bytes]).stream() } }; } }) };
 const firebase = { getFirebaseAdminFirestore: () => db, getFirebaseAdminAuth: () => ({ verifyIdToken: async (token, revoked) => { assert.equal(revoked, true); if (!['admin', 'student', 'teacher'].includes(token)) throw Error(); return { uid: token }; } }) };
@@ -52,4 +52,23 @@ test('durable quota, duplicate conflict and bounded body', async () => {
   for(let i=0;i<4;i++)assert.equal((await api.POST(request('POST',question()))).status,201); assert.equal((await api.POST(request('POST',question()))).status,429);
   const oversized = new Request('https://test.invalid',{method:'POST',headers:{'Content-Type':'application/json'},body:'x'.repeat(2_800_001)}); assert.equal((await api.POST(oversized)).status,413);
   const crossOrigin = new Request('https://test.invalid',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://evil.invalid'},body:JSON.stringify(question())}); assert.equal((await api.POST(crossOrigin)).status,403);
+});
+
+test('identical retry recovers failed storage and final writes without duplicate quota or review reset', async () => {
+  for (const stage of ['storage', 'final']) {
+    reset(); const input = { ...question(), kind: 'assignment', file };
+    failStorage = stage === 'storage'; failFinal = stage === 'final';
+    assert.equal((await api.POST(request('POST', input))).status, 503);
+    const budget = { ...records.get('studentInboxLimits/submissions') };
+    failStorage = false; failFinal = false;
+    assert.equal((await api.POST(request('POST', { ...input, title: 'Different content' }))).status, 409);
+    const recovered = await api.POST(request('POST', input));
+    assert.equal(recovered.status, 200);
+    const item = await recovered.json(); assert.equal(item.status, 'under_review');
+    assert.equal(objects.size, 1);
+    assert.deepEqual(records.get('studentInboxLimits/submissions'), budget);
+    assert.equal((await api.PATCH(request('PATCH', { id: item.id, revision: 0, status: 'reviewed', reply: 'Checked' }, 'admin'))).status, 200);
+    const again = await (await api.POST(request('POST', input))).json();
+    assert.equal(again.status, 'reviewed'); assert.equal(again.reply, 'Checked');
+  }
 });

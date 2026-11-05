@@ -7,6 +7,7 @@ import { InteractiveLessonPlayer } from '@/components/learn/interactive-lesson-p
 import type { LessonPackage } from '@/lib/lesson-package';
 import type { ManagedOpenCourse } from '@/lib/open-course-management';
 import { StudentInbox } from '@/components/student-inbox';
+import LectureResources from '@/components/lecture-resources';
 
 export function OpenCourseLessons({ pkg }: { pkg: LessonPackage }) {
   const [selected, setSelected] = useState(0);
@@ -39,6 +40,7 @@ export default function PublicOpenCourse({ id }: { id: string }) {
       <header className="space-y-2 break-words"><h1 className="text-3xl font-bold" dir="auto">{data.course.title[lang]}</h1><p>{data.course.details[lang]}</p><p className="text-muted-foreground">{data.course.description[lang]}</p>
         <p className="text-sm text-muted-foreground">{ar ? 'مجاني دون تسجيل. نتائج التدريب لا تُحفظ ولا تصدر شهادة.' : 'Free, no registration. Practice results are not saved and no certificate is issued.'}</p></header>
       <OpenCourseLessons pkg={data.package} />
+      <LectureResources courseId={id} />
       <StudentInbox courseId={id} />
     </>}
   </main>;
