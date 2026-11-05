@@ -24,9 +24,20 @@ export function StudentInbox({ courseId }: { courseId: string }) {
         pending.current = { token, body: JSON.stringify({ action: 'submit', token, courseId, kind, name: data.get('name'), title: data.get('title'), message: data.get('message'), website: data.get('website'), file: attachment }) };
       }
       const response = await fetch('/api/student-inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: pending.current.body });
-      if (!response.ok) { if ([400, 413, 404, 429].includes(response.status)) pending.current = null; throw new Error(response.status === 429 ? 'LIMIT' : 'SAVE'); }
+      if (!response.ok) {
+        const details = await response.json().catch(() => ({}));
+        if ([400, 413, 404, 429].includes(response.status)) pending.current = null;
+        throw new Error(response.status === 429 ? 'LIMIT' : response.status === 413 ? 'FILE' : response.status === 404 ? 'COURSE' : ['INVALID_PDF', 'INVALID_IMAGE'].includes(details.error) ? 'CONTENT' : 'SAVE');
+      }
       const result = await response.json(); setItem(result); setReceipt(`${location.origin}/submission-status#${pending.current.token}`); pending.current = null;
-    } catch (e) { setError(e instanceof Error && e.message === 'FILE' ? t('Choose one PDF, PNG or JPEG up to 2 MB.', 'اختر ملف PDF أو PNG أو JPEG واحدًا بحجم حتى 2 ميغابايت.') : e instanceof Error && e.message === 'LIMIT' ? t('Submission limit reached. Please contact your instructor.', 'تم بلوغ حد الإرسال. تواصل مع المدرّس.') : t('Upload has not been confirmed. Retry sends the same submission, not a duplicate.', 'لم يتم تأكيد الرفع. إعادة المحاولة ترسل نفس الطلب دون تكرار.')); }
+    } catch (e) {
+      const code = e instanceof Error ? e.message : '';
+      setError(code === 'FILE' ? t('Choose one PDF, PNG or JPEG up to 2 MB.', 'اختر ملف PDF أو PNG أو JPEG واحدًا بحجم حتى 2 ميغابايت.') :
+        code === 'CONTENT' ? t('This file could not be safely read. Export a new PDF without scripts, embedded files or password protection, or choose a PNG/JPEG image.', 'تعذّر قراءة الملف بأمان. صدّر PDF جديدًا دون برامج أو مرفقات أو كلمة مرور، أو اختر صورة PNG/JPEG.') :
+        code === 'COURSE' ? t('This course is no longer available for submissions. Contact your instructor.', 'لم تعد هذه الدورة متاحة لاستلام المشاركات. تواصل مع المدرّس.') :
+        code === 'LIMIT' ? t('Submission limit reached. This can affect students sharing the same internet connection. Please contact your instructor.', 'تم بلوغ حد الإرسال. قد يؤثر ذلك على الطلاب الذين يستخدمون اتصال الإنترنت نفسه. تواصل مع المدرّس.') :
+        t('Upload has not been confirmed. Retry sends the same submission, not a duplicate.', 'لم يتم تأكيد الرفع. إعادة المحاولة ترسل نفس الطلب دون تكرار.'));
+    }
     finally { lock.current = false; setBusy(false); }
   }
   return <section dir={dir} className="rounded-2xl border bg-card p-5 sm:p-8 space-y-4" aria-label={t('Assignments and questions', 'الواجبات والأسئلة')}>

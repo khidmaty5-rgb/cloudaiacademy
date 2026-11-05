@@ -4,7 +4,31 @@ Public open-course pages offer PDF/JPEG/PNG submissions (2,000,000 bytes max) an
 
 Students save a 256-bit secret receipt link, carried in the URL fragment and POSTed to the status API. Only its SHA-256 digest is stored. Anyone holding the link can read that entry: do not share it. No email or account recovery is provided. Status and replies are checked manually, not polled. Names/codes are optional and unverified. There is no public chat feed.
 
-Confirmation occurs only after attachment storage AND Firestore state transition to `under_review`. Repeated requests with the same token and content return the same entry; altered retries conflict. A crash/storage failure leaves `processing`, never a false success. Administrators must investigate processing entries; automatic crash recovery is not implemented. No file is downloadable in that state.
+Confirmation occurs only after attachment storage AND Firestore state transition to `under_review`. Repeated requests with the same token and content return the same entry; altered retries conflict. A crash/storage failure leaves `processing`, never a false success. Retrying the identical payload now repeats the storage write and transactionally finishes that reservation without charging submission quota again or resetting an administrator review. Attempt budgets still apply. No file is downloadable while processing. Recovery requires the original browser-held payload; a receipt alone cannot reconstruct an attachment.
+
+## Publish assignment instructions
+
+In **Admin > Open courses**, choose **Assignments** on the relevant course card.
+Upload a PDF (up to 3 MB), give it a clear assignment title and optional instructions,
+save the private draft, then choose **Publish for everyone**. Students find the
+instructions above the private submission form on that course's public page.
+They enter the same assignment title when submitting their PDF/JPEG/PNG answer.
+There is not yet a structured assignment ID, gradebook or deadline enforcement.
+To replace instructions, upload and publish a new version, then withdraw the old one.
+
+Course-specific metadata lives in `courseAssignmentResources/{courseId}/items/{id}`;
+PDFs use `course-assignments/{courseId}/{id}.pdf` in the existing private bucket.
+General lecture resources are unchanged and separate. Public listing/download
+requires both a published course and a published instruction PDF. Course Trash
+and purge block access through the existing course lifecycle check. Instruction
+records/files are retained, not erased by course content deletion. No new
+Firestore client allow rules, billing service or Firebase Blaze requirement.
+Only current administrators manage instructions; this does not grant teachers
+blanket access to courses or private student submissions.
+
+The retry defect is verified by regression tests. The user's original upload
+failure has not yet been attributed to a specific cause; file type/size/error
+is needed to distinguish validation, network, storage and shared-IP limits.
 
 ## Security and cost boundaries
 

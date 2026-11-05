@@ -11,6 +11,8 @@ async function compile(path, replacements = {}) {
 }
 const fake = url(`
 export const records = new Map(); export const objects = new Map();
+export const courseState = { published: true, removed: false };
+export async function openCourseRecord() { if (courseState.removed) throw Error('NOT_FOUND'); return { published: courseState.published }; }
 const snap = path => ({id:path.split('/').at(-1),exists:records.has(path),data:()=>records.get(path)});
 const ref = path => ({path,get:async()=>snap(path),create:async data=>records.set(path,data)});
 const query = (prefix, published=false, after='', count=25) => ({
@@ -34,9 +36,10 @@ if(command.kind==='put') objects.set(Key,Body); if(command.kind==='delete') obje
 const lib = await compile('src/lib/lecture-resources.ts');
 const server = await compile('src/server/lecture-resources.ts', { 'server-only':url(''), 'pdf-lib':import.meta.resolve('pdf-lib'), '@/server/firebase-admin':fake, '@/lib/lecture-resources':lib, '@aws-sdk/client-s3':fake, '@/lib/s3':fake });
 const replacements = { '@/server/firebase-admin':fake, '@/server/lecture-resources':server, '@/lib/lecture-resources':lib, '@/lib/s3':fake, '@aws-sdk/client-s3':fake, 'firebase-admin/firestore':fake };
+replacements['@/server/course-assignment-resources'] = await compile('src/server/course-assignment-resources.ts', { 'server-only': url(''), '@/server/open-courses': fake, '@/lib/lecture-resources': lib });
 const api = await import(await compile('src/app/api/lecture-resources/route.ts', replacements));
 const download = await import(await compile('src/app/api/lecture-resources/[id]/download/route.ts', replacements));
-const { records, objects, privacy } = await import(fake);
+const { records, objects, privacy, courseState } = await import(fake);
 const { validateLecturePdf, readBoundedBody } = await import(server);
 const base = 'https://academy.test/api/lecture-resources';
 process.env.S3_BUCKET_LESSONS = 'test-only-bucket';
@@ -84,4 +87,27 @@ test('public or unverifiable storage fails closed before uploading any file',asy
   seed();privacy.mode=mode;const response=await upload();assert.equal(response.status,503);
   assert.equal((await response.json()).error,'STORAGE_PRIVACY_UNVERIFIED');assert.equal(objects.size,0);
  } privacy.mode='private';
+});
+
+test('course assignment PDFs are private drafts, isolated from general resources and withdrawn with course', async () => {
+ seed(); courseState.published = true; courseState.removed = false;
+ const scoped = base + '?courseId=number-systems';
+ const data = new FormData(); data.set('title','Assignment 1'); data.set('file',new Blob([await pdf()],{type:'application/pdf'}),'assignment.pdf');
+ const result = await api.POST(new Request(scoped,{method:'POST',headers:auth('admin'),body:data}));
+ assert.equal(result.status,201); const {id} = await result.json();
+ const downloadRequest = () => download.GET(new Request(scoped),{params:Promise.resolve({id})});
+ assert.equal((await downloadRequest()).status,404);
+ assert.equal((await (await api.GET(new Request(base+'?manage=1',{headers:auth('admin')}))).json()).items.length,0);
+ assert.equal((await api.PATCH(new Request(scoped,{method:'PATCH',headers:auth('admin'),body:JSON.stringify({id,published:true})}))).status,200);
+ assert.equal((await (await api.GET(new Request(scoped))).json()).items.length,1);
+ assert.equal((await downloadRequest()).status,200);
+ assert.equal((await getDownload(id)).status,404);
+ courseState.published = false;
+ assert.equal((await api.GET(new Request(scoped))).status,404);
+ assert.equal((await downloadRequest()).status,404);
+ assert.equal((await api.GET(new Request(scoped+'&manage=1',{headers:auth('admin')}))).status,200);
+ courseState.removed = true;
+ assert.equal((await api.GET(new Request(scoped+'&manage=1',{headers:auth('admin')}))).status,404);
+ courseState.removed = false; courseState.published = true;
+ assert.equal((await api.GET(new Request(base+'?courseId=../private'))).status,404);
 });

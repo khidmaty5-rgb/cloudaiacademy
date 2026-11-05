@@ -57,7 +57,11 @@ export async function POST(request: Request) {
     if (!(await openCourseRecord(courseId)).published) throw new Error('NOT_FOUND');
     const fingerprint = hash(JSON.stringify({ courseId, title, name, message, kind: input.kind, file: input.file || null }));
     const existing = (await ref.get()).data();
-    if (existing) { if (existing.fingerprint !== fingerprint) throw new Error('CONFLICT'); return json(publicItem(existing, id), existing.status === 'processing' ? 202 : 200); }
+    if (existing) {
+      if (existing.fingerprint !== fingerprint) throw new Error('CONFLICT');
+      if (existing.status !== 'processing') return json(publicItem(existing, id));
+      // Retry the identical payload after a partial write; never reserve quota twice.
+    }
     let bytes: Buffer | undefined; let mime = ''; let extension = '';
     if (input.kind === 'assignment') {
       if (!input.file || typeof input.file.data !== 'string' || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(input.file.data)) throw new Error('INVALID_REQUEST');
@@ -82,10 +86,18 @@ export async function POST(request: Request) {
       if (count >= 50 || (ips[ipKey] || 0) >= 5 || total >= 1000 || size > 100_000_000) throw new Error('LIMIT_REACHED');
       tx.set(limitRef, { day, salt, count: count + 1, total: total + 1, bytes: size, ips: { ...ips, [ipKey]: (ips[ipKey] || 0) + 1 } }); tx.create(ref, record); return true;
     });
-    if (!reserved) { const saved = (await ref.get()).data()!; return json(publicItem(saved, id), saved.status === 'processing' ? 202 : 200); }
+    if (!reserved) { const saved = (await ref.get()).data()!; if (saved.status !== 'processing') return json(publicItem(saved, id)); }
     if (bytes) await getS3Client().send(new PutObjectCommand({ Bucket: bucket, Key: record.fileKey, Body: bytes, ContentType: mime, ContentDisposition: `attachment; filename="assignment.${extension}"` }));
     // Never acknowledge successful upload until both durable writes have completed.
-    await ref.update({ status: 'under_review' }); return json(publicItem({ ...record, status: 'under_review' }, id), 201);
+    const saved = await db.runTransaction(async tx => {
+      const current = (await tx.get(ref)).data();
+      if (!current || current.fingerprint !== fingerprint) throw new Error('CONFLICT');
+      // A concurrent retry or reviewer may already have advanced the state.
+      if (current.status !== 'processing') return current;
+      tx.update(ref, { status: 'under_review' });
+      return { ...current, status: 'under_review' };
+    });
+    return json(publicItem(saved, id), reserved ? 201 : 200);
   } catch (error) { return failure(error); }
 }
 export async function GET(request: Request) {

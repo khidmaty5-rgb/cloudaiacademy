@@ -13,12 +13,13 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   '@/components/i18n/lang':`export const useLang=()=>({lang:location.search.includes('ar')?'ar':'en',dir:location.search.includes('ar')?'rtl':'ltr'});`,
  };
  const result=await build({absWorkingDir:root,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},alias:{'@':path.join(root,'src')},
-  stdin:{resolveDir:root,loader:'jsx',contents:`import React from 'react';import{createRoot}from'react-dom/client';import Resources from './src/components/lecture-resources';createRoot(document.getElementById('root')).render(<Resources manage={location.pathname==='/manage'}/>);`},
+  stdin:{resolveDir:root,loader:'jsx',contents:`import React from 'react';import{createRoot}from'react-dom/client';import Resources from './src/components/lecture-resources';createRoot(document.getElementById('root')).render(<Resources manage={location.pathname==='/manage'} courseId={new URLSearchParams(location.search).get('courseId') || undefined}/>);`},
   plugins:[{name:'fixture',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'fixture'}:null);b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],loader:'js',resolveDir:root}));}}]});
- let items=[],attempts=0; const errors=[];
+ let items=[],attempts=0; const errors=[], calls=[];
  const server=createServer(async(req,res)=>{
   if(req.url.startsWith('/api/open-courses')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({items:[],next:null}));return;}
   if(req.url.startsWith('/api/lecture-resources')){
+   calls.push({method:req.method,url:req.url});
    res.setHeader('Content-Type','application/json');
    if(req.method==='POST'){for await(const _ of req){};if(++attempts===1){res.statusCode=503;res.end('{}');return;}items=[{id:'11111111-1111-4111-8111-111111111111',title:'Networking sheet',topic:'Networking',description:'QA sheet',published:false,size:128}];res.statusCode=201;res.end('{}');return;}
    if(req.method==='PATCH'){let body='';for await(const c of req)body+=c;const value=JSON.parse(body);items[0].published=value.published;res.end('{}');return;}
@@ -37,6 +38,22 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   await page.getByRole('button',{name:'Publish for everyone'}).click();await page.getByRole('button',{name:'Withdraw',exact:true}).waitFor();
   await guest.reload();await guest.getByRole('link',{name:'Download PDF'}).waitFor();assert.match(await guest.getByRole('link',{name:'Download PDF'}).getAttribute('href'),/^\/api\/lecture-resources\/[^/]+\/download$/);
   await guest.goto(origin+'/resources?ar');await guest.getByRole('heading',{name:'أوراق المحاضرات'}).waitFor();await guest.getByRole('link',{name:'تنزيل PDF'}).waitFor();
-  await page.getByRole('button',{name:'Withdraw',exact:true}).click();await page.getByRole('button',{name:'Publish for everyone'}).waitFor();await guest.reload();await guest.getByText('لا توجد أوراق محاضرات متاحة بعد.').waitFor();assert.deepEqual(errors,[]);
+  await page.getByRole('button',{name:'Withdraw',exact:true}).click();await page.getByRole('button',{name:'Publish for everyone'}).waitFor();await guest.reload();await guest.getByText('لا توجد أوراق محاضرات متاحة بعد.').waitFor();
+  items=[]; calls.length=0;
+  await page.goto(origin+'/manage?courseId=number-systems');
+  await page.getByRole('heading',{name:'Upload assignment instructions'}).waitFor();
+  await page.getByLabel('Title',{exact:true}).fill('Assignment one');
+  await page.getByLabel('PDF file — up to 3 MB').setInputFiles({name:'assignment.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7 test fixture')});
+  await page.getByRole('button',{name:'Save private draft'}).click();
+  await page.getByRole('button',{name:'Publish for everyone'}).click();
+  await page.getByRole('button',{name:'Withdraw',exact:true}).waitFor();
+  await guest.goto(origin+'/resources?courseId=number-systems&ar');
+  await guest.getByRole('heading',{name:'تعليمات الواجبات',exact:true}).waitFor();
+  await guest.getByRole('link',{name:'تنزيل PDF'}).waitFor();
+  assert.match(await guest.getByRole('link',{name:'تنزيل PDF'}).getAttribute('href'),/download\?courseId=number-systems$/);
+  assert.ok(calls.some(c=>c.method==='POST')); assert.ok(calls.some(c=>c.method==='PATCH'));
+  assert.ok(calls.every(c=>new URL(c.url,origin).searchParams.get('courseId')==='number-systems'));
+  assert.equal(await guest.getByRole('button',{name:'نشر للجميع'}).count(),0);
+  assert.deepEqual(errors,[]);
  } finally {await browser?.close();await new Promise(r=>server.close(r));}
 });
