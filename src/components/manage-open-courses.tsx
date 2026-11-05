@@ -39,6 +39,8 @@ export default function ManageOpenCourses() {
   const [replacement, setReplacement] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [assignments, setAssignments] = useState<ManagedOpenCourse | null>(null);
+  const assignmentHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { assignmentHeading.current?.focus(); }, [assignments]);
   const [deleting, setDeleting] = useState<ManagedOpenCourse | null>(null);
   const [confirmation, setConfirmation] = useState('');
   const deletionInput = useRef<HTMLInputElement>(null);
@@ -85,7 +87,7 @@ export default function ManageOpenCourses() {
       <Button asChild variant="outline" className="shrink-0"><Link href="/#open-courses"><BookOpen className="me-2 h-4 w-4" aria-hidden="true" />{tr('View public courses', 'عرض الدورات العامة')}</Link></Button>
     </header>
     <AdminStudentInbox />
-    {assignments && <section className="rounded-2xl border bg-card p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">{assignments.title[lang]}</h2><Button variant="outline" onClick={() => setAssignments(null)}>{tr('Close assignments', 'إغلاق الواجبات')}</Button></div><LectureResources key={assignments.id} manage courseId={assignments.id} /></section>}
+    {assignments && <section className="rounded-2xl border bg-card p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 ref={assignmentHeading} tabIndex={-1} className="text-xl font-bold">{assignments.title[lang]}</h2><Button variant="outline" onClick={() => setAssignments(null)}>{tr('Close assignments', 'إغلاق الواجبات')}</Button></div><LectureResources key={assignments.id} manage courseId={assignments.id} /></section>}
     {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm leading-6">{errorText}</p>}{notice && <p role="status" className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm"><CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />{notice}</p>}
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
     <form className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm" onSubmit={e => { e.preventDefault(); void run(async () => {
