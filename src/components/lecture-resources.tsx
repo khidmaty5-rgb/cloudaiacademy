@@ -16,6 +16,8 @@ export default function LectureResources({ manage = false, courseId }: { manage?
   const lock = useRef(false); const generation = useRef(0);
   const tr = (en: string, arabic: string) => ar ? arabic : en;
   const scopeQuery = courseId ? '?courseId=' + encodeURIComponent(courseId) : '';
+  const Container = courseId ? 'section' : 'main';
+  const Heading = courseId ? 'h2' : 'h1';
   const headers = useCallback(async () => manage ? { Authorization: `Bearer ${await user?.getIdToken()}` } : undefined, [manage, user]);
   const load = useCallback(async (after?: string) => {
     const current = ++generation.current;
@@ -59,8 +61,8 @@ export default function LectureResources({ manage = false, courseId }: { manage?
     } catch { setError('save'); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <section dir={dir} aria-label={courseId ? tr('Assignment instructions', 'تعليمات الواجبات') : tr('Lecture resources', 'أوراق المحاضرات')} className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-    <header className="space-y-2"><h2 className="text-3xl font-bold">{courseId ? tr('Assignment instructions', 'تعليمات الواجبات') : tr('Lecture resources', 'أوراق المحاضرات')}</h2>
+  return <Container dir={dir} aria-label={courseId ? tr('Assignment instructions', 'تعليمات الواجبات') : tr('Lecture resources', 'أوراق المحاضرات')} className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+    <header className="space-y-2"><Heading className="text-3xl font-bold">{courseId ? tr('Assignment instructions', 'تعليمات الواجبات') : tr('Lecture resources', 'أوراق المحاضرات')}</Heading>
       <p className="text-muted-foreground">{manage ? tr('Upload a PDF as a private draft, then publish it for everyone. Published files require no account.', 'ارفع ملف PDF كمسودة خاصة، ثم انشره للجميع دون الحاجة إلى حساب.') : tr('Download lecture sheets shared by the academy. No registration required.', 'حمّل أوراق المحاضرات التي تنشرها الأكاديمية دون تسجيل أو إنشاء حساب.')}</p></header>
     {!courseId && <OpenCoursesSection />}
     {courseId && <p className="text-sm">{manage ? tr('These instructions belong to this course. Save a PDF draft, then publish. To replace a file, upload the new version and withdraw the old one. Student answers remain private in the inbox.', 'تخص هذه التعليمات هذه الدورة. احفظ مسودة PDF ثم انشرها. لاستبدال ملف، ارفع النسخة الجديدة واسحب القديمة. تبقى إجابات الطلاب خاصة في الوارد.') : tr('Download your assignment below. Then use the submission form below the instructions, entering the same assignment title. Keep the private receipt to check your review.', 'نزّل واجبك أدناه ثم استخدم نموذج الإرسال أسفل التعليمات وأدخل عنوان الواجب نفسه. احتفظ بالإيصال الخاص لمتابعة المراجعة.')}</p>}
@@ -87,5 +89,5 @@ export default function LectureResources({ manage = false, courseId }: { manage?
         {manage && <><span className="text-sm">{item.published ? tr('Public', 'منشور') : tr('Private draft', 'مسودة خاصة')}</span><Button disabled={busy || loading} onClick={() => void publish(item)}>{item.published ? tr('Withdraw', 'سحب النشر') : tr('Publish for everyone', 'نشر للجميع')}</Button></>}
       </div></article>)}</div>
     {next && <Button variant="outline" disabled={loading || busy} onClick={() => void load(next)}>{tr('Load more', 'تحميل المزيد')}</Button>}
-  </section>;
+  </Container>;
 }
