@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!lectureIdValid(id)) throw new Error('NOT_FOUND');
     const scope = await resourceScope(_request, false);
     const doc = await getFirebaseAdminFirestore().doc(`${scope.collection}/${id}`).get();
-    if (!doc.exists || doc.data()?.published !== true) throw new Error('NOT_FOUND');
+    if (!doc.exists || doc.data()?.published !== true || doc.data()?.deleting) throw new Error('NOT_FOUND');
     // Never accept a caller-supplied bucket/key, or serve certificates/lesson keys.
     const object = await getS3Client().send(new GetObjectCommand({ Bucket: lectureBucket(), Key: `${scope.prefix}/${id}.pdf` }));
     if (!object.Body) throw new Error('NOT_FOUND');

@@ -56,8 +56,29 @@ export async function PATCH(request: Request) {
     const ref = getFirebaseAdminFirestore().doc(`${scope.collection}/${data.id}`);
     await getFirebaseAdminFirestore().runTransaction(async transaction => {
       const doc = await transaction.get(ref); if (!doc.exists) throw new Error('NOT_FOUND');
+      if (doc.data()?.deleting) throw new Error('NOT_FOUND');
       transaction.update(ref, { published: data.published, updatedAt: new Date().toISOString() });
     });
+    return Response.json({ ok: true });
+  } catch (error) { return lectureError(error); }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await requireLectureAdmin(request);
+    const scope = await resourceScope(request, true);
+    const data = JSON.parse((await readBoundedBody(request, 1024)).toString());
+    if (typeof data.id !== 'string' || !lectureIdValid(data.id) || data.confirmation !== `DELETE ${data.id}`) throw new Error('INVALID_REQUEST');
+    const db = getFirebaseAdminFirestore(); const ref = db.doc(`${scope.collection}/${data.id}`);
+    const exists = await db.runTransaction(async tx => {
+      const doc = await tx.get(ref); if (!doc.exists) return false;
+      tx.update(ref, { published: false, deleting: true, updatedAt: new Date().toISOString() }); return true;
+    });
+    if (!exists) return Response.json({ ok: true });
+    // Block downloads and republishing before storage deletion. Failed cleanup is retryable.
+    const bucket = lectureBucket(); await requirePrivateLectureBucket(bucket);
+    await getS3Client().send(new DeleteObjectCommand({ Bucket: bucket, Key: `${scope.prefix}/${data.id}.pdf` }));
+    await db.runTransaction(async tx => { const doc = await tx.get(ref); if (doc.exists && doc.data()?.deleting) tx.delete(ref); });
     return Response.json({ ok: true });
   } catch (error) { return lectureError(error); }
 }

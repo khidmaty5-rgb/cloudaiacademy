@@ -15,6 +15,13 @@ instructions above the private submission form on that course's public page.
 They enter the same assignment title when submitting their PDF/JPEG/PNG answer.
 There is not yet a structured assignment ID, gradebook or deadline enforcement.
 To replace instructions, upload and publish a new version, then withdraw the old one.
+Administrators can also choose **Delete / حذف** on an instruction or general
+lecture PDF card. Confirmation names the file and warns that deletion cannot be
+undone. The API verifies current administrator access and an ID-bound confirmation,
+blocks publication/downloads first, removes only the server-derived PDF object,
+then removes its metadata. Failed cleanup leaves a nonpublic **Continue deletion**
+entry. Student answers and Q&A are not touched. Storage-provider historical
+versions/backups and already downloaded copies are not erased by this operation.
 
 Course-specific metadata lives in `courseAssignmentResources/{courseId}/items/{id}`;
 PDFs use `course-assignments/{courseId}/{id}.pdf` in the existing private bucket.

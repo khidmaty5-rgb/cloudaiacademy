@@ -14,6 +14,7 @@ export default function LectureResources({ manage = false, courseId }: { manage?
   const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const lock = useRef(false); const generation = useRef(0);
+  const [deleted, setDeleted] = useState(false);
   const tr = (en: string, arabic: string) => ar ? arabic : en;
   const scopeQuery = courseId ? '?courseId=' + encodeURIComponent(courseId) : '';
   const Container = courseId ? 'section' : 'main';
@@ -40,6 +41,7 @@ export default function LectureResources({ manage = false, courseId }: { manage?
 
   async function upload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (lock.current) return;
+    setDeleted(false);
     const form = event.currentTarget; const data = new FormData(form); const file = data.get('file');
     if (!(file instanceof File) || !file.size || file.size > MAX_LECTURE_PDF_BYTES || !file.name.toLowerCase().endsWith('.pdf')) { setError('file'); return; }
     lock.current = true; setBusy(true); setError(''); setNotice('');
@@ -51,7 +53,18 @@ export default function LectureResources({ manage = false, courseId }: { manage?
     } catch { setError('upload'); }
     finally { lock.current = false; setBusy(false); }
   }
+  async function remove(item: LectureResource) {
+    if (lock.current || !window.confirm(tr('Permanently delete this instruction PDF? Student answers and questions will NOT be deleted. This cannot be undone.', 'حذف ملف التعليمات نهائيًا؟ لن تُحذف إجابات الطلاب أو أسئلتهم. لا يمكن التراجع عن الحذف.') + '\n\n' + item.title)) return;
+    lock.current = true; setBusy(true); setError(''); setNotice(''); setDeleted(false);
+    try {
+      const response = await fetch('/api/lecture-resources' + scopeQuery, { method: 'DELETE', headers: { ...await headers(), 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, confirmation: 'DELETE ' + item.id }) });
+      if (!response.ok) throw new Error('DELETE_FAILED');
+      await load(); setNotice(''); setDeleted(true);
+    } catch { await load(); setError('delete'); }
+    finally { lock.current = false; setBusy(false); }
+  }
   async function publish(item: LectureResource) {
+    setDeleted(false);
     if (lock.current) return; lock.current = true; setBusy(true); setError(''); setNotice('');
     try {
       const response = await fetch('/api/lecture-resources' + scopeQuery, { method: 'PATCH', headers: { ...await headers(), 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, published: !item.published }) });
@@ -65,6 +78,8 @@ export default function LectureResources({ manage = false, courseId }: { manage?
     <header className="space-y-2"><Heading className="text-3xl font-bold">{courseId ? tr('Assignment instructions', 'تعليمات الواجبات') : tr('Lecture resources', 'أوراق المحاضرات')}</Heading>
       <p className="text-muted-foreground">{manage ? tr('Upload a PDF as a private draft, then publish it for everyone. Published files require no account.', 'ارفع ملف PDF كمسودة خاصة، ثم انشره للجميع دون الحاجة إلى حساب.') : tr('Download lecture sheets shared by the academy. No registration required.', 'حمّل أوراق المحاضرات التي تنشرها الأكاديمية دون تسجيل أو إنشاء حساب.')}</p></header>
     {!courseId && <OpenCoursesSection />}
+    {deleted && <p role="status">{tr('Instruction PDF deleted. Student submissions are unchanged.', 'تم حذف ملف التعليمات. لم تتغير مشاركات الطلاب.')}</p>}
+    {error === 'delete' && <p role="alert">{tr('Deletion could not be confirmed. Refresh and use Continue deletion if shown. Public access is blocked once deletion starts.', 'تعذّر تأكيد الحذف. حدّث القائمة واستخدم متابعة الحذف إن ظهر. يُحظر الوصول العام عند بدء الحذف.')}</p>}
     {courseId && <p className="text-sm">{manage ? tr('These instructions belong to this course. Save a PDF draft, then publish. To replace a file, upload the new version and withdraw the old one. Student answers remain private in the inbox.', 'تخص هذه التعليمات هذه الدورة. احفظ مسودة PDF ثم انشرها. لاستبدال ملف، ارفع النسخة الجديدة واسحب القديمة. تبقى إجابات الطلاب خاصة في الوارد.') : tr('Download your assignment below. Then use the submission form below the instructions, entering the same assignment title. Keep the private receipt to check your review.', 'نزّل واجبك أدناه ثم استخدم نموذج الإرسال أسفل التعليمات وأدخل عنوان الواجب نفسه. احتفظ بالإيصال الخاص لمتابعة المراجعة.')}</p>}
     {manage && <form onSubmit={upload} className="space-y-4 rounded-2xl border bg-card p-5">
       <h3 className="text-xl font-semibold">{courseId ? tr('Upload assignment instructions', 'رفع تعليمات الواجب') : tr('Upload a lecture sheet', 'رفع ورقة محاضرة')}</h3>
@@ -86,7 +101,7 @@ export default function LectureResources({ manage = false, courseId }: { manage?
       <p className="text-sm text-muted-foreground">{item.topic || tr('Lecture sheet', 'ورقة محاضرة')} · PDF · {Math.ceil(item.size / 1024)} KB</p>
       <h2 className="break-words text-xl font-semibold">{item.title}</h2><p className="whitespace-pre-wrap break-words text-muted-foreground">{item.description}</p>
       <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">{item.published && <Button asChild variant="outline"><a href={`/api/lecture-resources/${item.id}/download` + scopeQuery}>{tr('Download PDF', 'تنزيل PDF')}</a></Button>}
-        {manage && <><span className="text-sm">{item.published ? tr('Public', 'منشور') : tr('Private draft', 'مسودة خاصة')}</span><Button disabled={busy || loading} onClick={() => void publish(item)}>{item.published ? tr('Withdraw', 'سحب النشر') : tr('Publish for everyone', 'نشر للجميع')}</Button></>}
+        {manage && <><span className="text-sm">{item.deleting ? tr('Deletion pending', 'الحذف معلق') : item.published ? tr('Public', 'منشور') : tr('Private draft', 'مسودة خاصة')}</span>{!item.deleting && <Button disabled={busy || loading} onClick={() => void publish(item)}>{item.published ? tr('Withdraw', 'سحب النشر') : tr('Publish for everyone', 'نشر للجميع')}</Button>}<Button variant="destructive" disabled={busy || loading} onClick={() => void remove(item)}>{item.deleting ? tr('Continue deletion', 'متابعة الحذف') : tr('Delete', 'حذف')}</Button></>}
       </div></article>)}</div>
     {next && <Button variant="outline" disabled={loading || busy} onClick={() => void load(next)}>{tr('Load more', 'تحميل المزيد')}</Button>}
   </Container>;
