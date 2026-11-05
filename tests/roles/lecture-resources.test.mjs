@@ -19,7 +19,7 @@ const query = (prefix, published=false, after='', count=25) => ({
  where:()=>query(prefix,true,after,count),orderBy:()=>query(prefix,published,after,count),limit:n=>query(prefix,published,after,n),startAfter:id=>query(prefix,published,id,count),
  get:async()=>{const docs=[...records.keys()].filter(k=>k.startsWith(prefix+'/')).map(snap).filter(s=>!published||s.data().published===true).filter(s=>s.id>after).sort((a,b)=>a.id.localeCompare(b.id)).slice(0,count);return {docs,size:docs.length};}
 });
-export const getFirebaseAdminFirestore = () => ({doc:ref,collection:query,runTransaction:fn=>fn({get:r=>r.get(),update:(r,d)=>records.set(r.path,{...records.get(r.path),...d})})});
+export const getFirebaseAdminFirestore = () => ({doc:ref,collection:query,runTransaction:fn=>fn({get:r=>r.get(),update:(r,d)=>records.set(r.path,{...records.get(r.path),...d}),delete:r=>records.delete(r.path)})});
 export const getFirebaseAdminAuth=()=>({verifyIdToken:async(token,revoked)=>{if(!revoked||!['admin','student','teacher','stale'].includes(token)) throw Error('invalid'); return {uid:token,role:'admin'};}});
 export const FieldPath={documentId:()=> '__name__'};
 export class PutObjectCommand {constructor(input){this.input=input;this.kind='put';}}
@@ -87,6 +87,23 @@ test('public or unverifiable storage fails closed before uploading any file',asy
   seed();privacy.mode=mode;const response=await upload();assert.equal(response.status,503);
   assert.equal((await response.json()).error,'STORAGE_PRIVACY_UNVERIFIED');assert.equal(objects.size,0);
  } privacy.mode='private';
+});
+
+test('confirmed deletion is admin-only, retryable and isolated from student work',async()=>{
+ seed(); const {id}=await (await upload()).json(); await patch(id,true);
+ records.set('studentInbox/keep',{message:'student answer'});
+ const remove=(role='admin',confirmation='DELETE '+id,scope='')=>api.DELETE(new Request(base+scope,{method:'DELETE',headers:auth(role),body:JSON.stringify({id,confirmation})}));
+ for(const role of [null,'student','teacher']) assert.ok([401,403].includes((await remove(role)).status));
+ assert.equal((await remove('admin','wrong')).status,400);
+ assert.equal((await remove('admin','DELETE '+id,'?courseId=number-systems')).status,200);
+ assert.equal(objects.size,1); assert.ok(records.has('lectureResources/'+id));
+ privacy.mode='denied'; assert.equal((await remove()).status,503);
+ assert.equal((await getDownload(id)).status,404);
+ assert.equal((await patch(id,true)).status,404);
+ privacy.mode='private'; assert.equal((await remove()).status,200);
+ assert.equal(objects.size,0); assert.equal(records.has('lectureResources/'+id),false);
+ assert.equal((await remove()).status,200);
+ assert.deepEqual(records.get('studentInbox/keep'),{message:'student answer'});
 });
 
 test('course assignment PDFs are private drafts, isolated from general resources and withdrawn with course', async () => {

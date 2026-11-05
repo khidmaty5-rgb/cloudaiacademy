@@ -21,6 +21,7 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   if(req.url.startsWith('/api/lecture-resources')){
    calls.push({method:req.method,url:req.url});
    res.setHeader('Content-Type','application/json');
+   if(req.method==='DELETE'){let body='';for await(const c of req)body+=c;const value=JSON.parse(body);assert.equal(value.confirmation,'DELETE '+items[0].id);items=[];res.end('{}');return;}
    if(req.method==='POST'){for await(const _ of req){};if(++attempts===1){res.statusCode=503;res.end('{}');return;}items=[{id:'11111111-1111-4111-8111-111111111111',title:'Networking sheet',topic:'Networking',description:'QA sheet',published:false,size:128}];res.statusCode=201;res.end('{}');return;}
    if(req.method==='PATCH'){let body='';for await(const c of req)body+=c;const value=JSON.parse(body);items[0].published=value.published;res.end('{}');return;}
    res.end(JSON.stringify({items:req.url.includes('manage=1')?items:items.filter(x=>x.published),next:null}));return;
@@ -54,6 +55,13 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   assert.ok(calls.some(c=>c.method==='POST')); assert.ok(calls.some(c=>c.method==='PATCH'));
   assert.ok(calls.every(c=>new URL(c.url,origin).searchParams.get('courseId')==='number-systems'));
   assert.equal(await guest.getByRole('button',{name:'نشر للجميع'}).count(),0);
+  page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'Delete',exact:true}).click();assert.equal(items.length,1);
+  await page.goto(origin+'/manage?courseId=number-systems&ar');
+  await page.getByRole('button',{name:'حذف',exact:true}).waitFor();
+  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'حذف',exact:true}).click();
+  await page.getByText('تم حذف ملف التعليمات. لم تتغير مشاركات الطلاب.').waitFor();
+  assert.equal(items.length,0);
+  assert.equal(await page.getByRole('button',{name:'حذف',exact:true}).count(),0);
   assert.deepEqual(errors,[]);
  } finally {await browser?.close();await new Promise(r=>server.close(r));}
 });
