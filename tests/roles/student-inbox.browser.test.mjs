@@ -24,5 +24,8 @@ test('guest assignment confirmation, private question and admin reply, EN/AR mob
     await page.goto(origin+'/admin');await page.getByRole('button',{name:'Load / refresh inbox'}).click();await page.getByRole('heading',{name:'QA assignment'}).waitFor();await page.getByLabel('Private reply').fill('Good work!');await page.getByLabel('Status',{exact:true}).selectOption('reviewed');await page.getByRole('button',{name:'Save reply and status'}).click();await page.getByText('Reply and status saved.').waitFor();
     await page.goto(receipt);await page.getByRole('button',{name:'Check status and reply'}).click();await page.getByText('Good work!').waitFor();await page.getByText('Reviewed',{exact:true}).waitFor();
     await page.goto(origin+'/?ar');await page.getByLabel('أريد',{exact:true}).selectOption('question');await page.getByLabel('عنوان الواجب / الدرس').fill('سؤال عن الدرس');await page.getByLabel('السؤال أو الملاحظة').fill('كيف نحول العدد؟');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'إرسال خاص',exact:true}).click();await page.getByText('تم الاستلام بنجاح').waitFor();await page.getByText('قيد المراجعة',{exact:true}).waitFor();assert.equal(entries.size,2);assert.equal(await page.locator('section').getAttribute('dir'),'rtl');assert.deepEqual(errors,[]);
+    await page.goto(origin+'/admin?ar');
+    await page.getByRole('heading',{name:'سؤال عن الدرس',exact:true}).waitFor();
+    assert.equal(await page.getByText('كيف نحول العدد؟',{exact:true}).count(),1);
   }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 });
