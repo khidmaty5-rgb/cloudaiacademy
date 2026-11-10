@@ -69,6 +69,7 @@ export default function EditCoursePage() {
                     <Separator />
                   </>
                 )}
+                <a className="underline" href={'/assignments/regular/'+encodeURIComponent(slug)+'?manage=1'}>{lang === 'ar' ? 'إدارة الواجبات' : 'Manage assignments'}</a>
                 <LessonManager course={course as any} />
               </div>
             </>

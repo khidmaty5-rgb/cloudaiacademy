@@ -23,14 +23,19 @@ export async function requirePrivateLectureBucket(bucket: string) {
   } catch { throw new Error('STORAGE_PRIVACY_UNVERIFIED'); }
 }
 
-export async function requireLectureAdmin(request: Request) {
+export async function lectureActor(request: Request) {
   const token = request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1];
   if (!token) throw new Error('UNAUTHORIZED');
   let uid: string;
   try { uid = (await getFirebaseAdminAuth().verifyIdToken(token, true)).uid; }
   catch { throw new Error('UNAUTHORIZED'); }
   const profile = await getFirebaseAdminFirestore().doc(`users/${uid}`).get();
-  if (profile.data()?.role !== 'admin') throw new Error('FORBIDDEN');
+  return { uid, role: profile.data()?.role, profile: profile.data() };
+}
+
+export async function requireLectureAdmin(request: Request) {
+  const { uid, role } = await lectureActor(request);
+  if (role !== 'admin') throw new Error('FORBIDDEN');
   return uid;
 }
 

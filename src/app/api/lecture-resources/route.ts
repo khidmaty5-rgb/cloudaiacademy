@@ -5,14 +5,13 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getFirebaseAdminFirestore } from '@/server/firebase-admin';
 import { getS3Client } from '@/lib/s3';
 import { lectureIdValid, lectureMetadata, MAX_LECTURE_PDF_BYTES, publicLecture } from '@/lib/lecture-resources';
-import { requireLectureAdmin, lectureBucket, requirePrivateLectureBucket, readBoundedBody, validateLecturePdf, lectureError } from '@/server/lecture-resources';
+import { lectureBucket, requirePrivateLectureBucket, readBoundedBody, validateLecturePdf, lectureError } from '@/server/lecture-resources';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url); const manage = url.searchParams.get('manage') === '1';
-    if (manage) await requireLectureAdmin(request);
     const cursor = url.searchParams.get('after');
     if (cursor && !lectureIdValid(cursor)) throw new Error('INVALID_REQUEST');
     const scope = await resourceScope(request, manage);
@@ -26,7 +25,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const uid = await requireLectureAdmin(request);
     const scope = await resourceScope(request, true);
     const body = await readBoundedBody(request, MAX_LECTURE_PDF_BYTES + 16384);
     const form = await new Response(body, { headers: { 'Content-Type': request.headers.get('content-type') || '' } }).formData();
@@ -38,7 +36,7 @@ export async function POST(request: Request) {
     await requirePrivateLectureBucket(bucket);
     await getS3Client().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: 'application/pdf' }));
     try {
-      await getFirebaseAdminFirestore().doc(`${scope.collection}/${id}`).create({ ...metadata, published: false, size: bytes.length, key, createdBy: uid, createdAt: new Date().toISOString() });
+      await getFirebaseAdminFirestore().doc(`${scope.collection}/${id}`).create({ ...metadata, published: false, size: bytes.length, key, createdBy: scope.uid, createdAt: new Date().toISOString() });
     } catch (error) {
       await getS3Client().send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => undefined);
       throw error;
@@ -49,7 +47,6 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireLectureAdmin(request);
     const scope = await resourceScope(request, true);
     const data = JSON.parse((await readBoundedBody(request, 1024)).toString());
     if (typeof data.id !== 'string' || !lectureIdValid(data.id) || typeof data.published !== 'boolean') throw new Error('INVALID_REQUEST');
@@ -65,7 +62,6 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await requireLectureAdmin(request);
     const scope = await resourceScope(request, true);
     const data = JSON.parse((await readBoundedBody(request, 1024)).toString());
     if (typeof data.id !== 'string' || !lectureIdValid(data.id) || data.confirmation !== `DELETE ${data.id}`) throw new Error('INVALID_REQUEST');
