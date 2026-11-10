@@ -29,6 +29,7 @@ function page(name, role, error = null, lang = 'en', data = []) {
     '@/components/ui/card': { Card: box, CardContent: box, CardHeader: box, CardTitle: box },
     '@/components/ui/table': Object.fromEntries(['Table','TableBody','TableCell','TableHead','TableHeader','TableRow'].map(k => [k, box])),
     '@/components/ui/button': { Button: box },
+    '@/components/open-assignment-staff': { MyOpenAssignments: () => null },
     '@/lib/course-images': { getCourseImage: () => ({ src: '/image.png' }) },
     'next/link': box, 'next/image': () => null,
     '@/components/LiveSessionButton': ({ label }) => React.createElement('button', null, label),
