@@ -14,13 +14,13 @@ export const records = new Map(); export const objects = new Map();
 export const courseState = { published: true, removed: false };
 export async function openCourseRecord() { if (courseState.removed) throw Error('NOT_FOUND'); return { published: courseState.published }; }
 const snap = path => ({id:path.split('/').at(-1),exists:records.has(path),data:()=>records.get(path)});
-const ref = path => ({path,get:async()=>snap(path),create:async data=>records.set(path,data)});
+const ref = path => ({path,get:async()=>snap(path),set:async data=>records.set(path,data),delete:async()=>records.delete(path),create:async data=>records.set(path,data)});
 const query = (prefix, published=false, after='', count=25) => ({
  where:()=>query(prefix,true,after,count),orderBy:()=>query(prefix,published,after,count),limit:n=>query(prefix,published,after,n),startAfter:id=>query(prefix,published,id,count),
  get:async()=>{const docs=[...records.keys()].filter(k=>k.startsWith(prefix+'/')).map(snap).filter(s=>!published||s.data().published===true).filter(s=>s.id>after).sort((a,b)=>a.id.localeCompare(b.id)).slice(0,count);return {docs,size:docs.length};}
 });
 export const getFirebaseAdminFirestore = () => ({doc:ref,collection:query,runTransaction:fn=>fn({get:r=>r.get(),update:(r,d)=>records.set(r.path,{...records.get(r.path),...d}),delete:r=>records.delete(r.path)})});
-export const getFirebaseAdminAuth=()=>({verifyIdToken:async(token,revoked)=>{if(!revoked||!['admin','student','teacher','stale'].includes(token)) throw Error('invalid'); return {uid:token,role:'admin'};}});
+export const getFirebaseAdminAuth=()=>({getUserByEmail:async email=>({uid:email.split('@')[0]}),verifyIdToken:async(token,revoked)=>{if(!revoked||!['admin','student','teacher','stale'].includes(token)) throw Error('invalid'); return {uid:token,role:'admin'};}});
 export const FieldPath={documentId:()=> '__name__'};
 export class PutObjectCommand {constructor(input){this.input=input;this.kind='put';}}
 export class DeleteObjectCommand {constructor(input){this.input=input;this.kind='delete';}}
@@ -36,7 +36,8 @@ if(command.kind==='put') objects.set(Key,Body); if(command.kind==='delete') obje
 const lib = await compile('src/lib/lecture-resources.ts');
 const server = await compile('src/server/lecture-resources.ts', { 'server-only':url(''), 'pdf-lib':import.meta.resolve('pdf-lib'), '@/server/firebase-admin':fake, '@/lib/lecture-resources':lib, '@aws-sdk/client-s3':fake, '@/lib/s3':fake });
 const replacements = { '@/server/firebase-admin':fake, '@/server/lecture-resources':server, '@/lib/lecture-resources':lib, '@/lib/s3':fake, '@aws-sdk/client-s3':fake, 'firebase-admin/firestore':fake };
-replacements['@/server/course-assignment-resources'] = await compile('src/server/course-assignment-resources.ts', { 'server-only': url(''), '@/server/open-courses': fake, '@/lib/lecture-resources': lib });
+replacements['@/server/course-assignment-resources'] = await compile('src/server/course-assignment-resources.ts', { ...replacements, 'server-only': url(''), '@/server/open-courses': fake, '@/lib/course-price':await compile('src/lib/course-price.ts'), '@/lib/roles':await compile('src/lib/roles.ts',{'@/lib/user-roles':await compile('functions/src/user-roles.ts')}) });
+const staffApi=await import(await compile('src/app/api/assignment-instructors/route.ts',{...replacements,'@/server/open-courses':fake,'@/lib/open-course-management':url("export const validOpenCourseId=id=>id==='number-systems'")}));
 const api = await import(await compile('src/app/api/lecture-resources/route.ts', replacements));
 const download = await import(await compile('src/app/api/lecture-resources/[id]/download/route.ts', replacements));
 const { records, objects, privacy, courseState } = await import(fake);
@@ -127,4 +128,33 @@ test('course assignment PDFs are private drafts, isolated from general resources
  assert.equal((await api.GET(new Request(scoped+'&manage=1',{headers:auth('admin')}))).status,404);
  courseState.removed = false; courseState.published = true;
  assert.equal((await api.GET(new Request(base+'?courseId=../private'))).status,404);
+});
+
+test('regular course assignments enforce ownership, enrollment and paid access on every download',async()=>{
+ seed();const u=base+'?kind=regular&courseId=demo';records.set('courses/demo',{status:'PUBLISHED',instructorIds:['teacher'],price:20});
+ const data=new FormData();data.set('title','Exercise');data.set('file',new Blob([await pdf()],{type:'application/pdf'}),'instructions.pdf');
+ const saved=await api.POST(new Request(u,{method:'POST',headers:auth('teacher'),body:data}));assert.equal(saved.status,201);
+ const {id}=await saved.json();const file=t=>download.GET(new Request(u,{headers:auth(t)}),{params:Promise.resolve({id})});
+ const publish=()=>api.PATCH(new Request(u,{method:'PATCH',headers:auth('teacher'),body:JSON.stringify({id,published:true})}));
+ assert.equal((await publish()).status,200);assert.equal((await file(null)).status,401);assert.equal((await file('student')).status,403);
+ records.set('users/student/enrollments/demo',{});assert.equal((await file('student')).status,200);
+ records.set('settings/payment',{paywall:{enabled:true,defaultRequirePayment:true}});assert.equal((await file('student')).status,403);
+ records.set('users/student/coursePurchases/demo',{});assert.equal((await file('student')).status,200);
+ const remove=t=>api.DELETE(new Request(u,{method:'DELETE',headers:auth(t),body:JSON.stringify({id,confirmation:'DELETE '+id})}));
+ records.set('courses/demo',{status:'PUBLISHED',ownerId:'someone-else'});assert.equal((await remove('teacher')).status,403);
+ records.set('courses/demo',{status:'PUBLISHED',ownerId:'teacher'});assert.equal((await remove('student')).status,403);assert.equal((await remove('teacher')).status,200);
+ assert.equal((await file('admin')).status,404);
+});
+test('an open-course instructor grant is scoped and revocable',async()=>{
+ seed();const list=id=>api.GET(new Request(base+'?manage=1&courseId='+id,{headers:auth('teacher')}));
+ assert.equal((await list('number-systems')).status,403);records.set('openAssignmentStaff/number-systems',{teacherUid:'teacher'});
+ assert.equal((await list('number-systems')).status,200);assert.equal((await list('11111111-1111-4111-8111-111111111111')).status,403);
+ records.delete('openAssignmentStaff/number-systems');assert.equal((await list('number-systems')).status,403);
+});
+test('only administrators can grant or remove open course instructor access',async()=>{
+ seed();const change=(actor,email)=>staffApi.PUT(new Request(base,{method:'PUT',headers:auth(actor),body:JSON.stringify({courseId:'number-systems',email})}));
+ for(const actor of ['student','teacher']) assert.equal((await change(actor,'teacher@example.test')).status,403);
+ assert.equal((await change('admin','student@example.test')).status,400);
+ assert.equal((await change('admin','teacher@example.test')).status,200);assert.equal(records.get('openAssignmentStaff/number-systems').teacherUid,'teacher');
+ assert.equal((await change('admin','')).status,200);assert.equal(records.has('openAssignmentStaff/number-systems'),false);
 });

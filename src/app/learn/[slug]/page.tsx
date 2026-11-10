@@ -475,6 +475,7 @@ export default function LearnCoursePage() {
       <main className="flex-1 py-10 md:py-16">
         <div className="container max-w-3xl mx-auto">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">{course.title}</h1>
+          {canAccessCourseContent && <a className="underline" href={'/assignments/regular/'+encodeURIComponent(course.id)}>{ar?'واجبات الدورة':'Course assignments'}</a>}
           <div className="mt-4">
             <div className='flex justify-between items-center mb-1'>
                  <p className="text-sm text-muted-foreground">{ar ? 'تقدم الدورة' : 'Course Progress'}</p>

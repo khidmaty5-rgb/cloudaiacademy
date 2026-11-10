@@ -14,7 +14,11 @@ describe('client route access matrix', () => {
     const files=await readdir(new URL('../../src/app/',import.meta.url),{recursive:true});
     for(const file of files.filter(path=>path.replaceAll('\\','/').endsWith('/page.tsx'))){
       const path='/'+file.replaceAll('\\','/').replace(/\/page\.tsx$/,'').split('/').filter(part=>!/^\(.*\)$/.test(part)).map(part=>/^\[.*\]$/.test(part)?'sample':part).join('/');
-      assert.notEqual(policy.routePolicyForPath(path).kind,'denied',path);
+      if (file.replaceAll('\\','/').includes('assignments/[kind]/')) {
+        assert.equal(policy.routePolicyForPath('/assignments/open/sample').kind,'public');
+        assert.equal(policy.routePolicyForPath('/assignments/regular/sample').kind,'authenticated');
+        assert.equal(policy.routePolicyForPath(path).kind,'denied');
+      } else assert.notEqual(policy.routePolicyForPath(path).kind,'denied',path);
     }
   });
   it('denies unregistered protected routes including exact roots, without blocking public staff login', () => {

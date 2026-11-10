@@ -1,5 +1,6 @@
 'use client';
 
+import { MyOpenAssignments } from '@/components/open-assignment-staff';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { useUser, useCollection, useMemoFirebase } from '@/firebase';
@@ -62,6 +63,7 @@ export default function TeacherCoursesPage() {
   return (
     <div className="space-y-6">
       <h1 className="font-headline text-3xl md:text-4xl font-bold">{ar ? 'دوراتي' : 'My Courses'}</h1>
+      <MyOpenAssignments />
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : courses.length === 0 ? (
@@ -86,6 +88,7 @@ export default function TeacherCoursesPage() {
                   <TableCell className="space-x-2">
                     <Link href={`/courses/${course.slug}`} className="text-accent hover:underline">{ar ? 'عرض' : 'View'}</Link>
                     <Link href={`/admin/courses/edit/${course.slug}`} className="text-accent hover:underline">{ar ? 'إدارة الدروس' : 'Manage Lessons'}</Link>
+                    <Link className="text-accent underline" href={'/assignments/regular/'+encodeURIComponent(course.id)+'?manage=1'}>{ar ? 'الواجبات' : 'Assignments'}</Link>
                     <LiveSessionButton course={course as any} label={ar ? 'بدء بث مباشر' : 'Start Live'} />
                   </TableCell>
                 </TableRow>
