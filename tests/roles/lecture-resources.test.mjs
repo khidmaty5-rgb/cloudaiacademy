@@ -151,6 +151,23 @@ test('an open-course instructor grant is scoped and revocable',async()=>{
  assert.equal((await list('number-systems')).status,200);assert.equal((await list('11111111-1111-4111-8111-111111111111')).status,403);
  records.delete('openAssignmentStaff/number-systems');assert.equal((await list('number-systems')).status,403);
 });
+test('assignment edits keep PDF, visibility and student work intact and enforce course access',async()=>{
+ seed();courseState.published=true;courseState.removed=false;
+ const id='11111111-1111-4111-8111-111111111111', path='courseAssignmentResources/number-systems/items/'+id;
+ records.set(path,{title:'Before',topic:'',description:'',published:false,key:'original.pdf'});
+ records.set('studentInbox/keep',{message:'answer'});
+ const edit=(token,extra={})=>api.PUT(new Request(base+'?courseId=number-systems',{method:'PUT',headers:auth(token),body:JSON.stringify({id,title:' Edited ',topic:'Topic',description:'تفاصيل الواجب',...extra})}));
+ assert.equal((await edit(null)).status,401);assert.equal((await edit('teacher')).status,403);
+ records.set('openAssignmentStaff/number-systems',{teacherUid:'teacher'});
+ assert.equal((await edit('teacher',{published:true,key:'other.pdf'})).status,200);
+ assert.equal(records.get(path).title,'Edited');assert.equal(records.get(path).published,false);assert.equal(records.get(path).key,'original.pdf');
+ records.set(path,{...records.get(path),published:true});
+ assert.equal((await edit('admin')).status,200);assert.equal(records.get(path).published,true);
+ assert.equal((await edit('teacher',{title:' '})).status,400);
+ records.set(path,{...records.get(path),deleting:true});assert.equal((await edit('teacher')).status,404);
+ assert.deepEqual(records.get('studentInbox/keep'),{message:'answer'});
+});
+
 test('only administrators can grant or remove open course instructor access',async()=>{
  seed();const change=(actor,email)=>staffApi.PUT(new Request(base,{method:'PUT',headers:auth(actor),body:JSON.stringify({courseId:'number-systems',email})}));
  for(const actor of ['student','teacher']) assert.equal((await change(actor,'teacher@example.test')).status,403);

@@ -60,6 +60,26 @@ export async function PATCH(request: Request) {
   } catch (error) { return lectureError(error); }
 }
 
+// Edit the description of an existing assignment; never replace its PDF or publication state.
+export async function PUT(request: Request) {
+  try {
+    const scope = await resourceScope(request, true);
+    if (!new URL(request.url).searchParams.get('courseId')) throw new Error('INVALID_REQUEST');
+    const data = JSON.parse((await readBoundedBody(request, 8192)).toString());
+    if (!data || typeof data.id !== 'string' || !lectureIdValid(data.id) ||
+        typeof data.title !== 'string' || typeof data.topic !== 'string' || typeof data.description !== 'string') throw new Error('INVALID_REQUEST');
+    const metadata = lectureMetadata(data);
+    const db = getFirebaseAdminFirestore();
+    const ref = db.doc(`${scope.collection}/${data.id}`);
+    await db.runTransaction(async tx => {
+      const doc = await tx.get(ref);
+      if (!doc.exists || doc.data()?.deleting) throw new Error('NOT_FOUND');
+      tx.update(ref, { ...metadata, updatedAt: new Date().toISOString() });
+    });
+    return Response.json(metadata, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (error) { return lectureError(error); }
+}
+
 export async function DELETE(request: Request) {
   try {
     const scope = await resourceScope(request, true);

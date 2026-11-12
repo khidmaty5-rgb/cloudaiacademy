@@ -20,6 +20,7 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   if(req.url.startsWith('/api/open-courses')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({items:[],next:null}));return;}
   if(req.url.startsWith('/api/lecture-resources')){
    calls.push({method:req.method,url:req.url});
+   if(req.method==='PUT'){let raw='';for await(const c of req)raw+=c;const {title,topic,description}=JSON.parse(raw);Object.assign(items[0],{title,topic,description});res.end(JSON.stringify({title,topic,description}));return;}
    res.setHeader('Content-Type','application/json');
    if(req.method==='DELETE'){let body='';for await(const c of req)body+=c;const value=JSON.parse(body);assert.equal(value.confirmation,'DELETE '+items[0].id);items=[];res.end('{}');return;}
    if(req.method==='POST'){for await(const _ of req){};if(++attempts===1){res.statusCode=503;res.end('{}');return;}items=[{id:'11111111-1111-4111-8111-111111111111',title:'Networking sheet',topic:'Networking',description:'QA sheet',published:false,size:128}];res.statusCode=201;res.end('{}');return;}
@@ -49,6 +50,12 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   await page.getByRole('button',{name:'Publish for everyone'}).click();
   await page.getByRole('button',{name:'Withdraw',exact:true}).waitFor();
   await guest.goto(origin+'/resources?courseId=number-systems&ar');
+  await page.getByRole('button',{name:'Edit details'}).click();
+  await page.getByLabel('Assignment title',{exact:true}).fill('Revised exercise');
+  await page.getByRole('button',{name:'Save changes'}).click();
+  await page.getByText('Assignment details saved.').waitFor();await guest.reload();
+  await guest.getByRole('heading',{name:'Revised exercise'}).waitFor();
+  assert.equal(await guest.getByRole('button',{name:'تعديل التفاصيل'}).count(),0);
   await guest.getByRole('heading',{name:'تعليمات الواجبات',exact:true}).waitFor();
   await guest.getByRole('link',{name:'تنزيل PDF'}).waitFor();
   assert.match(await guest.getByRole('link',{name:'تنزيل PDF'}).getAttribute('href'),/download\?courseId=number-systems$/);

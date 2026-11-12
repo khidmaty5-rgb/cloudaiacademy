@@ -15,6 +15,8 @@ export default function LectureResources({ manage = false, courseId, regular = f
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const lock = useRef(false); const generation = useRef(0);
   const [deleted, setDeleted] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState<'saved' | 'failed' | null>(null);
   const tr = (en: string, arabic: string) => ar ? arabic : en;
   const scopeQuery = courseId ? '?courseId=' + encodeURIComponent(courseId) + (regular ? '&kind=regular' : '') : '';
   const Container = courseId ? 'section' : 'main';
@@ -63,6 +65,24 @@ export default function LectureResources({ manage = false, courseId, regular = f
       a.href=url; a.download=item.title+'.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),60000);
     } catch {setError('download');}
   }
+  async function edit(event: React.FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    if (lock.current) return;
+    const form = new FormData(event.currentTarget);
+    lock.current = true; setBusy(true); setEditStatus(null); setNotice(''); setDeleted(false);
+    try {
+      const response = await fetch('/api/lecture-resources' + scopeQuery, {
+        method: 'PUT', headers: { ...await headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title: form.get('title'), topic: form.get('topic'), description: form.get('description') }),
+      });
+      if (!response.ok) throw new Error('EDIT_FAILED');
+      const { title, topic, description } = await response.json();
+      setItems(previous => previous.map(item => item.id === id ? { ...item, title, topic, description } : item));
+      setEditing(null); setEditStatus('saved');
+    } catch { setEditStatus('failed'); }
+    finally { lock.current = false; setBusy(false); }
+  }
+
   async function remove(item: LectureResource) {
     if (lock.current || !window.confirm(tr('Permanently delete this instruction PDF? Student answers and questions will NOT be deleted. This cannot be undone.', 'حذف ملف التعليمات نهائيًا؟ لن تُحذف إجابات الطلاب أو أسئلتهم. لا يمكن التراجع عن الحذف.') + '\n\n' + item.title)) return;
     lock.current = true; setBusy(true); setError(''); setNotice(''); setDeleted(false);
@@ -108,8 +128,21 @@ export default function LectureResources({ manage = false, courseId, regular = f
     {error && <div role="alert" className="space-y-3 rounded-xl border border-destructive p-4"><p>{error === 'auth' ? tr('Sign in with an account that has access to this course.', 'سجّل الدخول بحساب يملك صلاحية الوصول إلى الدورة.') : error === 'download' ? tr('Download failed. Please retry.', 'تعذّر التنزيل. حاول مجددًا.') : error === 'file' ? tr('Choose a PDF no larger than 3 MB.', 'اختر ملف PDF لا يتجاوز 3 ميغابايت.') : error === 'load' ? tr('Resources could not be loaded. Please retry.', 'تعذّر تحميل الموارد. حاول مجددًا.') : tr('Could not confirm the operation. Refresh the list before retrying to avoid duplicate uploads. Check the PDF and your connection.', 'تعذّر تأكيد العملية. حدّث القائمة قبل المحاولة لتجنّب رفع نسخ مكررة، وتحقق من الملف والاتصال.')}</p>{error !== 'file' && <Button variant="outline" onClick={() => void load()} disabled={loading || busy}>{tr('Refresh list', 'تحديث القائمة')}</Button>}</div>}
     {loading && <p role="status">{tr('Loading resources…', 'جارٍ تحميل الموارد…')}</p>}
     {!loading && !error && !items.length && <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">{courseId ? tr('No assignment instructions published yet.', 'لم تُنشر تعليمات واجبات بعد.') : tr('No lecture sheets available yet.', 'لا توجد أوراق محاضرات متاحة بعد.')}</p>}
+    {editStatus === 'saved' && <p role="status">{tr('Assignment details saved.', 'تم حفظ تفاصيل الواجب.')}</p>}
     <div className="grid gap-4 sm:grid-cols-2">{items.map(item => <article key={item.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-card p-5">
       <p className="text-sm text-muted-foreground">{item.topic || tr('Lecture sheet', 'ورقة محاضرة')} · PDF · {Math.ceil(item.size / 1024)} KB</p>
+      {manage && courseId && !item.deleting && (editing === item.id ?
+        <form className="space-y-3" onSubmit={e => void edit(e, item.id)}>
+          <fieldset disabled={busy} className="space-y-3">
+            <label className="block">{tr('Assignment title', 'عنوان الواجب')}<Input autoFocus name="title" defaultValue={item.title} required maxLength={160}/></label>
+            <label className="block">{tr('Topic', 'الموضوع')}<Input name="topic" defaultValue={item.topic} maxLength={100}/></label>
+            <label className="block">{tr('Description', 'الوصف')}<textarea className="block w-full rounded-md border bg-background p-2" name="description" defaultValue={item.description} maxLength={1000}/></label>
+            {editStatus === 'failed' && <p role="alert">{tr('Changes could not be saved. Check the title and try again.', 'تعذّر حفظ التغييرات. تحقق من العنوان وحاول مجددًا.')}</p>}
+            <Button type="submit">{tr('Save changes', 'حفظ التغييرات')}</Button>{' '}
+            <Button variant="outline" type="button" onClick={() => {setEditing(null); setEditStatus(null);}}>{tr('Cancel','إلغاء')}</Button>
+          </fieldset>
+        </form> :
+        <Button variant="outline" disabled={busy || loading} onClick={() => {setEditing(item.id); setEditStatus(null);}}>{tr('Edit details','تعديل التفاصيل')}</Button>)}
       <h2 className="break-words text-xl font-semibold">{item.title}</h2><p className="whitespace-pre-wrap break-words text-muted-foreground">{item.description}</p>
       <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">{item.published && regular && <Button variant="outline" onClick={()=>void downloadPrivate(item)}>{tr('Download PDF','تنزيل PDF')}</Button>}{item.published && !regular && <Button asChild variant="outline"><a href={`/api/lecture-resources/${item.id}/download` + scopeQuery}>{tr('Download PDF', 'تنزيل PDF')}</a></Button>}
         {manage && <><span className="text-sm">{item.deleting ? tr('Deletion pending', 'الحذف معلق') : item.published ? tr('Public', 'منشور') : tr('Private draft', 'مسودة خاصة')}</span>{!item.deleting && <Button disabled={busy || loading} onClick={() => void publish(item)}>{item.published ? tr('Withdraw', 'سحب النشر') : regular ? tr('Publish to enrolled students','نشر للطلاب المسجلين') : tr('Publish for everyone', 'نشر للجميع')}</Button>}<Button variant="destructive" disabled={busy || loading} onClick={() => void remove(item)}>{item.deleting ? tr('Continue deletion', 'متابعة الحذف') : tr('Delete', 'حذف')}</Button></>}
