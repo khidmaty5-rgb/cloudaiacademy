@@ -168,6 +168,18 @@ test('assignment edits keep PDF, visibility and student work intact and enforce 
  assert.deepEqual(records.get('studentInbox/keep'),{message:'answer'});
 });
 
+test('general lecture sheets allow only admin metadata edits without replacing the PDF or withdrawing it',async()=>{
+ seed();
+ const id='11111111-1111-4111-8111-111111111111', path='lectureResources/'+id;
+ records.set(path,{title:'Before',published:true,key:'original.pdf'});
+ const edit=token=>api.PUT(new Request(base,{method:'PUT',headers:auth(token),body:JSON.stringify({id,title:'After',topic:'AI',description:'Notes',published:false,key:'new.pdf'})}));
+ assert.equal((await edit(null)).status,401);
+ assert.equal((await edit('teacher')).status,403);
+ assert.equal(records.get(path).title,'Before');
+ assert.equal((await edit('admin')).status,200);
+ assert.equal(records.get(path).title,'After');assert.equal(records.get(path).published,true);assert.equal(records.get(path).key,'original.pdf');
+});
+
 test('only administrators can grant or remove open course instructor access',async()=>{
  seed();const change=(actor,email)=>staffApi.PUT(new Request(base,{method:'PUT',headers:auth(actor),body:JSON.stringify({courseId:'number-systems',email})}));
  for(const actor of ['student','teacher']) assert.equal((await change(actor,'teacher@example.test')).status,403);

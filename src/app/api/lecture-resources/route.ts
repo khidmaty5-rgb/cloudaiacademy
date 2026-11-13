@@ -60,11 +60,10 @@ export async function PATCH(request: Request) {
   } catch (error) { return lectureError(error); }
 }
 
-// Edit the description of an existing assignment; never replace its PDF or publication state.
+// Edit metadata only. resourceScope requires an administrator for general lecture sheets.
 export async function PUT(request: Request) {
   try {
     const scope = await resourceScope(request, true);
-    if (!new URL(request.url).searchParams.get('courseId')) throw new Error('INVALID_REQUEST');
     const data = JSON.parse((await readBoundedBody(request, 8192)).toString());
     if (!data || typeof data.id !== 'string' || !lectureIdValid(data.id) ||
         typeof data.title !== 'string' || typeof data.topic !== 'string' || typeof data.description !== 'string') throw new Error('INVALID_REQUEST');

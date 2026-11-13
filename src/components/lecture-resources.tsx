@@ -128,13 +128,13 @@ export default function LectureResources({ manage = false, courseId, regular = f
     {error && <div role="alert" className="space-y-3 rounded-xl border border-destructive p-4"><p>{error === 'auth' ? tr('Sign in with an account that has access to this course.', 'سجّل الدخول بحساب يملك صلاحية الوصول إلى الدورة.') : error === 'download' ? tr('Download failed. Please retry.', 'تعذّر التنزيل. حاول مجددًا.') : error === 'file' ? tr('Choose a PDF no larger than 3 MB.', 'اختر ملف PDF لا يتجاوز 3 ميغابايت.') : error === 'load' ? tr('Resources could not be loaded. Please retry.', 'تعذّر تحميل الموارد. حاول مجددًا.') : tr('Could not confirm the operation. Refresh the list before retrying to avoid duplicate uploads. Check the PDF and your connection.', 'تعذّر تأكيد العملية. حدّث القائمة قبل المحاولة لتجنّب رفع نسخ مكررة، وتحقق من الملف والاتصال.')}</p>{error !== 'file' && <Button variant="outline" onClick={() => void load()} disabled={loading || busy}>{tr('Refresh list', 'تحديث القائمة')}</Button>}</div>}
     {loading && <p role="status">{tr('Loading resources…', 'جارٍ تحميل الموارد…')}</p>}
     {!loading && !error && !items.length && <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">{courseId ? tr('No assignment instructions published yet.', 'لم تُنشر تعليمات واجبات بعد.') : tr('No lecture sheets available yet.', 'لا توجد أوراق محاضرات متاحة بعد.')}</p>}
-    {editStatus === 'saved' && <p role="status">{tr('Assignment details saved.', 'تم حفظ تفاصيل الواجب.')}</p>}
+    {editStatus === 'saved' && <p role="status">{courseId ? tr('Assignment details saved.', 'تم حفظ تفاصيل الواجب.') : tr('Lecture sheet details saved.', 'تم حفظ تفاصيل ورقة المحاضرة.')}</p>}
     <div className="grid gap-4 sm:grid-cols-2">{items.map(item => <article key={item.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-card p-5">
       <p className="text-sm text-muted-foreground">{item.topic || tr('Lecture sheet', 'ورقة محاضرة')} · PDF · {Math.ceil(item.size / 1024)} KB</p>
-      {manage && courseId && !item.deleting && (editing === item.id ?
+      {manage && !item.deleting && (editing === item.id ?
         <form className="space-y-3" onSubmit={e => void edit(e, item.id)}>
           <fieldset disabled={busy} className="space-y-3">
-            <label className="block">{tr('Assignment title', 'عنوان الواجب')}<Input autoFocus name="title" defaultValue={item.title} required maxLength={160}/></label>
+            <label className="block">{courseId ? tr('Assignment title', 'عنوان الواجب') : tr('Lecture sheet title', 'عنوان ورقة المحاضرة')}<Input autoFocus name="title" defaultValue={item.title} required maxLength={160}/></label>
             <label className="block">{tr('Topic', 'الموضوع')}<Input name="topic" defaultValue={item.topic} maxLength={100}/></label>
             <label className="block">{tr('Description', 'الوصف')}<textarea className="block w-full rounded-md border bg-background p-2" name="description" defaultValue={item.description} maxLength={1000}/></label>
             {editStatus === 'failed' && <p role="alert">{tr('Changes could not be saved. Check the title and try again.', 'تعذّر حفظ التغييرات. تحقق من العنوان وحاول مجددًا.')}</p>}
