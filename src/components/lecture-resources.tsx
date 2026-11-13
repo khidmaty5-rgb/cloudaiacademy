@@ -57,13 +57,19 @@ export default function LectureResources({ manage = false, courseId, regular = f
     } catch { setError('upload'); }
     finally { lock.current = false; setBusy(false); }
   }
-  async function downloadPrivate(item: LectureResource) {
+  const previewPath = (id: string) => '/api/lecture-resources/'+encodeURIComponent(id)+'/download'+scopeQuery+(scopeQuery ? '&' : '?')+'preview=1';
+  async function downloadPrivate(item: LectureResource, preview = false) {
+    const tab = preview ? window.open('about:blank','_blank') : null;
+    if (preview && !tab) { setError('download'); return; }
+    if (tab) tab.opener = null;
     try {
       const res = await fetch('/api/lecture-resources/'+item.id+'/download'+scopeQuery,{headers:await headers(),cache:'no-store'});
       if (!res.ok) throw Error();
       const url = URL.createObjectURL(await res.blob()); const a = document.createElement('a');
-      a.href=url; a.download=item.title+'.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),60000);
-    } catch {setError('download');}
+      if (tab) tab.location.replace(url);
+      else { a.href=url; a.download=item.title+'.pdf'; a.click(); }
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    } catch {tab?.close(); setError('download');}
   }
   async function edit(event: React.FormEvent<HTMLFormElement>, id: string) {
     event.preventDefault();
@@ -144,7 +150,11 @@ export default function LectureResources({ manage = false, courseId, regular = f
         </form> :
         <Button variant="outline" disabled={busy || loading} onClick={() => {setEditing(item.id); setEditStatus(null);}}>{tr('Edit details','تعديل التفاصيل')}</Button>)}
       <h2 className="break-words text-xl font-semibold">{item.title}</h2><p className="whitespace-pre-wrap break-words text-muted-foreground">{item.description}</p>
-      <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">{item.published && regular && <Button variant="outline" onClick={()=>void downloadPrivate(item)}>{tr('Download PDF','تنزيل PDF')}</Button>}{item.published && !regular && <Button asChild variant="outline"><a href={`/api/lecture-resources/${item.id}/download` + scopeQuery}>{tr('Download PDF', 'تنزيل PDF')}</a></Button>}
+      <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">{item.published && <>
+        {regular ? <Button variant="outline" onClick={()=>void downloadPrivate(item)}>{tr('Download PDF','تنزيل PDF')}</Button> : <Button asChild variant="outline"><a href={`/api/lecture-resources/${item.id}/download` + scopeQuery}>{tr('Download PDF', 'تنزيل PDF')}</a></Button>}
+        {regular ? <Button variant="outline" onClick={()=>void downloadPrivate(item,true)}>{tr('Preview PDF','معاينة PDF')}</Button> : <Button asChild variant="outline"><a href={previewPath(item.id)} target="_blank" rel="noopener noreferrer">{tr('Preview PDF','معاينة PDF')}</a></Button>}
+        <Button asChild variant="outline"><a target="_blank" rel="noopener noreferrer" href={'https://wa.me/?text='+encodeURIComponent(item.title+'\n'+new URL(regular ? '/assignments/regular/'+encodeURIComponent(courseId!) : previewPath(item.id), window.location.origin).href)}>{tr('Share on WhatsApp','مشاركة عبر واتساب')}</a></Button>
+      </>}
         {manage && <><span className="text-sm">{item.deleting ? tr('Deletion pending', 'الحذف معلق') : item.published ? tr('Public', 'منشور') : tr('Private draft', 'مسودة خاصة')}</span>{!item.deleting && <Button disabled={busy || loading} onClick={() => void publish(item)}>{item.published ? tr('Withdraw', 'سحب النشر') : regular ? tr('Publish to enrolled students','نشر للطلاب المسجلين') : tr('Publish for everyone', 'نشر للجميع')}</Button>}<Button variant="destructive" disabled={busy || loading} onClick={() => void remove(item)}>{item.deleting ? tr('Continue deletion', 'متابعة الحذف') : tr('Delete', 'حذف')}</Button></>}
       </div></article>)}</div>
     {next && <Button variant="outline" disabled={loading || busy} onClick={() => void load(next)}>{tr('Load more', 'تحميل المزيد')}</Button>}

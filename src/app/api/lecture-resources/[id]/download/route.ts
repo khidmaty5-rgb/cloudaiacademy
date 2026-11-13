@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const object = await getS3Client().send(new GetObjectCommand({ Bucket: lectureBucket(), Key: `${scope.prefix}/${id}.pdf` }));
     if (!object.Body) throw new Error('NOT_FOUND');
     return new Response(object.Body.transformToWebStream() as ReadableStream, { headers: {
-      'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="lecture-${id}.pdf"`,
+      'Content-Type': 'application/pdf', 'Content-Disposition': `${new URL(_request.url).searchParams.get('preview') === '1' ? 'inline' : 'attachment'}; filename="lecture-${id}.pdf"`,
       'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "sandbox; default-src 'none'", 'Cache-Control': 'private, no-store',
     } });
   } catch (error) { return lectureError(error); }
