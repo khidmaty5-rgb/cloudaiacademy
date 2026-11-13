@@ -58,7 +58,9 @@ test('PDF draft stays private; explicit publish enables anonymous download; with
  assert.equal((await patch(id,true)).status,200);
  const list=await (await api.GET(new Request(base))).json();assert.equal(list.items.length,1);assert.equal(list.items[0].createdBy,undefined);assert.equal(list.items[0].key,undefined);
  const response=await getDownload(id);assert.equal(response.status,200);assert.match(response.headers.get('content-disposition'),/^attachment/);assert.match(response.headers.get('content-security-policy'),/sandbox/);assert.ok((await response.arrayBuffer()).byteLength>0);
- assert.equal((await patch(id,false)).status,200);assert.equal((await getDownload(id)).status,404);
+ const preview=()=>download.GET(new Request(base+'?preview=1'),{params:Promise.resolve({id})});
+ const inline=await preview();assert.equal(inline.status,200);assert.match(inline.headers.get('content-disposition'),/^inline;/);assert.match(inline.headers.get('content-security-policy'),/sandbox/);
+ assert.equal((await patch(id,false)).status,200);assert.equal((await getDownload(id)).status,404);assert.equal((await preview()).status,404);
 });
 test('anonymous, learner, teacher and stale privileged claims cannot manage resources',async()=>{
  seed();for(const token of [null,'student','teacher','stale','invalid']) {

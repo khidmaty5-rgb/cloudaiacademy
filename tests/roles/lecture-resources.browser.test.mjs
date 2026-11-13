@@ -41,6 +41,10 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   await guest.reload();await guest.getByRole('link',{name:'Download PDF'}).waitFor();assert.match(await guest.getByRole('link',{name:'Download PDF'}).getAttribute('href'),/^\/api\/lecture-resources\/[^/]+\/download$/);
   await guest.goto(origin+'/resources?ar');await guest.getByRole('heading',{name:'أوراق المحاضرات'}).waitFor();await guest.getByRole('link',{name:'تنزيل PDF'}).waitFor();
   const downloadBefore=await guest.getByRole('link',{name:'تنزيل PDF'}).getAttribute('href');
+  const preview=await guest.getByRole('link',{name:'معاينة PDF'}).getAttribute('href');
+  assert.equal(preview,downloadBefore+'?preview=1');
+  const share=new URL(await guest.getByRole('link',{name:'مشاركة عبر واتساب'}).getAttribute('href'));
+  assert.equal(share.origin,'https://wa.me');assert.ok(share.searchParams.get('text').endsWith(origin+preview));
   await page.goto(origin+'/manage?ar');
   await page.getByRole('button',{name:'تعديل التفاصيل'}).click();
   await page.getByLabel('عنوان ورقة المحاضرة',{exact:true}).fill('دليل المراجعة');
