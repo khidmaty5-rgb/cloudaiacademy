@@ -40,6 +40,16 @@ test('admin draft/upload retry/publish/withdraw and signed-out English/Arabic re
   await page.getByRole('button',{name:'Publish for everyone'}).click();await page.getByRole('button',{name:'Withdraw',exact:true}).waitFor();
   await guest.reload();await guest.getByRole('link',{name:'Download PDF'}).waitFor();assert.match(await guest.getByRole('link',{name:'Download PDF'}).getAttribute('href'),/^\/api\/lecture-resources\/[^/]+\/download$/);
   await guest.goto(origin+'/resources?ar');await guest.getByRole('heading',{name:'أوراق المحاضرات'}).waitFor();await guest.getByRole('link',{name:'تنزيل PDF'}).waitFor();
+  const downloadBefore=await guest.getByRole('link',{name:'تنزيل PDF'}).getAttribute('href');
+  await page.goto(origin+'/manage?ar');
+  await page.getByRole('button',{name:'تعديل التفاصيل'}).click();
+  await page.getByLabel('عنوان ورقة المحاضرة',{exact:true}).fill('دليل المراجعة');
+  await page.getByRole('button',{name:'حفظ التغييرات'}).click();
+  await page.getByText('تم حفظ تفاصيل ورقة المحاضرة.').waitFor();
+  await guest.reload();await guest.getByRole('heading',{name:'دليل المراجعة'}).waitFor();
+  assert.equal(await guest.getByRole('link',{name:'تنزيل PDF'}).getAttribute('href'),downloadBefore);
+  assert.equal(await guest.getByRole('button',{name:'تعديل التفاصيل'}).count(),0);
+  await page.goto(origin+'/manage');
   await page.getByRole('button',{name:'Withdraw',exact:true}).click();await page.getByRole('button',{name:'Publish for everyone'}).waitFor();await guest.reload();await guest.getByText('لا توجد أوراق محاضرات متاحة بعد.').waitFor();
   items=[]; calls.length=0;
   await page.goto(origin+'/manage?courseId=number-systems');
